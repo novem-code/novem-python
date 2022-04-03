@@ -18,7 +18,7 @@ class TestFrame(object):
 
 
 def test_version():
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.2.0"
 
 
 def test_plot(requests_mock):
@@ -36,7 +36,7 @@ def test_plot(requests_mock):
 
     # check if novem config file exist
     config.read(config_file)
-    api_root = config["default"]["api_root"]
+    api_root = config["general"]["api_root"]
 
     def verify(val, request, context):
         assert request.text == val

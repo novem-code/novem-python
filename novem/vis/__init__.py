@@ -4,6 +4,7 @@ import requests
 
 from ..api import Novem403, Novem404, NovemAPI
 from ..version import __version__
+from .files import NovemFiles
 from .shared import NovemShare
 
 
@@ -25,11 +26,13 @@ class NovemVisAPI(NovemAPI):
     }
 
     shared: Optional[NovemShare] = None
+    files: Optional[NovemFiles] = None
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
         self.shared = NovemShare(self)
+        self.files = NovemFiles(self)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "shared" and self.shared:
@@ -138,9 +141,3 @@ class NovemVisAPI(NovemAPI):
 
         if r.status_code == 403:
             raise Novem403
-
-        # TODO: verify result and raise exception if not ok
-        if not r.ok:
-            print(r)
-            print(r.text)
-            print("should raise an error")
