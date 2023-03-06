@@ -18,7 +18,7 @@ class TestFrame(object):
 
 
 def test_version():
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.0"
 
 
 def test_plot(requests_mock):
@@ -26,6 +26,7 @@ def test_plot(requests_mock):
     plot_id = "test_plot"
     plot_name = "long test name"
     plot_description = "long test description"
+    plot_caption = "plot caption is nice to have"
 
     # grab our base path so we can use it for our test config
     base = os.path.dirname(os.path.abspath(__file__))
@@ -38,45 +39,67 @@ def test_plot(requests_mock):
     config.read(config_file)
     api_root = config["general"]["api_root"]
 
-    def verify(val, request, context):
+    # need to verify that assertions are called
+
+    gcheck = {
+        "create": False,
+        "type": False,
+        "desc": False,
+        "name": False,
+        "caption": False,
+        "data": False,
+    }
+
+    def verify(key, val, request, context):
+        gcheck[key] = True
         assert request.text == val
 
-    def verify_put(val, request, context):
+    def verify_put(key, val, request, context):
+        gcheck[key] = True
         assert request.url == f"{api_root}vis/plots/{plot_id}"
 
     requests_mock.register_uri(
         "put",
         f"{api_root}vis/plots/{plot_id}",
-        text=partial(verify_put, plot_type),
+        text=partial(verify_put, "create", plot_type),
     )
 
     requests_mock.register_uri(
         "post",
         f"{api_root}vis/plots/{plot_id}/config/type",
-        text=partial(verify, plot_type),
+        text=partial(verify, "type", plot_type),
+    )
+
+    requests_mock.register_uri(
+        "post",
+        f"{api_root}vis/plots/{plot_id}/config/caption",
+        text=partial(verify, "caption", plot_caption),
     )
 
     requests_mock.register_uri(
         "post",
         f"{api_root}vis/plots/{plot_id}/name",
-        text=partial(verify, plot_name),
+        text=partial(verify, "name", plot_name),
     )
 
     requests_mock.register_uri(
         "post",
         f"{api_root}vis/plots/{plot_id}/description",
-        text=partial(verify, plot_description),
+        text=partial(verify, "desc", plot_description),
     )
 
     requests_mock.register_uri(
         "post",
         f"{api_root}vis/plots/{plot_id}/data",
-        text=partial(verify, to_csv_test_string),
+        text=partial(verify, "data", to_csv_test_string),
     )
 
     # create a novem api object
     n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
+        plot_id,
+        type=plot_type,
+        config_path=config_file,  # config location
+        caption=plot_caption,
     )
 
     # set plot name
@@ -92,8 +115,11 @@ def test_plot(requests_mock):
     requests_mock.register_uri(
         "post",
         f"{api_root}vis/plots/{plot_id}/data",
-        text=partial(verify, lit_str),
+        text=partial(verify, "data", lit_str),
     )
     n.data = lit_str
 
-    assert n.api_root == "https://api.novem.no/v1/"
+    for k, v in gcheck.items():
+        assert v is True
+
+    assert n._api_root == "https://api.novem.no/v1/"

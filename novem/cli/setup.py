@@ -20,12 +20,49 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     parser.add_argument(
+        "--ignore-ssl",
+        dest="ignore_ssl",
+        action="store_true",
+        required=False,
+        default=False,
+        help=ap.SUPPRESS,
+    )
+
+    parser.add_argument(
+        "--debug",
+        dest="debug",
+        action="store_true",
+        required=False,
+        default=False,
+        help=ap.SUPPRESS,
+    )
+
+    parser.add_argument(
+        "--dump",
+        metavar=("OUT_PATH"),
+        dest="dump",
+        action="store",
+        required=False,
+        default=None,
+        help=ap.SUPPRESS,
+    )
+
+    parser.add_argument(
         "--version",
         dest="version",
         action="store_true",
         required=False,
         default=False,
-        help="Print the current version and terminate",
+        help="print the current version and terminate",
+    )
+
+    parser.add_argument(
+        "--color",
+        dest="color",
+        action="store_true",
+        required=False,
+        default=False,
+        help="preserve colors when redirecting to pipe or file",
     )
 
     parser.add_argument(
@@ -34,7 +71,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="api url to use, defaul is https://api.novem.no/v1",
+        help="api url to use, defaul is https://api.novem.no/v1/",
     )
 
     parser.add_argument(
@@ -44,7 +81,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help=("Specify configuration file to use"),
+        help=("specify configuration file to use"),
     )
 
     parser.add_argument(
@@ -54,7 +91,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=None,
         help=(
-            "Which user to use, combine with --init to setup a"
+            "which user to use, combine with --init to setup a"
             " new profile and --force to override an existing one"
         ),
     )
@@ -65,7 +102,15 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="Use this token instead, overrides profile lookup",
+        help="use this token instead, overrides profile lookup",
+    )
+
+    parser.add_argument(
+        "--info",
+        dest="info",
+        action="store_true",
+        required=False,
+        help="print info about the current user",
     )
 
     setup = parser.add_argument_group("setup")
@@ -95,17 +140,22 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="name of token (lowercase alphanumeric, no whitespace)",
     )
 
-    vis = parser.add_argument_group("visualisations")
+    vis = parser.add_argument_group("common visualisation arguments")
 
     vis.add_argument(
-        "-p",
-        dest="plot",
-        action="store",
+        "-C",
+        dest="create",
+        action="store_true",
         required=False,
-        default="",
-        nargs="?",
-        help="select plot to operate on, no paramter will list"
-        " all your plots",
+        help="create the visualisation if it doesn't exist",
+    )
+
+    vis.add_argument(
+        "-D",
+        dest="delete",
+        action="store_true",
+        help="delete the current visualisation defined by -[pdmgv] or "
+        "share defined by -s",
     )
 
     vis.add_argument(
@@ -120,36 +170,10 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     vis.add_argument(
-        "-t",
-        dest="type",
-        action="store",
-        required=False,
-        default=None,
-        help="Shorthand for setting the type of the plot",
-    )
-
-    vis.add_argument(
-        "-x",
-        dest="tc",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Shorthand for requesting a terminal friendly output. "
-        "Identical to doing -o files/plot.ansi",
-    )
-
-    vis.add_argument(
-        "-D",
-        dest="delete",
-        action="store_true",
-        help="Delete the current plot defined by -p or share defined by -s",
-    )
-
-    vis.add_argument(
         "-l",
         dest="list",
         action="store_true",
-        help="Pretty print the plot or share listing",
+        help="print ids only, no pretty printing",
     )
 
     # support multiple inputs
@@ -159,7 +183,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="append",
         nargs="+",
         metavar=("PATH", "VALUE"),
-        help="Write the suppied VALUE to the given PATH. PATH is mandatory "
+        help="write the suppied VALUE to the given PATH. PATH is mandatory "
         "but value can be an explicit value, an @prefixed filename or the "
         "input from standard in ",
     )
@@ -171,20 +195,193 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=None,
         metavar=("PATH"),
-        help="Reads the content of PATH and prints it to standard out",
+        help="reads the content of PATH and prints it to standard out",
     )
 
-    # add -p  with one optional paramter
+    vis.add_argument(
+        "-e",
+        dest="edit",
+        action="store",
+        required=False,
+        default=None,
+        metavar=("PATH"),
+        help="opens the content located at PATH in your default $EDITOR "
+        " and updates the saved content on editor exit",
+    )
 
-    # add -i with one mandatory and one optional paramters
-    # add -o with one mandatory paramter
+    vis.add_argument(
+        "-u",
+        metavar=("USER"),
+        dest="for_user",
+        action="store",
+        required=False,
+        default=None,
+        help="specify user to view shared visualisation from",
+    )
 
-    # add -s with one optional paramter
-    # add +s with one optional paramter
+    vis.add_argument(
+        "-o",
+        metavar=("SOURCE"),
+        dest="for_other",
+        action="store",
+        required=False,
+        default=None,
+        help="specify entity to view vis for, @username, "
+        "+org, @username~usergroup or +org~orggroup are supported",
+    )
 
-    # add -l as a toggle
+    vis.add_argument(
+        "--tree",
+        metavar=("PATH"),
+        dest="tree",
+        action="store",
+        required=False,
+        default=-1,
+        nargs="?",
+        help="print a tree overview of the api structure at the "
+        "given path, all input/output options are ignored",
+    )
 
-    # add -D as toggle
+    term = parser.add_argument_group("terminal")
+
+    term.add_argument(
+        "-x",
+        dest="tc",
+        action="store_true",
+        required=False,
+        default=False,
+        help="shorthand for requesting a terminal friendly output, "
+        "identical to doing -r files/plot.ansi",
+    )
+
+    term.add_argument(
+        "--qpr",
+        dest="qpr",
+        action="store",
+        required=False,
+        default=False,
+        help="comma separated list of query paramters to include "
+        "with request such as cols=$COLUMNS,rows=$(($lines-1))",
+    )
+
+    term.add_argument(
+        "--fs",
+        dest="fs",
+        action="store_true",
+        required=False,
+        default=False,
+        help='shorthand for creating a "full screen" version of '
+        "the terminal vis",
+    )
+
+    # Currently not added as it would expand on our dependencies
+    # we might consider adding it or providing it as a separate package
+    # in the future
+    # term.add_argument(
+    #     "--watch",
+    #     dest="watch",
+    #     action="store_true",
+    #     required=False,
+    #     default=False,
+    #     help="connects to the server and redraws the visual when "
+    #     "new information is available",
+    # )
+
+    plot = parser.add_argument_group("plot")
+
+    plot.add_argument(
+        "-p",
+        dest="plot",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select plot to operate on, no paramter will list"
+        " all your plots",
+    )
+
+    plot.add_argument(
+        "-t",
+        dest="type",
+        action="store",
+        required=False,
+        default=None,
+        help="shorthand for setting the type of the plot, "
+        "identical to doing -w config/type TYPE",
+    )
+
+    mail = parser.add_argument_group("mail")
+
+    mail.add_argument(
+        "-m",
+        dest="mail",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select mail to operate on, no paramter will list"
+        " all your mails",
+    )
+
+    mail.add_argument(
+        "--to",
+        dest="to",
+        metavar=("RECIPIENTS"),
+        action="store",
+        required=False,
+        default=None,
+        help="shorthand for setting recipient of mail, "
+        "identical to doing -w recipients/to RECIPIENTS",
+    )
+
+    mail.add_argument(
+        "--cc",
+        dest="cc",
+        metavar=("RECIPIENTS"),
+        action="store",
+        required=False,
+        default=None,
+        help="shorthand for setting recipient of mail, "
+        "identical to doing -w recipients/cc RECIPIENTS",
+    )
+
+    mail.add_argument(
+        "--bcc",
+        dest="bcc",
+        metavar=("RECIPIENTS"),
+        action="store",
+        required=False,
+        default=None,
+        help="shorthand for setting recipient of mail, "
+        "identical to doing -w recipients/bcc RECIPIENTS",
+    )
+
+    mail.add_argument(
+        "--subject",
+        dest="subject",
+        metavar=("SUBJECT"),
+        action="store",
+        required=False,
+        default=None,
+        help="shorthand for setting subject of mail, "
+        "identical to doing -w config/subject SUBJECT",
+    )
+
+    mail.add_argument(
+        "-S",
+        dest="send",
+        action="store_true",
+        required=False,
+        help="send the e-mail to recipients",
+    )
+
+    mail.add_argument(
+        "-T",
+        dest="test",
+        action="store_true",
+        required=False,
+        help="send a test e-mail to your registered address",
+    )
 
     # Gather the provided arguements as an array.
     args: Dict[str, str] = vars(parser.parse_args(raw_args))

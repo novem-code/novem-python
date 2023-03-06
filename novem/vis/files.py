@@ -1,4 +1,6 @@
-from ..api import Novem404, NovemAPI
+from novem.exceptions import Novem404
+
+from ..api_ref import NovemAPI
 
 
 class NovemFiles(object):
@@ -25,13 +27,11 @@ class NovemFiles(object):
         """
         return novem text file
         """
-
-        return self.get("plot.txt")
+        return self.get(f"{self.api._type}.txt")
 
     @property
     def ansi(self) -> str:
         """
         return novem ansi representation file
         """
-
-        return self.get("plot.ansi")
+        return self.get(f"{self.api._type}.ansi")

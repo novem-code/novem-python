@@ -5,13 +5,22 @@ import requests
 
 from .utils import get_current_config
 
+s = requests.Session()
+
 
 class NovemException(Exception):
     pass
 
 
 class Novem404(NovemException):
-    pass
+    def __init__(self, message: str):
+
+        # 404 errors can occur if users are not authenticated, let them know
+        # future improvement: consider requesting a fixed endpoint (like
+        # whoami) and notify if not authenticated
+        message = f"Resource not found: {message} (Are you authenticated?)"
+
+        super().__init__(message)
 
 
 class Novem403(NovemException):
@@ -32,14 +41,27 @@ class NovemAPI(object):
     """
 
     id: Optional[str] = None
+    _type: Optional[str] = None
+    _qpr: Optional[str] = None
 
     def __init__(self, **kwargs: Any) -> None:
         """ """
 
         (config_status, config) = get_current_config(**kwargs)
 
+        self._config = config
+
+        if self._config["ignore_ssl_warn"] or (
+            "ignore_ssl" in kwargs and kwargs["ignore_ssl"]
+        ):
+            # supress ssl warnings
+            s.verify = False
+            import urllib3
+
+            urllib3.disable_warnings()
+
         # api root should alwasy be supplied in the result
-        self.api_root = config["api_root"]
+        self._api_root = config["api_root"]
 
         if "token" in config:
             self.token = config["token"]
@@ -52,24 +74,22 @@ class NovemAPI(object):
             print("or setup a new token using python -m novem --init")
             sys.exit(0)
 
-        if self.api_root[-1] != "/":
+        if self._api_root[-1] != "/":
             # our code assumes that the api_root ends with a /
-            self.api_root = f"{self.api_root}/"
+            self._api_root = f"{self._api_root}/"
 
-    def parse_kwargs(self, **kwargs: Any) -> None:
+    def _parse_kwargs(self, **kwargs: Any) -> None:
         """
         Parse the arguments and invoke the novem api
         """
 
-        if "type" in kwargs:
-            self.type = kwargs["type"]
         if "api_root" in kwargs:
-            self.api_root = kwargs["api_root"]
+            self._api_root = kwargs["api_root"]
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
 
-        r = requests.post(
-            f"{self.api_root}token",
+        r = s.post(
+            f"{self._api_root}token",
             json=params,
         )
 
@@ -84,8 +104,8 @@ class NovemAPI(object):
 
     def delete(self, path: str) -> bool:
 
-        r = requests.delete(
-            f"{self.api_root}{path}",
+        r = s.delete(
+            f"{self._api_root}{path}",
             auth=("", self.token),
         )
 
@@ -98,8 +118,8 @@ class NovemAPI(object):
 
     def read(self, path: str) -> str:
 
-        r = requests.get(
-            f"{self.api_root}{path}",
+        r = s.get(
+            f"{self._api_root}{path}",
             auth=("", self.token),
         )
 
@@ -109,6 +129,20 @@ class NovemAPI(object):
                 raise Novem404(resp["message"])
 
         return r.text
+
+    def _read(self, relpath: str) -> str:
+        """
+        Read the api value located at realtive path
+        """
+        pass
+
+    def _write(self, relpath: str, value: str) -> None:
+        """
+        relpath: relative path to the plot baseline /config/type
+                 for the type file in the config folder
+        value: the value to write to the file
+        """
+        pass
 
     def api_read(self, relpath: str) -> str:
         """

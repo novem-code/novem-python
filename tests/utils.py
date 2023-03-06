@@ -24,7 +24,7 @@ def write_config(obj):
 
     ctxt = f"""
 [general]
-user = demouser
+profile = demouser
 api_root = https://api.novem.no/v1/
 
 [app:cli]
@@ -33,7 +33,7 @@ api_root = https://api.novem.no/v1/
 
 [app:fuse]
 
-[user:demouser]
+[profile:demouser]
 username = {obj["username"]}
 token_name = {obj["token_name"]}
 token = demo_token_abc

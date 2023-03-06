@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "novem"
-version = "0.2.0"
+version = "0.3.0"
 description = "python library for the novem.no data visualisation platform"
 authors = ["Sondov Engen <sondov@novem.no>"]
 homepage = "https://novem.no"
@@ -20,13 +20,14 @@ pytest = "^7.1.0"
 pytest-cov = "^3.0.0"
 pre-commit = "^2.16.0"
 flake8 = "^4.0.1"
-black = {version = "^21.12b0", allow-prereleases = true}
+black = {version = "^22.3.0", allow-prereleases = true}
 mypy = "^0.930"
 pydantic = "^1.8.2"
 isort = "^5.10.1"
 requests-mock = "^1.9.3"
 types-requests = "^2.27.7"
 pyfakefs = "^4.5.5"
+pandas = "^1.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

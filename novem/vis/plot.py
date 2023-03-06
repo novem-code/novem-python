@@ -1,6 +1,10 @@
-from typing import Any
+from typing import Any, Dict, Optional
 
 from novem.vis import NovemVisAPI
+
+from .cell import NovemCellConfig
+from .colors import NovemColors
+from .plot_config import NovemPlotConfig
 
 
 class Plot(NovemVisAPI):
@@ -8,9 +12,13 @@ class Plot(NovemVisAPI):
     Novem plot class
     """
 
+    colors: Optional[NovemColors] = None
+    cell: Optional[NovemCellConfig] = None
+    config: Optional[NovemPlotConfig] = None
+
     def __init__(self, id: str, **kwargs: Any) -> None:
         """
-        :name plot name, duplicate entry will update the plot
+        :id plot name, duplicate entry will update the plot
 
         :type the type of plot
         :caption caption of the plot
@@ -18,16 +26,23 @@ class Plot(NovemVisAPI):
         """
         self.id = id
 
+        self._vispath = "plots"
+        self._type = "plot"
+
+        self._freeze: bool = False
+
+        # store pending updates when plot is frozen
+        self._pending: Dict[str, str] = {}
+
+        self.colors = NovemColors(self)
+        self.cell = NovemCellConfig(self)
+        self.config = NovemPlotConfig(self)
+
         super().__init__(**kwargs)
 
-        # let's create our plot
-        self.api_create("")
+        self._parse_kwargs(**kwargs)
 
-        # if information neccessary to
-        # terminate and print
-        self.parse_kwargs(**kwargs)
-
-    def __call__(self, data: Any, **kwargs: Any) -> Any:
+    def _set_data(self, data: Any, **kwargs: Any) -> Any:
         """
         Set's the data of the plot
 
@@ -46,48 +61,149 @@ class Plot(NovemVisAPI):
         else:
             raw_str = str(data)
 
-        # setting the data object will invoke a server write
-        self.data = raw_str
+        # invoke server write
+        self._write("/data", raw_str)
 
         # also update our chart varibales
-        self.parse_kwargs(**kwargs)
+        self._parse_kwargs(**kwargs)
 
         # return the original object so users can chain the dataframe
         return data
 
+    def __call__(self, data: Any, **kwargs: Any) -> Any:
+        return self._set_data(data, **kwargs)
+
+    def _parse_kwargs(self, **kwargs: Any) -> None:
+
+        # first let our super do it's thing
+        super()._parse_kwargs(**kwargs)
+
+        # get a list of valid properties
+        # exclude data as it needs to be run last
+        props = [
+            x
+            for x in dir(self)
+            if x[0] != "_" and x not in ["data", "read", "delete", "write"]
+        ]
+
+        do_data = False
+        for k, v in kwargs.items():
+            if k == "data":
+                do_data = True
+
+            if k not in props:
+                continue
+
+            # print(f"{k} :: {v}")
+            # set our value
+            setattr(self, k, v)
+
+        if do_data:
+            data = kwargs["data"]
+            setattr(self, "data", data)
+
+    def _read(self, path: str) -> str:
+        if self._freeze:
+            if path in self._pending:
+                return self._pending[path]
+
+        return self.api_read(path)
+
+    def _write(self, path: str, value: str) -> None:
+        if self._freeze:
+            self._pending[path] = value
+        else:
+            self.api_write(path, value)
+
     # we'll implement generic properties common across all plots here
     @property
     def type(self) -> str:
-        return self.api_read("/config/type").strip()
+        return self._read("/config/type").strip()
 
     @type.setter
     def type(self, value: str) -> None:
-        return self.api_write("/config/type", value)
+        return self._write("/config/type", value)
 
     @property
     def name(self) -> str:
-        return self.api_read("/name").strip()
+        return self._read("/name").strip()
 
     @name.setter
     def name(self, value: str) -> None:
-        return self.api_write("/name", value)
+        return self._write("/name", value)
 
     @property
     def description(self) -> str:
-        return self.api_read("/description")
+        return self._read("/description")
 
     @description.setter
     def description(self, value: str) -> None:
-        return self.api_write("/description", value)
+        return self._write("/description", value)
+
+    @property
+    def summary(self) -> str:
+        return self._read("/summary")
+
+    @summary.setter
+    def summary(self, value: str) -> None:
+        return self._write("/summary", value)
 
     @property
     def data(self) -> str:
-        return self.api_read("/data")
+        return self._read("/data")
 
     @data.setter
     def data(self, value: str) -> None:
-        return self.api_write("/data", value)
+        self._set_data(value)
+        return None
+        # return self._write("/data", value)
 
     @property
     def url(self) -> str:
-        return self.api_read("/url").strip()
+        return self._read("/url").strip()
+
+    @property
+    def shortname(self) -> str:
+        return self._read("/shortname").strip()
+
+    ###
+    # config variables
+    ###
+
+    # set the plot caption
+    @property
+    def caption(self) -> str:
+        return self._read("/config/caption")
+
+    @caption.setter
+    def caption(self, value: str) -> None:
+        return self._write("/config/caption", value)
+
+    # set the plot title
+    @property
+    def title(self) -> str:
+        return self._read("/config/title")
+
+    @title.setter
+    def title(self, value: str) -> None:
+        return self._write("/config/title", value)
+
+    ###
+    # Deal with frozen plots
+    ###
+
+    def freeze(self) -> None:
+        self._freeze = True
+
+    def run(self) -> None:
+        # push pending updates to server
+        for path, value in self._pending.items():
+            self.api_write(path, value)
+
+        self._freeze = False
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "colors" and self.colors:
+            self.colors.set(value)
+        else:
+            super().__setattr__(name, value)

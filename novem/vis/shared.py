@@ -1,7 +1,9 @@
 import json
 from typing import List, Union
 
-from ..api import Novem404, NovemAPI
+from novem.exceptions import Novem404
+
+from ..api_ref import NovemAPI
 
 
 class NovemShare(object):

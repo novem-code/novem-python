@@ -35,8 +35,6 @@ def update_config(
     else:
         novem_config = path
 
-    print(novem_config)
-
     config = configparser.ConfigParser()
 
     # read our config object
@@ -47,7 +45,7 @@ def update_config(
     # check if config has general section
     if not config.has_section("general"):
         config.add_section("general")
-        config.set("general", "user", profile)
+        config.set("general", "profile", profile)
         config.set("general", "api_root", api_root)
         add_api_root = False
     else:
@@ -60,9 +58,9 @@ def update_config(
             # creating users
 
             add_api_root = False
-        if "user" not in config["general"]:
+        if "profile" not in config["general"]:
             # incomplete config, set our user to be default
-            config.set("general", "user", username)
+            config.set("general", "profile", username)
 
     # TODO: Expand default app configs here when needed
     if not config.has_section("app:cli"):
@@ -74,7 +72,7 @@ def update_config(
     if not config.has_section("app:fuse"):
         config.add_section("app:fuse")
 
-    profile_name = f"user:{profile}"
+    profile_name = f"profile:{profile}"
 
     # add/update our section
     if not config.has_section(profile_name):
@@ -114,7 +112,7 @@ def check_if_profile_exists(profile: str, config_path: str) -> bool:
     # read our config object
     config.read(novem_config)
 
-    profile_name = f"user:{profile}"
+    profile_name = f"profile:{profile}"
 
     # add/update our section
     if config.has_section(profile_name):

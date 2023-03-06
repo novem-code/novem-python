@@ -1,4 +1,5 @@
 import getpass
+import os
 import random
 import readline
 import socket
@@ -8,12 +9,17 @@ from datetime import datetime
 from signal import SIG_DFL, SIGPIPE, signal
 from typing import Any, Dict, Union
 
-from ..api import Novem401, NovemAPI
+from novem.exceptions import Novem401
+
+from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config
 from ..version import __version__
 from .config import check_if_profile_exists, update_config
+from .mail import mail
 from .plot import plot
 from .setup import setup
+
+sys.tracebacklimit = 0
 
 
 def input_with_prefill(prompt: str, text: str) -> Any:
@@ -48,7 +54,7 @@ def do_update_config(
     # save file
 
 
-def init_config(args: Dict[str, str] = None) -> None:
+def init_config(args: Dict[str, Any] = None) -> None:
     """
     Initialize user and config
 
@@ -169,9 +175,12 @@ def init_config(args: Dict[str, str] = None) -> None:
             api_root = curconf["api_root"]
 
     # let's grab our token
+    ignore_ssl = False
+    if "ignore_ssl" in args:
+        ignore_ssl = args["ignore_ssl"]
+
     novem = NovemAPI(
-        api_root=api_root,
-        ignore_config=True,
+        api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl
     )
 
     try:
@@ -229,6 +238,11 @@ def run_cli_wrapped() -> None:
         print(f"novem {__version__}")
         return
 
+    # we are getting an init instruction
+    if args and args["init"]:
+        init_config(args)
+        return
+
     # verify profile
     if args and args["profile"]:
         config_path: str = args["config_path"]
@@ -242,20 +256,39 @@ def run_cli_wrapped() -> None:
             )
             print(f'novem --init --profile {args["profile"]}')
 
-    # we are getting an init instruction
-    if args and args["init"]:
-        init_config(args)
+            sys.exit(1)
+
+    # check info and if present get info
+    if args and args["info"]:
+        novem = NovemAPI(**args)
+        info = novem.read("/whoami")
+        print(info, end="")
         return
+
+    # if --fs is set get terminal dimensions and ammend qpr
+    if args and "fs" in args and args["fs"]:
+        sz = os.get_terminal_size()
+        qpr = ""
+        if "qpr" in args and args["qpr"]:
+            qpr = f"{args['qpr']},"
+
+        qpr = f"{qpr}cols={sz.columns},rows={sz.lines-1}"
+        args["qpr"] = qpr
 
     # operate on plot
     if args and args["plot"] != "":
         plot(args)
+    elif args and args["mail"] != "":
+        mail(args)
         pass
 
 
 def run_cli() -> None:
     signal(SIGPIPE, SIG_DFL)  # supress broken pipe error
-    run_cli_wrapped()
+    try:
+        run_cli_wrapped()
+    except KeyboardInterrupt:
+        pass
 
 
 __all__ = ["run_cli"]

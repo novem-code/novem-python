@@ -4,21 +4,21 @@ from typing import Any, Dict
 
 from novem.exceptions import Novem404
 
-from .. import Plot
+from .. import Mail
 from ..api_ref import NovemAPI
 from ..utils import data_on_stdin
 from .editor import edit
 from .vis import list_vis, list_vis_shares
 
 
-def plot(args: Dict[str, Any]) -> None:
+def mail(args: Dict[str, Any]) -> None:
 
     # we are invoked so plot must exist
-    plot_name = args["plot"]
+    mail_name = args["mail"]
 
-    if plot_name is None:
+    if mail_name is None:
         # we need to list plots
-        list_vis(args, "Plot")
+        list_vis(args, "Mail")
         return
 
     # if delete flag is set, we need to delete it
@@ -28,10 +28,10 @@ def plot(args: Dict[str, Any]) -> None:
         novem = NovemAPI(**args)
 
         try:
-            novem.delete(f"vis/plots/{plot_name}")
+            novem.delete(f"vis/mails/{mail_name}")
             return
         except Novem404:
-            print(f"Plot {plot_name} did not exist")
+            print(f"Mail {mail_name} did not exist")
             sys.exit(1)
 
     usr = None
@@ -49,12 +49,17 @@ def plot(args: Dict[str, Any]) -> None:
 
     create = args["create"]
 
-    p = Plot(
-        plot_name,
+    # let's add our to, cc, subject
+    p = Mail(
+        mail_name,
         user=usr,
         ignore_ssl=ignore_ssl,
         create=create,
         config_path=args["config_path"],
+        to=args["to"],
+        cc=args["cc"],
+        bcc=args["bcc"],
+        subject=args["subject"],
         qpr=args["qpr"],
         debug=args["debug"],
     )
@@ -148,7 +153,7 @@ def plot(args: Dict[str, Any]) -> None:
         if not found_stdin and stdin_has_data:
             ctnt = stdin_data
             # got stdin data
-            p.data = ctnt
+            p.content = ctnt
 
     # check if we are changing any permissions
     share: str = args["share"]
@@ -159,15 +164,21 @@ def plot(args: Dict[str, Any]) -> None:
         p.shared += share  # type: ignore
 
     if share is not None and share != "" and args["delete"]:
-        # remove a share from the plot
+        # remove a share from the mail
 
         p.shared -= share  # type: ignore
 
     # check if we should print our shares, we will not provide other outputs
     if share is None:
-        list_vis_shares(plot_name, args, "Plot")
+        list_vis_shares(mail_name, args, "Mail")
 
         return
+
+    # sending, check our T and S
+    if args["test"]:
+        p.test()
+    elif args["send"]:
+        p._send()
 
     # Output - we only allow a singular -o or -x and will return as soon as
     # we find one
@@ -181,7 +192,7 @@ def plot(args: Dict[str, Any]) -> None:
         # exit as we only support one output
         return
 
-    # TODO: check if we are reading any valus from the plot [-r or -x]
+    # TODO: check if we are reading any valus from the mail [-r or -x]
     out = args["out"]
     if out:
         outp = p.api_read(f"/{out}")

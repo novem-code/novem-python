@@ -106,7 +106,7 @@ def test_empty_config(requests_mock, fs, capsys, monkeypatch):
 
     # verify that we have a general section containing
     # a default username and api_url
-    assert config["general"]["user"] == auth_req["username"]
+    assert config["general"]["profile"] == auth_req["username"]
     assert config["general"]["api_root"] == api_root
 
     # verify that we have empty app sections for
@@ -116,7 +116,7 @@ def test_empty_config(requests_mock, fs, capsys, monkeypatch):
     assert config.has_section("app:fuse") is True
 
     # verify that we have a user:username section
-    profile = f'user:{auth_req["username"]}'
+    profile = f'profile:{auth_req["username"]}'
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -179,11 +179,11 @@ def test_specify_user(requests_mock, fs, capsys, monkeypatch):
 
     # verify that we have a general section containing
     # a default username and api_url
-    assert config["general"]["user"] == profile_name
+    assert config["general"]["profile"] == profile_name
     assert config["general"]["api_root"] == api_root
 
     # verify that we have a user:username section
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -241,11 +241,11 @@ def test_add_two_user(requests_mock, fs, capsys, monkeypatch):
 
     # verify that we have a general section containing
     # a default username and api_url
-    assert config["general"]["user"] == profile_name
+    assert config["general"]["profile"] == profile_name
     assert config["general"]["api_root"] == api_root
 
     # verify that we have a user:username section
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -286,7 +286,7 @@ def test_add_two_user(requests_mock, fs, capsys, monkeypatch):
     # a default username and api_url
 
     # verify that we have a user:username section
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -344,11 +344,11 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
 
     # verify that we have a general section containing
     # a default username and api_url
-    assert config["general"]["user"] == profile_name
+    assert config["general"]["profile"] == profile_name
     assert config["general"]["api_root"] == api_root
 
     # verify that we have a user:username section
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -417,7 +417,7 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
     # a default username and api_url
 
     # verify that we have a user:username section
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert config.has_section(profile) is True
 
     # verify that the section contains
@@ -457,7 +457,10 @@ def test_misisng_user(requests_mock, fs, capsys, monkeypatch):
     # launch cli with params
     sys.argv = ["novem"] + params
 
-    run_cli()
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        run_cli()
+    assert pytest_wrapped_e.type == SystemExit
+    assert pytest_wrapped_e.value.code == 1
     out, err = capsys.readouterr()
     assert out == (
         f'Profile "{profile_name}" doens\'t exist in your config. '
@@ -475,14 +478,14 @@ def test_config_param(requests_mock, fs, capsys, monkeypatch):
     f1n = "c1.conf"
     f1 = """
 [general]
-user = demouser
+profile = demouser
 api_root = https://1.api.novem.no/v1/
 """
 
     f2n = "c2.conf"
     f2 = """
 [general]
-user = demouser
+profile = demouser
 api_root = https://2.api.novem.no/v1/
 """
 
@@ -550,7 +553,7 @@ api_root = https://2.api.novem.no/v1/
     c2.read(f2n)
 
     profile_name = auth_req["username"]
-    profile = f"user:{profile_name}"
+    profile = f"profile:{profile_name}"
     assert c1.has_section(profile) is True
 
     # verify that the section contains

@@ -21,7 +21,8 @@ class cl:
     ENDC = "\033[0m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
-    BGGRAY = "\033[48:5:234m"
+    FGGRAY = "\033[38;5;246m"
+    BGGRAY = "\033[48;5;234m"
 
 
 def disable_colors() -> None:
@@ -34,10 +35,16 @@ def disable_colors() -> None:
     cl.ENDC = ""
     cl.BOLD = ""
     cl.UNDERLINE = ""
+    cl.FGGRAY = ""
     cl.BGGRAY = ""
 
 
 def colors() -> None:
+    # ignore color disable if --colors in argv
+    for a in sys.argv:
+        if a == "--color":
+            return
+
     # disable colors if not supported
     for handle in [sys.stdout, sys.stderr]:
         if (hasattr(handle, "isatty") and handle.isatty()) or (
@@ -87,7 +94,7 @@ def get_config_path() -> Tuple[str, str]:
 
 def get_current_config(
     **kwargs: Any,
-) -> Tuple[bool, Dict[str, str]]:
+) -> Tuple[bool, Dict[str, Any]]:
     """
     Resolve and return the current config options
 
@@ -104,7 +111,10 @@ def get_current_config(
     else:
         config_path = kwargs["config_path"]
 
-    co: Dict[str, str] = {}
+    co: Dict[str, Any] = {}
+
+    # defaults
+    co["ignore_ssl_warn"] = False
 
     # in addition, we can be instructed to ignore the config
     # if we are ignoring the config then the api root must be provided
@@ -128,20 +138,27 @@ def get_current_config(
     # the configuration file has an invalid format
     try:
         general = config["general"]
-        profile = general["user"]
+        profile = general["profile"]
         if "api_root" in general:
             co["api_root"] = general["api_root"]
     except KeyError:
         return (False, co)
 
+    # override profile
+    if "profile" in kwargs and kwargs["profile"]:
+        profile = kwargs["profile"]
+
     # get our config
     try:
-        uc = config[f"user:{profile}"]
+        uc = config[f"profile:{profile}"]
         if "api_root" in uc:
             co["api_root"] = uc["api_root"]
 
         co["token"] = uc["token"]
         co["username"] = uc["username"]
+
+        if "ignore_ssl_warn" in uc:
+            co["ignore_ssl_warn"] = uc.getboolean("ignore_ssl_warn")
 
     except KeyError:
         return (True, co)

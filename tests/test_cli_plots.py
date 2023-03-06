@@ -45,7 +45,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     plot_list = [
         {
             "name": "covid_us_state_breakdown",
-            "id": "XVBzV",
+            "shortname": "XVBzV",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/XVBzV",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -53,7 +53,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
         },
         {
             "name": "covid_us_trend",
-            "id": "Kwjdv",
+            "shortname": "Kwjdv",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/Kwjdv",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -61,7 +61,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
         },
         {
             "name": "covid_us_trend_region",
-            "id": "7N2Wv",
+            "shortname": "7N2Wv",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/7N2Wv",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -69,7 +69,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
         },
         {
             "name": "en_letter_frequency",
-            "id": "QVgEN",
+            "shortname": "QVgEN",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/QVgEN",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -77,7 +77,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
         },
         {
             "name": "unemployment_noridc",
-            "id": "2v1rV",
+            "shortname": "2v1rV",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/2v1rV",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -85,7 +85,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
         },
         {
             "name": "state_pop",
-            "id": "qNGgN",
+            "shortname": "qNGgN",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/qNGgN",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -95,73 +95,72 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
 
     user_plot_list = [
         {
-            "name": "covid_us_state_breakdown",
-            "id": "XVBzV",
+            "id": "covid_us_state_breakdown",
+            "shortname": "XVBzV",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/XVBzV",
-            "display_name": "Covid19 cases by US State",
+            "name": "Covid19 cases by US State",
             "type": "us map",
-            "caption": "This chart shows current average daily cases per"
+            "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
         },
         {
-            "name": "covid_us_trend",
-            "id": "Kwjdv",
+            "id": "covid_us_trend",
+            "shortname": "Kwjdv",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/Kwjdv",
-            "display_name": "Covid19 cases by US State",
+            "name": "Covid19 cases by US State",
             "type": "line chart",
-            "caption": "This chart shows current average daily cases per"
+            "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
         },
         {
-            "name": "covid_us_trend_region",
-            "id": "7N2Wv",
+            "id": "covid_us_trend_region",
+            "shortname": "7N2Wv",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/7N2Wv",
-            "display_name": "Covid19 cases by US State",
+            "name": "Covid19 cases by US State",
             "type": "area chart",
-            "caption": "This chart shows current average daily cases per"
+            "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
         },
         {
-            "name": "en_letter_frequency",
-            "id": "QVgEN",
+            "id": "en_letter_frequency",
+            "shortname": "QVgEN",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/QVgEN",
-            "display_name": "Letter frequency in the English language",
+            "name": "Letter frequency in the English language",
             "type": "bar chart",
-            "caption": "Analysis of entries in the Concise Oxford dictionary"
+            "summary": "Analysis of entries in the Concise Oxford dictionary"
             " as published by the compilers. The chart above represents data"
             " taken from Pavel Micka's website, which cites Robert Lewand's"
             " Cryptological Mathematics.",
         },
         {
-            "name": "unemployment_noridc",
-            "id": "2v1rV",
+            "id": "unemployment_noridc",
+            "shortname": "2v1rV",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/2v1rV",
-            "display_name": "Historical Unemployment rates in the Nordic"
-            " countries",
+            "name": "Historical Unemployment rates in the Nordic" " countries",
             "type": "stacked bar chart",
-            "caption": "Historical unemployment rate in the Nordic "
+            "summary": "Historical unemployment rate in the Nordic "
             "countries. Data from IMFs World Economic Oulook published in"
             " October 2021 Chart last updated as of 25 January 2022",
         },
         {
-            "name": "state_pop",
-            "id": "qNGgN",
+            "id": "state_pop",
+            "shortname": "qNGgN",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/qNGgN",
-            "display_name": "Top 5 us states by population and age",
+            "name": "Top 5 us states by population and age",
             "type": "grouped bar chart",
-            "caption": "Historical unemployment rate in the Nordic countries."
+            "summary": "Historical unemployment rate in the Nordic countries."
             " Data from IMFs World Economic Oulook published in October 2021"
             " Chart last updated as of 25 January 2022",
         },
@@ -182,7 +181,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     )
 
     # try to list all plots
-    params = ["-p"]
+    params = ["-p", "-l"]
 
     # launch cli with params
     sys.argv = ["novem"] + params
@@ -196,7 +195,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     assert out == comp
 
     # try to list all plots with a nice list format
-    params = ["-p", "-l"]
+    params = ["-p"]
 
     # launch cli with params
     sys.argv = ["novem"] + params
@@ -208,8 +207,8 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     # construct our pretty print list
     ppo = [
         {
-            "key": "name",
-            "header": "Plot Name",
+            "key": "id",
+            "header": "Plot ID",
             "type": "text",
             "overflow": "keep",
         },
@@ -226,7 +225,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
             "overflow": "keep",
         },
         {
-            "key": "display_name",
+            "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "truncate",
@@ -244,8 +243,8 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
             "overflow": "keep",
         },
         {
-            "key": "caption",
-            "header": "Caption",
+            "key": "summary",
+            "header": "Summary",
             "fmt": lambda x: x.replace("\n", ""),
             "type": "text",
             "overflow": "truncate",
@@ -330,7 +329,7 @@ def test_plot_share_list(requests_mock, fs, capsys, monkeypatch):
     )
 
     # try to delete a no existant plot
-    params = ["-p", plot_name, "-s"]
+    params = ["-p", plot_name, "-s", "-l"]
 
     # launch cli with params
     sys.argv = ["novem"] + params
@@ -390,7 +389,7 @@ def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
     )
 
     # try to delete a no existant plot
-    params = ["-p", plot_name, "-s", "public"]
+    params = ["-p", plot_name, "-s", "public", "-D"]
 
     # launch cli with params
     sys.argv = ["novem"] + params
@@ -398,11 +397,11 @@ def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
     # run cli
     run_cli()
 
-    params = ["-p", plot_name, "-s", "@demo_user~test"]
+    params = ["-p", plot_name, "-s", "@demo_user~test", "-C"]
     sys.argv = ["novem"] + params
     run_cli()
 
-    params = ["-p", plot_name, "-s"]
+    params = ["-p", plot_name, "-s", "-l"]
     sys.argv = ["novem"] + params
     run_cli()
     out, err = capsys.readouterr()
@@ -758,7 +757,7 @@ def test_plot_x(requests_mock, fs, capsys, monkeypatch):
     run_cli()
     out, err = capsys.readouterr()
 
-    assert out == plot_ansi + "\n"
+    assert out == plot_ansi
 
 
 def test_plot_o(requests_mock, fs, capsys, monkeypatch):
