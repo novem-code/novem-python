@@ -1,15 +1,21 @@
 import getpass
 import os
 import random
-import readline
 import socket
 import string
 import sys
 from datetime import datetime
-from signal import SIG_DFL, SIGPIPE, signal
 from typing import Any, Dict, Optional, Union
 
 from novem.exceptions import Novem401
+
+if os.name == "nt":
+    from pyreadline3 import Readline
+
+    readline = Readline()
+else:
+    from signal import SIG_DFL, SIGPIPE, signal
+    import readline  # type: ignore
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config
@@ -84,7 +90,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
             [x for x in hostname.lower() if x in valid_char]
         )
         nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
-        token_name = f"novem-python-{token_hostname}-{nounce}"
+        token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
 
     new_token_name = "".join([x for x in token_name if x in valid_char])
 
@@ -211,7 +217,7 @@ def init_config(args: Dict[str, Any] = None) -> None:
             [x for x in hostname.lower() if x in valid_char]
         )
         nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
-        token_name = f"novem-python-{token_hostname}-{nounce}"
+        token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
 
     new_token_name = "".join([x for x in token_name if x in valid_char])
 
@@ -369,7 +375,8 @@ def run_cli_wrapped() -> None:
 
 
 def run_cli() -> None:
-    signal(SIGPIPE, SIG_DFL)  # supress broken pipe error
+    if os.name != "nt":
+        signal(SIGPIPE, SIG_DFL)  # supress broken pipe error
     try:
         run_cli_wrapped()
     except KeyboardInterrupt:
