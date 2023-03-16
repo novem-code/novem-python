@@ -150,6 +150,12 @@ class NovemAPI(object):
         """
         pass
 
+    def api_read_bytes(self, relpath: str) -> bytes:
+        """
+        Read the api value located at realtive path
+        """
+        pass
+
     def api_delete(self, relpath: str) -> None:
         """
         relpath: relative path to the plot baseline /config/type

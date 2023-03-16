@@ -123,14 +123,14 @@ def test_color_assign(requests_mock):
 
     def post_colors(request, context):
         global color_values
-        color_values = request.body
+        color_values = request.body.decode("utf-8")
 
     def get_colors(request, context):
         return color_values
 
     def post_color_type(request, context):
         global color_type
-        color_type = str(request.body)
+        color_type = request.body.decode("utf-8")
 
     def get_color_type(request, context):
         return color_type
@@ -238,14 +238,14 @@ def test_color_freeze(requests_mock):
 
     def post_colors(request, context):
         global color_values
-        color_values = request.body
+        color_values = request.body.decode("utf-8")
 
     def get_colors(request, context):
         return color_values
 
     def post_color_type(request, context):
         global color_type
-        color_type = str(request.body)
+        color_type = str(request.body.decode("utf-8"))
 
     def get_color_type(request, context):
         return color_type
@@ -360,14 +360,14 @@ def test_color_selector(requests_mock):
 
     def post_colors(request, context):
         global color_values
-        color_values = request.body
+        color_values = request.body.decode("utf-8")
 
     def get_colors(request, context):
         return color_values
 
     def post_color_type(request, context):
         global color_type
-        color_type = str(request.body)
+        color_type = str(request.body.decode("utf-8"))
 
     def get_color_type(request, context):
         return color_type
@@ -483,14 +483,14 @@ def test_color_df_loc_selector(requests_mock):
 
     def post_colors(request, context):
         global color_values
-        color_values = request.body
+        color_values = request.body.decode("utf-8")
 
     def get_colors(request, context):
         return color_values
 
     def post_color_type(request, context):
         global color_type
-        color_type = str(request.body)
+        color_type = str(request.body.decode("utf-8"))
 
     def get_color_type(request, context):
         return color_type
@@ -581,14 +581,14 @@ def test_color_df_iloc_selector(requests_mock):
 
     def post_colors(request, context):
         global color_values
-        color_values = request.body
+        color_values = request.body.decode("utf-8")
 
     def get_colors(request, context):
         return color_values
 
     def post_color_type(request, context):
         global color_type
-        color_type = str(request.body)
+        color_type = str(request.body.decode("utf-8"))
 
     def get_color_type(request, context):
         return color_type

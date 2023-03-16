@@ -140,6 +140,16 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="name of token (lowercase alphanumeric, no whitespace)",
     )
 
+    parser.add_argument(
+        "--refresh",
+        dest="refresh",
+        action="store_true",
+        required=False,
+        default=False,
+        help="refresh the token for the current profile "
+        "(or the one supplied by --profile), requires username and password",
+    )
+
     vis = parser.add_argument_group("common visualisation arguments")
 
     vis.add_argument(
@@ -259,7 +269,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         dest="qpr",
         action="store",
         required=False,
-        default=False,
+        default=None,
         help="comma separated list of query paramters to include "
         "with request such as cols=$COLUMNS,rows=$(($lines-1))",
     )

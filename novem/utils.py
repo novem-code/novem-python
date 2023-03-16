@@ -170,6 +170,7 @@ def get_current_config(
     if "token" in kwargs and kwargs["token"]:
         co["token"] = kwargs["token"]
 
+    co["profile"] = profile
     return (True, co)
 
 

@@ -3,7 +3,7 @@ import os
 import stat
 from os import path
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from ..utils import get_config_path
 
@@ -14,7 +14,7 @@ def update_config(
     api_root: str,
     token_name: str,
     token: str,
-    path: str,
+    path: Optional[str],
 ) -> Tuple[bool, str]:
     """
     Write configuration to file

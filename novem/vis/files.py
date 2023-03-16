@@ -35,3 +35,10 @@ class NovemFiles(object):
         return novem ansi representation file
         """
         return self.get(f"{self.api._type}.ansi")
+
+    @property
+    def img(self) -> bytes:
+        """
+        return novem png representation file
+        """
+        return self.api.api_read_bytes(f"/files/{self.api._type}.png")

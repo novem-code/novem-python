@@ -2,7 +2,7 @@ import configparser
 import os
 from functools import partial
 
-from novem import Plot, __version__
+from novem import Plot
 
 to_csv_test_string = "the to_csv function was invoked"
 
@@ -15,10 +15,6 @@ class TestFrame(object):
     def pipe(self, func, **kwargs):
         # utility function to simulate dataframe df.call
         func(self, **kwargs)
-
-
-def test_version():
-    assert __version__ == "0.3.0"
 
 
 def test_plot(requests_mock):

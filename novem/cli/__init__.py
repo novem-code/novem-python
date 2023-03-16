@@ -7,7 +7,7 @@ import string
 import sys
 from datetime import datetime
 from signal import SIG_DFL, SIGPIPE, signal
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from novem.exceptions import Novem401
 
@@ -39,7 +39,7 @@ def do_update_config(
     api_root: str,
     token_name: str,
     token: str,
-    path: str,
+    path: Optional[str],
 ) -> None:
     (status, path) = update_config(
         profile, username, api_root, token_name, token, path
@@ -52,6 +52,85 @@ def do_update_config(
     )
 
     # save file
+
+
+def refresh_config(args: Dict[str, Any]) -> None:
+    (hasconf, curconf) = get_current_config(**args)
+
+    if not hasconf:
+        print("Configuration not found, please use --init to create it")
+
+    token: Union[str, None] = None
+
+    if "token" in args:
+        token = args["token"]
+
+    api_root: str = curconf["api_root"]
+
+    profile: str = curconf["profile"]
+
+    # let's grab our token
+    ignore_ssl = False
+    if "ignore_ssl_warn" in curconf:
+        ignore_ssl = curconf["ignore_ssl_warn"]
+
+    valid_char_sm = string.ascii_lowercase + string.digits
+    valid_char = valid_char_sm + "-_"
+    hostname: str = socket.gethostname()
+
+    token_name: Union[str, None] = None
+    if not token_name:
+        token_hostname: str = "".join(
+            [x for x in hostname.lower() if x in valid_char]
+        )
+        nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
+        token_name = f"novem-python-{token_hostname}-{nounce}"
+
+    new_token_name = "".join([x for x in token_name if x in valid_char])
+
+    if token_name != new_token_name:
+        print(
+            f"{cl.WARNING} ! {cl.ENDC}"
+            "The supplied token name contained invalid charracters,"
+            f' token changed to "{cl.OKCYAN}{new_token_name}{cl.ENDC}"'
+        )
+        token_name = new_token_name
+
+    # get novem username
+    prefill = curconf["username"]
+
+    username = input_with_prefill(" \u2022 novem.no username: ", prefill)
+    # username = "abc"
+
+    # get novem password
+    password = getpass.getpass(" \u2022 novem.no password: ")
+
+    # authenticate and request token by name
+    req = {
+        "username": username,
+        "password": password,
+        "token_name": token_name,
+        "token_description": (
+            f'cli token created for "{hostname}" '
+            f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'
+        ),
+    }
+
+    novem = NovemAPI(
+        api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl
+    )
+
+    try:
+        res = novem.create_token(req)
+        token = res["token"]
+        token_name = res["token_name"]
+
+    except Novem401:
+        print("Invalid username and/or password")
+        sys.exit(1)
+
+    # update token
+    do_update_config(profile, username, api_root, token_name, token, None)
 
 
 def init_config(args: Dict[str, Any] = None) -> None:
@@ -206,7 +285,7 @@ def print_short(parser: Any) -> None:
     parser.print_usage()
 
     print()
-    print("Novem commandline interface - no options supplied")
+    print("Novem command line interface - no options supplied")
     print()
     print("  novem -h, --help      print a concise help")
     print("  novem --guide         print the comprehensive novem cli guide")
@@ -217,6 +296,7 @@ def print_short(parser: Any) -> None:
     )
     print()
     print("  novem -p              list your plots")
+    print("  novem -m              list your mails")
 
 
 def run_cli_wrapped() -> None:
@@ -257,6 +337,11 @@ def run_cli_wrapped() -> None:
             print(f'novem --init --profile {args["profile"]}')
 
             sys.exit(1)
+
+    # we are getting a refresh instruction
+    if args and args["refresh"]:
+        refresh_config(args)
+        return
 
     # check info and if present get info
     if args and args["info"]:

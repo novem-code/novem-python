@@ -45,7 +45,7 @@ def test_color_assign(requests_mock):
 
     def post_value(request, context):
         global test_values
-        test_values = request.body
+        test_values = request.body.decode("utf-8")
 
     def get_value(request, context):
         return test_values

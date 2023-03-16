@@ -303,6 +303,39 @@ class NovemVisAPI(NovemAPI):
 
         return r.text
 
+    def api_read_bytes(self, relpath: str) -> bytes:
+        qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
+
+        # We can read information from other users, but not perform any
+        # other actions so only the GET method supports the custom user
+        # pathing
+        if self.user:
+            qpath = (
+                f"{self._api_root}users/{self.user}/vis/"
+                f"{self._vispath}/{self.id}{relpath}"
+            )
+
+        if self._qpr and len(self._qpr):
+            qpath = f"{qpath}?{self._qpr}"
+
+        if self._debug:
+            print(f"GET: {qpath}")
+
+        r = s.get(
+            qpath,
+            auth=("", self.token),
+            headers=self._hdr_get,
+        )
+
+        # TODO: verify result and raise exception if not ok
+        if r.status_code == 404:
+            raise Novem404(qpath)
+
+        if r.status_code == 403:
+            raise Novem403
+
+        return r.content
+
     def api_delete(self, relpath: str) -> None:
         """
         relpath: relative path to the plot baseline /config/type
@@ -405,7 +438,7 @@ class NovemVisAPI(NovemAPI):
             path,
             auth=("", self.token),
             headers=self._hdr_post,
-            data=value,
+            data=value.encode("utf-8"),
         )
 
         if r.status_code == 404:
@@ -427,3 +460,15 @@ class NovemVisAPI(NovemAPI):
             for k, v in r.headers.items():
                 print(f"   {k}: {v}")
             print("should raise a general error")
+
+    @property
+    def qpr(self) -> str:
+        if self._qpr:
+            return self._qpr.replace("&", ",")
+        else:
+            return ""
+
+    @qpr.setter
+    def qpr(self, value: str) -> None:
+        if value:
+            self._qpr = value.replace(",", "&")

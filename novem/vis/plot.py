@@ -67,8 +67,10 @@ class Plot(NovemVisAPI):
         # also update our chart varibales
         self._parse_kwargs(**kwargs)
 
-        # return the original object so users can chain the dataframe
-        return data
+        # return a reference to the plot, from experience
+        # after sending a dataframe to the plot the user
+        # would rather operate on the plot object itself
+        return self
 
     def __call__(self, data: Any, **kwargs: Any) -> Any:
         return self._set_data(data, **kwargs)
@@ -165,6 +167,65 @@ class Plot(NovemVisAPI):
     @property
     def shortname(self) -> str:
         return self._read("/shortname").strip()
+
+    ###
+    # Interactive utility functions
+    ###
+
+    def df(self, data: Any, **kwargs: Any) -> Any:
+        """
+        Expects a dataframe as input and returns the
+        same dataframe so it can be chained
+        """
+        self._set_data(data, **kwargs)
+        return data
+
+    # chainable utility function for setting values
+    def w(self, key: str, value: str) -> Any:
+        """
+        Set a novem plot property, if key is a valid
+        class porp then it will set that, else it will
+        try to invoke an api call
+
+        w('type','bar') -> invokes set attribute type
+        w('/config/type','bar') -> invokes the api
+
+        (both options results in the same effect)
+        """
+        props = [
+            x
+            for x in dir(self)
+            if x[0] != "_" and x not in ["data", "read", "delete", "write"]
+        ]
+
+        if key in props:
+            self.__setattr__(key, value)
+        else:
+            self._write(key, value)
+
+        return self
+
+    # print our ansi version
+    @property
+    def x(self) -> None:
+        print(self._read("/files/plot.ansi"))
+
+        return None
+
+    # print our img (png) special utility for qtconsole
+    @property
+    def i(self) -> Any:
+        """
+        Utility for getting a qtconsole image representation
+        """
+        from IPython.core.display import Image
+
+        return Image(
+            self.api_read_bytes(f"/files/{self._type}.png"),
+            retina=False,  # todo: lookup if computer supports retina and
+            # request 2x resolution and set this variable
+            width=900,  # todo: get img width from current session
+        )
 
     ###
     # config variables
