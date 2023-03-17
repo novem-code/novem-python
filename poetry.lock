@@ -75,7 +75,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 
@@ -521,7 +521,7 @@ test = ["covdefaults (>=2.2.2)", "coverage-enable-subprocess (>=1)", "coverage (
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "9667aff455b564dec94ca732b99bcdaed4049255723585d330710626ea04dd93"
+content-hash = "127fa1c88574ba4faeb6e225dc19a7c07bd87aa285b8472474d8db28f9fe91b0"
 
 [metadata.files]
 attrs = []

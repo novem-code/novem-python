@@ -176,6 +176,10 @@ def plot(args: Dict[str, Any]) -> None:
     x = args["tc"]
     if x:
         # get file endpoint
+        if os.name == "nt":
+            from colorama import just_fix_windows_console
+
+            just_fix_windows_console()
         print(p.files.ansi, end="")  # type: ignore
 
         # exit as we only support one output
