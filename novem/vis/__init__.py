@@ -1,5 +1,6 @@
 import os
 import sys
+import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
@@ -33,6 +34,8 @@ class NovemVisAPI(NovemAPI):
         "User-Agent": f"NovemPythonLibrary-{__version__}",
     }
 
+    _proxies: Dict[Any, Any] = {}
+
     shared: Optional[NovemShare] = None
     files: Optional[NovemFiles] = None
 
@@ -40,6 +43,9 @@ class NovemVisAPI(NovemAPI):
     _debug: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
+
+        self._proxies = urllib.request.getproxies()
+
         super().__init__(**kwargs)
 
         self.user = None
@@ -98,6 +104,7 @@ class NovemVisAPI(NovemAPI):
                 qp,
                 auth=("", self.token),
                 headers=self._hdr_get,
+                proxies=self._proxies,
             )
 
             if not req.ok:
@@ -172,6 +179,7 @@ class NovemVisAPI(NovemAPI):
                 qp,
                 auth=("", self.token),
                 headers=self._hdr_get,
+                proxies=self._proxies,
             )
 
             if not req.ok:
@@ -292,6 +300,7 @@ class NovemVisAPI(NovemAPI):
             qpath,
             auth=("", self.token),
             headers=self._hdr_get,
+            proxies=self._proxies,
         )
 
         # TODO: verify result and raise exception if not ok
@@ -325,6 +334,7 @@ class NovemVisAPI(NovemAPI):
             qpath,
             auth=("", self.token),
             headers=self._hdr_get,
+            proxies=self._proxies,
         )
 
         # TODO: verify result and raise exception if not ok
@@ -355,6 +365,7 @@ class NovemVisAPI(NovemAPI):
             path,
             auth=("", self.token),
             headers=self._hdr_del,
+            proxies=self._proxies,
         )
 
         if r.status_code == 404:
@@ -394,6 +405,7 @@ class NovemVisAPI(NovemAPI):
             path,
             auth=("", self.token),
             headers=self._hdr_put,
+            proxies=self._proxies,
         )
 
         if r.status_code == 404:
@@ -439,6 +451,7 @@ class NovemVisAPI(NovemAPI):
             auth=("", self.token),
             headers=self._hdr_post,
             data=value.encode("utf-8"),
+            proxies=self._proxies,
         )
 
         if r.status_code == 404:

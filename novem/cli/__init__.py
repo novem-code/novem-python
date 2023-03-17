@@ -4,6 +4,7 @@ import random
 import socket
 import string
 import sys
+import urllib.request
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
@@ -18,7 +19,7 @@ else:
     import readline  # type: ignore
 
 from ..api_ref import NovemAPI
-from ..utils import cl, colors, get_current_config
+from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .config import check_if_profile_exists, update_config
 from .mail import mail
@@ -324,6 +325,46 @@ def run_cli_wrapped() -> None:
         print(f"novem {__version__}")
         return
 
+    if args and "debug" in args and args["debug"]:
+        """
+        Print some sytem information
+        """
+        import platform
+        import socket
+
+        api_ip = socket.gethostbyname("api.novem.no")
+        main_ip = socket.gethostbyname("novem.no")
+        hname = socket.gethostname()
+
+        # TODO: use argument supplied config path instead
+        conf_dir, conf_path = get_config_path()
+
+        proxy = urllib.request.getproxies()
+        pv = sys.version.split("\n")
+
+        print("System information")
+        print()
+        print(f"Platform: {platform.platform()}")
+        print(f"Python: {pv}")
+        print()
+        print(f"Proxy settings: {proxy}")
+        print(f"Hostname: {hname}")
+        print(f"API IP : {api_ip}")
+        print(f"Core IP: {main_ip}")
+        print()
+        print(f"Current config folder: {conf_dir}")
+        print(f"Folder exists: {os.path.exists(conf_dir)}")
+        print(f"Folder is writeable: {os.access(conf_dir, os.W_OK)}")
+
+        print()
+        print(f"Current config path:  {conf_path}")
+        print(f"File exists: {os.path.isfile(conf_path)}")
+        print(f"File is writeable: {os.access(conf_path, os.W_OK)}")
+
+        # TODO: add dns and gateway
+
+        print()
+
     # we are getting an init instruction
     if args and args["init"]:
         init_config(args)
@@ -352,8 +393,8 @@ def run_cli_wrapped() -> None:
     # check info and if present get info
     if args and args["info"]:
         novem = NovemAPI(**args)
-        info = novem.read("/whoami")
-        print(info, end="")
+        info = novem.read("/admin/profile/overview")
+        print(info)
         return
 
     # if --fs is set get terminal dimensions and ammend qpr

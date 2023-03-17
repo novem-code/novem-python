@@ -42,8 +42,19 @@ def disable_colors() -> None:
 def colors() -> None:
     # ignore color disable if --colors in argv
     for a in sys.argv:
+        if os.name == "nt":
+            from colorama import just_fix_windows_console
+
+            just_fix_windows_console()
         if a == "--color":
             return
+
+    if os.name == "nt":
+        # TODO: do some proper color detection on nt
+        from colorama import just_fix_windows_console
+
+        just_fix_windows_console()
+        return
 
     # disable colors if not supported
     for handle in [sys.stdout, sys.stderr]:
