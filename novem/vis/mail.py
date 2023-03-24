@@ -22,6 +22,14 @@ class Mail(NovemVisAPI):
         :bcc BCC recipients
         :subject subject line
         """
+
+        # if we have an @ name we will override id and user
+        if id[0] == "@":
+            cand = id[1:].split("~")
+            id = cand[1]
+            uname = cand[0]
+            kwargs["user"] = uname
+
         self.id = id
 
         self._vispath = "mails"

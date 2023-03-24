@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "novem"
-version = "0.4.3"
+version = "0.4.4"
 description = "python library for the novem.no data visualisation platform"
 authors = ["Sondov Engen <sondov@novem.no>"]
 homepage = "https://novem.no"

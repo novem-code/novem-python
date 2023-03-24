@@ -22,6 +22,8 @@ from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .config import check_if_profile_exists, update_config
+from .group import group
+from .invite import invite
 from .mail import mail
 from .plot import plot
 from .setup import setup
@@ -103,14 +105,16 @@ def refresh_config(args: Dict[str, Any]) -> None:
         )
         token_name = new_token_name
 
+    print(f"Refresh token for profile: {profile}")
+
     # get novem username
     prefill = curconf["username"]
 
-    username = input_with_prefill(" \u2022 novem.no username: ", prefill)
+    username = input_with_prefill(" \u2022 novem username: ", prefill)
     # username = "abc"
 
     # get novem password
-    password = getpass.getpass(" \u2022 novem.no password: ")
+    password = getpass.getpass(" \u2022 novem password: ")
 
     # authenticate and request token by name
     req = {
@@ -188,6 +192,10 @@ def init_config(args: Dict[str, Any] = None) -> None:
         # make mypy happy, return if no argument supplied
         return
 
+    _do_debug = False
+    if "debug" in args and args["debug"]:
+        _do_debug = True
+
     token: Union[str, None] = None
 
     if "token" in args:
@@ -199,6 +207,8 @@ def init_config(args: Dict[str, Any] = None) -> None:
     config_path: str = args["config_path"]
 
     # first check if we have a valid config
+    if _do_debug:
+        print("INIT: check if profile exists")
     profile_exists: bool = check_if_profile_exists(profile, config_path)
     if profile_exists and not force:
         print(
@@ -208,6 +218,8 @@ def init_config(args: Dict[str, Any] = None) -> None:
         )
         sys.exit(1)
 
+    if _do_debug:
+        print("INIT: construct token name")
     valid_char_sm = string.ascii_lowercase + string.digits
     valid_char = valid_char_sm + "-_"
     hostname: str = socket.gethostname()
@@ -235,11 +247,14 @@ def init_config(args: Dict[str, Any] = None) -> None:
     if "profile" in args:
         prefill = args["profile"]
 
-    username = input_with_prefill(" \u2022 novem.no username: ", prefill)
+    if _do_debug:
+        print("INIT: request user input")
+
+    username = input_with_prefill(" \u2022 novem username: ", prefill)
     # username = "abc"
 
     # get novem password
-    password = getpass.getpass(" \u2022 novem.no password: ")
+    password = getpass.getpass(" \u2022 novem password: ")
 
     # authenticate and request token by name
     req = {
@@ -251,6 +266,9 @@ def init_config(args: Dict[str, Any] = None) -> None:
             f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'
         ),
     }
+
+    if _do_debug:
+        print("INIT: construct request")
 
     if not api_root:
         (hasconf, curconf) = get_current_config(**args)
@@ -264,6 +282,9 @@ def init_config(args: Dict[str, Any] = None) -> None:
     ignore_ssl = False
     if "ignore_ssl" in args:
         ignore_ssl = args["ignore_ssl"]
+
+    if _do_debug:
+        print("INIT: request token")
 
     novem = NovemAPI(
         api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl
@@ -332,26 +353,24 @@ def run_cli_wrapped() -> None:
         import platform
         import socket
 
-        api_ip = socket.gethostbyname("api.novem.no")
-        main_ip = socket.gethostbyname("novem.no")
-        hname = socket.gethostname()
-
         # TODO: use argument supplied config path instead
-        conf_dir, conf_path = get_config_path()
-
-        proxy = urllib.request.getproxies()
-        pv = sys.version.split("\n")
 
         print("System information")
         print()
         print(f"Platform: {platform.platform()}")
+        pv = sys.version.split("\n")
         print(f"Python: {pv}")
         print()
+        proxy = urllib.request.getproxies()
         print(f"Proxy settings: {proxy}")
+        hname = socket.gethostname()
         print(f"Hostname: {hname}")
+        api_ip = socket.gethostbyname("api.novem.no")
         print(f"API IP : {api_ip}")
+        main_ip = socket.gethostbyname("novem.no")
         print(f"Core IP: {main_ip}")
         print()
+        conf_dir, conf_path = get_config_path()
         print(f"Current config folder: {conf_dir}")
         print(f"Folder exists: {os.path.exists(conf_dir)}")
         print(f"Folder is writeable: {os.access(conf_dir, os.W_OK)}")
@@ -412,6 +431,10 @@ def run_cli_wrapped() -> None:
         plot(args)
     elif args and args["mail"] != "":
         mail(args)
+    elif args and args["invite"] != "":
+        invite(args)
+    elif args and ("group" in args or "org" in args):
+        group(args)
         pass
 
 

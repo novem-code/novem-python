@@ -310,7 +310,7 @@ class NovemVisAPI(NovemAPI):
         if r.status_code == 403:
             raise Novem403
 
-        return r.text
+        return r.content.decode("utf-8")
 
     def api_read_bytes(self, relpath: str) -> bytes:
         qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"

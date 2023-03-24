@@ -186,6 +186,15 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="print ids only, no pretty printing",
     )
 
+    vis.add_argument(
+        "-f",
+        metavar=("REGEX"),
+        required=False,
+        dest="filter",
+        action="store",
+        help="filter visualisations by rgex",
+    )
+
     # support multiple inputs
     vis.add_argument(
         "-w",
@@ -223,9 +232,9 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         "-u",
         metavar=("USER"),
         dest="for_user",
+        default=ap.SUPPRESS,
         action="store",
         required=False,
-        default=None,
         help="specify user to view shared visualisation from",
     )
 
@@ -392,6 +401,85 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         help="send a test e-mail to your registered address",
     )
+
+    invite = parser.add_argument_group("invite")
+
+    invite.add_argument(
+        "-i",
+        dest="invite",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select invite to operate on, no paramter will list"
+        " all pending invitations",
+    )
+
+    invite.add_argument(
+        "--accept",
+        dest="accept",
+        action="store_true",
+        required=False,
+        default=False,
+        help="accept the invite",
+    )
+
+    invite.add_argument(
+        "--reject",
+        dest="reject",
+        action="store_true",
+        required=False,
+        default=False,
+        help="reject the invite",
+    )
+
+    group = parser.add_argument_group(
+        "group",
+        description="Operate on novem groups, -C to create, -D to "
+        "delete the group\n"
+        "--invite and --remove to manage members\n-O and -u to specify org or "
+        "user groups",
+    )
+
+    group.add_argument(
+        "-O",
+        dest="org",
+        action="store",
+        required=False,
+        default=ap.SUPPRESS,
+        nargs="?",
+        help="select an organisation operate on, no paramter will list"
+        " all organisations of which you are a member",
+    )
+
+    group.add_argument(
+        "-G",
+        dest="group",
+        action="store",
+        required=False,
+        default=ap.SUPPRESS,
+        nargs="?",
+        help="select an organisation -O or user -u group operate on, no "
+        "paramter will list all organisations groups of which you are a "
+        "member",
+    )
+
+    group.add_argument(
+        "--invite",
+        metavar=("USER"),
+        dest="invite_user",
+        action="store",
+        required=False,
+        help="invite a USER to the current organisation",
+    )
+
+    # group.add_argument(
+    #    "--role",
+    #    dest="role",
+    #    action="store",
+    #    required=False,
+    #    help="specify role to give invited user, empty means member"
+    # )
 
     # Gather the provided arguements as an array.
     args: Dict[str, str] = vars(parser.parse_args(raw_args))

@@ -76,18 +76,18 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
             "type": "dir",
         },
         {
-            "name": "unemployment_noridc",
-            "shortname": "2v1rV",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/p/2v1rV",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
-        },
-        {
             "name": "state_pop",
             "shortname": "qNGgN",
             "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/qNGgN",
+            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "type": "dir",
+        },
+        {
+            "name": "unemployment_noridc",
+            "shortname": "2v1rV",
+            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "uri": "https://novem.no/p/2v1rV",
             "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
             "type": "dir",
         },
@@ -143,17 +143,6 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
             " Cryptological Mathematics.",
         },
         {
-            "id": "unemployment_noridc",
-            "shortname": "2v1rV",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/p/2v1rV",
-            "name": "Historical Unemployment rates in the Nordic" " countries",
-            "type": "stacked bar chart",
-            "summary": "Historical unemployment rate in the Nordic "
-            "countries. Data from IMFs World Economic Oulook published in"
-            " October 2021 Chart last updated as of 25 January 2022",
-        },
-        {
             "id": "state_pop",
             "shortname": "qNGgN",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
@@ -163,6 +152,17 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
             "summary": "Historical unemployment rate in the Nordic countries."
             " Data from IMFs World Economic Oulook published in October 2021"
             " Chart last updated as of 25 January 2022",
+        },
+        {
+            "id": "unemployment_noridc",
+            "shortname": "2v1rV",
+            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "uri": "https://novem.no/p/2v1rV",
+            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "type": "stacked bar chart",
+            "summary": "Historical unemployment rate in the Nordic "
+            "countries. Data from IMFs World Economic Oulook published in"
+            " October 2021 Chart last updated as of 25 January 2022",
         },
     ]
 

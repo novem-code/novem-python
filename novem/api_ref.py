@@ -1,4 +1,5 @@
 import sys
+import urllib.request
 from typing import Any, Dict, Optional
 
 import requests
@@ -113,6 +114,8 @@ class NovemAPI(object):
             resp = r.json()
             if r.status_code == 404:
                 raise Novem404(resp["message"])
+            else:
+                print(r.json())
 
         return r.ok
 
@@ -129,6 +132,40 @@ class NovemAPI(object):
                 raise Novem404(resp["message"])
 
         return r.text
+
+    def write(self, path: str, value: str) -> None:
+
+        r = s.post(
+            f"{self._api_root}{path}",
+            auth=("", self.token),
+            headers={
+                "Content-type": "text/plain",
+            },
+            data=value.encode("utf-8"),
+            proxies=urllib.request.getproxies(),
+        )
+
+        if not r.ok:
+            resp = r.json()
+            if r.status_code == 404:
+                raise Novem404(resp["message"])
+            else:
+                print(r.json())
+
+    def create(self, path: str) -> None:
+
+        r = s.put(
+            f"{self._api_root}{path}",
+            auth=("", self.token),
+            proxies=urllib.request.getproxies(),
+        )
+
+        if not r.ok:
+            resp = r.json()
+            if r.status_code == 404:
+                raise Novem404(resp["message"])
+            else:
+                print(r.json())
 
     def _read(self, relpath: str) -> str:
         """

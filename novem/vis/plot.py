@@ -24,6 +24,14 @@ class Plot(NovemVisAPI):
         :caption caption of the plot
         :title title of the plot
         """
+
+        # if we have an @ name we will override id and user
+        if id[0] == "@":
+            cand = id[1:].split("~")
+            id = cand[1]
+            uname = cand[0]
+            kwargs["user"] = uname
+
         self.id = id
 
         self._vispath = "plots"
