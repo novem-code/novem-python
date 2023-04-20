@@ -104,9 +104,12 @@ class Selector(object):
             row_indices = filter.index
             col_indices = pd.Index([filter.name])
 
-            # both singular rows and singular columns has the same shape,
-            # however only column slices are views
-            if not filter._is_view:
+            # a series can indicate both a single column
+            # and a single slicer, we'll have to check key membership
+            # on our original frame to be sure, this is not perfect
+            # as if all the values are in both the columns and index we
+            # have to just guess
+            if all(value in frame.columns for value in row_indices):
                 row_indices = pd.Index([filter.name])
                 col_indices = filter.index
 
