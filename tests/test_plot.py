@@ -18,7 +18,7 @@ class TestFrame(object):
 
 
 def test_version():
-    assert __version__ == "0.4.4"
+    assert __version__ == "0.4.5"
 
 
 def test_plot(requests_mock):

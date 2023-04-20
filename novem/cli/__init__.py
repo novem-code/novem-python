@@ -338,6 +338,10 @@ def run_cli_wrapped() -> None:
     # (parser:Any, args:Dict[str, str]) = setup(raw_args)
     (parser, args) = setup(raw_args)
 
+    # let's add traceback back in
+    if "debug" in args and args["debug"]:
+        del sys.tracebacklimit
+
     if len(raw_args) == 0:
         print_short(parser)
         return
