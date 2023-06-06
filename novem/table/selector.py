@@ -102,8 +102,8 @@ class Selector(object):
             )
 
         # Grab levels
-        rl = filter.index.nlevels
-        cl = 1
+        cl = filter.index.nlevels
+        rl = 1
 
         co = 0
         io = 0
@@ -123,7 +123,7 @@ class Selector(object):
         if isinstance(filter, pd.DataFrame):
             row_indices = filter.index
             col_indices = filter.columns
-            cl = filter.columns.nlevels
+            rl = filter.columns.nlevels
         else:
             row_indices = filter.index
             col_indices = pd.Index([filter.name])
@@ -136,6 +136,8 @@ class Selector(object):
             if all(value in frame.columns for value in row_indices):
                 row_indices = pd.Index([filter.name])
                 col_indices = filter.index
+                rl = filter.index.nlevels
+                cl = 1
 
         # TODO: We need to check against values in the frame for our
         # filtered dataset, else we are still failing to account for
