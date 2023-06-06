@@ -67,3 +67,69 @@ def test_dataframe_selector():
 
         # assert combined instructions match
         assert cand == f"{ixs} {cxs}"
+
+    # test our c overrides
+    test = [
+        [df.loc[:, ["NAV", "YTD"]], ":", ":"],
+        [df.loc[:, "NAV":], ":-1", ":-1"],
+        [df.loc[:, :], "0", "0"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, c=t[1]))
+        assert inst.split(" ")[1] == t[2]
+
+    # test our i overrides
+    test = [
+        [df.loc[:, ["NAV", "YTD"]], ":", ":"],
+        [df.loc[:, "NAV":], ":-1", ":-1"],
+        [df.loc[:, :], "0", "0"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, i=t[1]))
+        assert inst.split(" ")[0] == t[2]
+
+    # test our c offset
+    test = [
+        [df.loc[:, ["NAV", "YTD"]], 1, "3,8"],
+        [df.loc[:, "NAV":], -1, "1,2,3,4,5,6,7"],
+        [df.loc[:, :], -2, "0,1,2,3,4,5,6"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, co=t[1]))
+        assert inst.split(" ")[1] == t[2]
+
+    # test our i offset
+    test = [
+        [df.loc[1:5, ["NAV", "YTD"]], 1, "3,4,5,6,7"],
+        [df.loc[5:10, "NAV":], -1, "5,6,7,8,9,10"],
+        [df.loc[4:10, :], -2, "3,4,5,6,7,8,9"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, io=t[1]))
+        assert inst.split(" ")[0] == t[2]
+
+    # test our c offset range
+    test = [
+        [df.loc[:, ["NAV", "YTD"]], 1, "2,7,8"],
+        [df.loc[:, :"QTD"], -1, "0,1,2,3,4,5,6"],
+        [df.loc[:, "WTD":"QTD"], -2, "2,3,4,5,6"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, cor=t[1]))
+        assert inst.split(" ")[1] == t[2]
+
+    # test our i offset range
+    test = [
+        [df.loc[1:5, ["NAV", "YTD"]], 1, "2,3,4,5,6,7"],
+        [df.loc[5:10, "NAV":], -1, "5,6,7,8,9,10,11"],
+        [df.loc[4:10, :], -2, "3,4,5,6,7,8,9,10,11"],
+    ]
+
+    for t in test:
+        inst = str(S(t[0], "", df, ior=t[1]))
+        assert inst.split(" ")[0] == t[2]

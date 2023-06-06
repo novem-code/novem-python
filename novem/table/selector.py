@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,19 @@ class NovemSelectorException(NovemException):
         message = f"Invalid selector format {message}."
 
         super().__init__(message)
+
+
+def enhance_positions(positions: List[int], ior: int) -> List[int]:
+    if not positions or not isinstance(ior, int):
+        return positions
+    if ior == 0:
+        return positions
+    elif ior < 0:
+        return list(range(min(positions) + ior, min(positions))) + positions
+    else:  # ior > 0
+        return positions + list(
+            range(max(positions) + 1, max(positions) + 1 + ior)
+        )
 
 
 class Selector(object):
@@ -54,6 +67,8 @@ class Selector(object):
         i: Optional[str] = None,
         co: Optional[int] = None,
         io: Optional[int] = None,
+        cor: Optional[int] = None,
+        ior: Optional[int] = None,
     ) -> None:
         """ """
 
@@ -66,6 +81,8 @@ class Selector(object):
         self.i = i
         self.co = co
         self.io = io
+        self.cor = cor
+        self.ior = ior
 
     def _pd_ix_lookup(self) -> str:
 
@@ -95,6 +112,13 @@ class Selector(object):
         if self.io:
             io = self.io
 
+        cor = 0
+        ior = 0
+        if self.cor:
+            cor = self.cor
+        if self.ior:
+            ior = self.ior
+
         # Check if the filter is a DataFrame or a Series
         if isinstance(filter, pd.DataFrame):
             row_indices = filter.index
@@ -112,6 +136,10 @@ class Selector(object):
             if all(value in frame.columns for value in row_indices):
                 row_indices = pd.Index([filter.name])
                 col_indices = filter.index
+
+        # TODO: We need to check against values in the frame for our
+        # filtered dataset, else we are still failing to account for
+        # duplicate values outside of filter
 
         # Find the row and column positions in the original dataframe
         row_positions = []
@@ -148,10 +176,16 @@ class Selector(object):
 
         # convert to novem 0 based index and drop negative offset results
         row_positions = [x + rl + io for x in row_positions if x < len(frame)]
-        row_positions = [x for x in row_positions if x >= 0]
+        row_positions = enhance_positions(row_positions, ior)
+        row_positions = [
+            x for x in row_positions if x >= 0 and x <= len(frame)
+        ]
 
         col_positions = [x + cl + co for x in col_positions if x < len(frame)]
-        col_positions = [x for x in col_positions if x >= 0]
+        col_positions = enhance_positions(col_positions, cor)
+        col_positions = [
+            x for x in col_positions if x >= 0 and x <= len(frame)
+        ]
 
         # Create a comma-separated list of row and column positions
         row_str = ",".join(map(str, row_positions))
