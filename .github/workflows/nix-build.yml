@@ -21,6 +21,14 @@ jobs:
     - name: Populate nix cache
       run: nix build -L .#poetryEnv
 
-    # Do the actual application builds and run tests
+    # Run the tests
     - name: Run nix checks
       run: nix flake check -L
+
+    # Build the application
+    - name: Nix build
+      run: nix build -L
+
+    # Smoketest run
+    - name: Run smoketest
+      run: ./result/bin/novem
