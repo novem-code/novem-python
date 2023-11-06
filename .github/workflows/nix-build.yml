@@ -1,0 +1,17 @@
+name: "Novem with Nix"
+
+on:
+  push:
+    # branches: [ "main" ]
+
+jobs:
+  check:
+    name: "Nix Checks"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: cachix/install-nix-action@v23
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+    - name: Run nix checks
+      run: nix flake check -L
