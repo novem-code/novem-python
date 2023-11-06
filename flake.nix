@@ -34,6 +34,7 @@
             projectDir = self;
             preferWheels = true;
           };
+          poetryEnv = poetryEnv;
           default = self.packages.${system}.novem;
         };
 
