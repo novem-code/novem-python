@@ -1,0 +1,35 @@
+name: "Novem with Nix"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  check:
+    name: "Nix Checks"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    # Install some sort of `nix` cli version
+    - uses: cachix/install-nix-action@v23
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    # Catch most downloads and dependency issues in a separate step to make the
+    # nix checks logs cleaner.
+    - name: Populate nix cache
+      run: nix build -L .#poetryEnv
+
+    # Run the tests
+    - name: Run nix checks
+      run: nix flake check -L
+
+    # Build the application
+    - name: Nix build
+      run: nix build -L
+
+    # Smoketest run
+    - name: Run smoketest
+      run: ./result/bin/novem
