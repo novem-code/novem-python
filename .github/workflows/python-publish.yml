@@ -21,5 +21,4 @@ jobs:
     - name: build and publihs
       run: |
         poetry build
-        poetry config pypi-token.pypi ${{ secrets.PYPI_API_TOKEN }}
         poetry publish
