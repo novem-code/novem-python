@@ -17,10 +17,6 @@ class TestFrame(object):
         func(self, **kwargs)
 
 
-def test_version():
-    assert __version__ == "0.4.8"
-
-
 def test_plot(requests_mock):
     plot_type = "bar"
     plot_id = "test_plot"

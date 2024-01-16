@@ -1,0 +1,54 @@
+on:
+  release:
+    types: [created]
+
+jobs:
+  install-test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.8
+
+    - name: Install Poetry
+      uses: abatilo/actions-poetry@v2
+      with:
+        poetry-version: 1.7.0
+
+    - name: Test
+      run: |
+        poetry install
+        poetry run pytest tests
+
+    - name: Build the package
+      run: |
+        rm -rf dist
+        poetry build
+
+    - name: Storage wheel
+      uses: actions/upload-artifact@v2
+      with:
+        name: python-wheel
+        path: dist/
+        retention-days: 1
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: install-test-and-build
+    environment:
+      name: release
+      url: https://pypi.org/p/novem
+    permissions:
+      id-token: write
+    steps:
+    - name: Retrieve wheel
+      uses: actions/download-artifact@v2
+      with:
+        name: python-wheel
+        path: dist/
+
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
