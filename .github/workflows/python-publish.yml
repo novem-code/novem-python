@@ -1,0 +1,25 @@
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.8
+    - name: install poetry
+      uses: abatilo/actions-poetry@v2
+      with:
+        poetry-version: 1.7.8
+    - name: test
+      run: |
+        poetry test
+    - name: build and publihs
+      run: |
+        poetry build
+        poetry config pypi-token.pypi ${{ secrets.PYPI_API_TOKEN }}
+        poetry publish
