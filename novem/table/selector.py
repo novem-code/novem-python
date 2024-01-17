@@ -177,16 +177,18 @@ class Selector(object):
                     col_positions.append(position)
 
         # convert to novem 0 based index and drop negative offset results
-        row_positions = [x + rl + io for x in row_positions if x < len(frame)]
+        height = len(frame)
+        width = len(frame.columns)
+        row_positions = [x + rl + io for x in row_positions if x < height]
         row_positions = enhance_positions(row_positions, ior)
         row_positions = [
-            x for x in row_positions if x >= 0 and x <= len(frame)
+            x for x in row_positions if x >= 0 and x <= height
         ]
 
-        col_positions = [x + cl + co for x in col_positions if x < len(frame)]
+        col_positions = [x + cl + co for x in col_positions if x < width]
         col_positions = enhance_positions(col_positions, cor)
         col_positions = [
-            x for x in col_positions if x >= 0 and x <= len(frame)
+            x for x in col_positions if x >= 0 and x <= width
         ]
 
         # Create a comma-separated list of row and column positions
