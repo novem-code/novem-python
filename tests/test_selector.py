@@ -133,3 +133,19 @@ def test_dataframe_selector():
     for t in test:
         inst = str(S(t[0], "", df, ior=t[1]))
         assert inst.split(" ")[0] == t[2]
+
+
+def test_2d_selector():
+    data = {
+        "Foo": [1, 2, 3, 4],
+        "Bar": [5, 6, 7, 8],
+        "Baz": [9, 10, 11, 12],
+    }
+
+    df = pd.DataFrame(data, index=["AAA", "BBB", "CCC", "DDD"])
+    format = S(df.iloc[:, :], ",.1%", r=df).get_selector_string()
+    assert format == "1,2,3,4 1,2,3"
+
+    df = df.transpose()
+    format = S(df.iloc[:, :], ",.1%", r=df).get_selector_string()
+    assert format == "1,2,3 1,2,3,4"
