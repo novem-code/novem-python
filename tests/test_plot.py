@@ -2,7 +2,7 @@ import configparser
 import os
 from functools import partial
 
-from novem import Plot, __version__
+from novem import Plot
 
 to_csv_test_string = "the to_csv function was invoked"
 
