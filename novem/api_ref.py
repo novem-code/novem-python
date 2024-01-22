@@ -170,7 +170,7 @@ $ python -m novem --init
         """
         Read the api value located at realtive path
         """
-        pass
+        ...
 
     def _write(self, relpath: str, value: str) -> None:
         """
@@ -184,13 +184,13 @@ $ python -m novem --init
         """
         Read the api value located at realtive path
         """
-        pass
+        ...
 
     def api_read_bytes(self, relpath: str) -> bytes:
         """
         Read the api value located at realtive path
         """
-        pass
+        ...
 
     def api_delete(self, relpath: str) -> None:
         """

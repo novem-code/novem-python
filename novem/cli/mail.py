@@ -134,8 +134,8 @@ def mail(args: Dict[str, Any]) -> None:
                         sys.exit(1)
 
                 elif len(i) == 2 and i[1][0] == "@":
+                    fn = os.path.expanduser(i[1][1:])
                     try:
-                        fn = os.path.expanduser(i[1][1:])
                         with open(fn, "r") as f:
                             ctnt = f.read()
                             p.api_write(path, ctnt)
@@ -189,7 +189,7 @@ def mail(args: Dict[str, Any]) -> None:
     if x:
         # get file endpoint
         if os.name == "nt":
-            from colorama import just_fix_windows_console
+            from colorama import just_fix_windows_console  # type: ignore
 
             just_fix_windows_console()
         print(p.files.ansi, end="")  # type: ignore

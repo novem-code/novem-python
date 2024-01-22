@@ -32,6 +32,9 @@ requests-mock = "^1.9.3"
 types-requests = "^2.27.7"
 pyfakefs = "^4.5.5"
 
+[tool.poetry.group.dev.dependencies]
+pandas-stubs = "^1.2"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

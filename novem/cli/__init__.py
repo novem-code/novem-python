@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 from novem.exceptions import Novem401
 
 if os.name == "nt":
-    from pyreadline3 import Readline
+    from pyreadline3 import Readline  # type: ignore
 
     readline = Readline()
 else:
@@ -76,6 +76,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
 
     api_root: str = curconf["api_root"]
 
+    assert 'profile' in curconf
     profile: str = curconf["profile"]
 
     # let's grab our token
@@ -108,6 +109,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
     print(f"Refresh token for profile: {profile}")
 
     # get novem username
+    assert 'username' in curconf
     prefill = curconf["username"]
 
     username = input_with_prefill(" \u2022 novem username: ", prefill)
@@ -144,7 +146,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
     do_update_config(profile, username, api_root, token_name, token, None)
 
 
-def init_config(args: Dict[str, Any] = None) -> None:
+def init_config(args: Dict[str, Any]) -> None:
     """
     Initialize user and config
 
@@ -271,17 +273,11 @@ def init_config(args: Dict[str, Any] = None) -> None:
         print("INIT: construct request")
 
     if not api_root:
-        (hasconf, curconf) = get_current_config(**args)
-        # if our config exist, try to read it from there
-        if not hasconf:
-            api_root = "https://api.novem.no/v1/"
-        else:
-            api_root = curconf["api_root"]
+        _, curconf = get_current_config(**args)
+        api_root = curconf["api_root"]
 
     # let's grab our token
-    ignore_ssl = False
-    if "ignore_ssl" in args:
-        ignore_ssl = args["ignore_ssl"]
+    ignore_ssl = args.get('ignore_ssl', False)
 
     if _do_debug:
         print("INIT: request token")

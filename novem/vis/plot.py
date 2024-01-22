@@ -226,7 +226,7 @@ class Plot(NovemVisAPI):
         """
         Utility for getting a qtconsole image representation
         """
-        from IPython.core.display import Image
+        from IPython.core.display import Image  # type: ignore
 
         return Image(
             self.api_read_bytes(f"/files/{self._type}.png"),

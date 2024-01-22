@@ -6,7 +6,9 @@ import platform
 import select
 import sys
 import unicodedata
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
+
+from novem.types import Config
 
 API_ROOT = 'https://api.novem.no/v1/'
 NOVEM_PATH = "novem"
@@ -28,24 +30,25 @@ class cl:
 
 
 def disable_colors() -> None:
-    cl.HEADER = ""
-    cl.OKBLUE = ""
-    cl.OKCYAN = ""
-    cl.OKGREEN = ""
-    cl.WARNING = ""
-    cl.FAIL = ""
-    cl.ENDC = ""
-    cl.BOLD = ""
-    cl.UNDERLINE = ""
-    cl.FGGRAY = ""
-    cl.BGGRAY = ""
+    c = cast(Any, cl)
+    c.HEADER = ""
+    c.OKBLUE = ""
+    c.OKCYAN = ""
+    c.OKGREEN = ""
+    c.WARNING = ""
+    c.FAIL = ""
+    c.ENDC = ""
+    c.BOLD = ""
+    c.UNDERLINE = ""
+    c.FGGRAY = ""
+    c.BGGRAY = ""
 
 
 def colors() -> None:
     # ignore color disable if --colors in argv
     for a in sys.argv:
         if os.name == "nt":
-            from colorama import just_fix_windows_console
+            from colorama import just_fix_windows_console  # type: ignore
 
             just_fix_windows_console()
         if a == "--color":
@@ -107,7 +110,7 @@ def get_config_path() -> Tuple[str, str]:
 
 def get_current_config(
     **kwargs: Any,
-) -> Tuple[bool, Dict[str, Any]]:
+) -> Tuple[bool, Config]:
     """
     Resolve and return the current config options
 
@@ -119,11 +122,11 @@ def get_current_config(
     """
 
     if kwargs.get('token', False) or 'ignore_config' in kwargs:
-        return True, {
+        return True, Config({
             'token': kwargs.get('token', None),
             'api_root': kwargs.get('api_root', API_ROOT),
             'ignore_ssl_warn': kwargs.get('ignore_ssl', False),
-        }
+        })
 
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
@@ -131,11 +134,11 @@ def get_current_config(
     else:
         config_path = kwargs["config_path"]
 
-    co = Config{
+    co = Config({
         "ignore_ssl_warn": False,
         "api_root": API_ROOT,
         "token": None,
-    }
+    })
 
     config = configparser.ConfigParser()
     config.read(config_path)
