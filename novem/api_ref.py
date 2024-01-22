@@ -48,31 +48,30 @@ class NovemAPI(object):
     def __init__(self, **kwargs: Any) -> None:
         """ """
 
-        (config_status, config) = get_current_config(**kwargs)
+        config_status, config = get_current_config(**kwargs)
 
         self._config = config
 
-        if self._config["ignore_ssl_warn"] or (
-            "ignore_ssl" in kwargs and kwargs["ignore_ssl"]
-        ):
+        if self._config["ignore_ssl_warn"]:
             # supress ssl warnings
             s.verify = False
             import urllib3
 
             urllib3.disable_warnings()
 
-        # api root should alwasy be supplied in the result
+        # api root should always be supplied in the result
         self._api_root = config["api_root"]
 
-        if "token" in config:
+        if config.get('token', None):
+            assert config["token"]
             self.token = config["token"]
+
         elif not config_status:
-            print("Novem config file is missing.")
-            print(
-                "Either specify config file location with "
-                "the config_path parameter."
-            )
-            print("or setup a new token using python -m novem --init")
+            print("""\
+Novem config file is missing.  Either specify config file location with
+the config_path parameter, or setup a new token using
+$ python -m novem --init
+""")
             sys.exit(0)
 
         if self._api_root[-1] != "/":

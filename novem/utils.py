@@ -8,6 +8,7 @@ import sys
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+API_ROOT = 'https://api.novem.no/v1/'
 NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 
@@ -117,35 +118,27 @@ def get_current_config(
     current api_root
     """
 
+    if kwargs.get('token', False) or 'ignore_config' in kwargs:
+        return True, {
+            'token': kwargs.get('token', None),
+            'api_root': kwargs.get('api_root', API_ROOT),
+            'ignore_ssl_warn': kwargs.get('ignore_ssl', False),
+        }
+
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
         (novem_dir, config_path) = get_config_path()
     else:
         config_path = kwargs["config_path"]
 
-    co: Dict[str, Any] = {}
+    co = Config{
+        "ignore_ssl_warn": False,
+        "api_root": API_ROOT,
+        "token": None,
+    }
 
-    # defaults
-    co["ignore_ssl_warn"] = False
-
-    # in addition, we can be instructed to ignore the config
-    # if we are ignoring the config then the api root must be provided
-    if "ignore_config" in kwargs:
-        co["api_root"] = kwargs["api_root"]
-
-        # return (True:Bool, co:Dict[str, str])
-        return (True, co)
-
-    # construct a config object
     config = configparser.ConfigParser()
-
-    # check if novem config file exist
     config.read(config_path)
-
-    # if api_root is present in kwagars it overrides all other options
-    co["api_root"] = ""
-    if "api_root" in kwargs and kwargs["api_root"]:
-        co["api_root"] = kwargs["api_root"]
 
     # the configuration file has an invalid format
     try:
@@ -153,11 +146,12 @@ def get_current_config(
         profile = general["profile"]
         if "api_root" in general:
             co["api_root"] = general["api_root"]
+
     except KeyError:
         return (False, co)
 
     # override profile
-    if "profile" in kwargs and kwargs["profile"]:
+    if kwargs.get("profile", False):
         profile = kwargs["profile"]
 
     # get our config
@@ -176,10 +170,10 @@ def get_current_config(
         return (True, co)
 
     # kwargs supercedes
-    if "api_root" in kwargs and kwargs["api_root"]:
+    if kwargs.get("api_root", False):
         co["api_root"] = kwargs["api_root"]
 
-    if "token" in kwargs and kwargs["token"]:
+    if kwargs.get("token", False):
         co["token"] = kwargs["token"]
 
     co["profile"] = profile

@@ -5,8 +5,9 @@ import sys
 
 import pytest
 
+import novem
 from novem.cli import run_cli
-from novem.utils import get_config_path
+from novem.utils import API_ROOT, get_config_path
 
 from .utils import file_exists
 
@@ -74,29 +75,19 @@ def test_empty_config(requests_mock, fs, capsys, monkeypatch):
     (cfolder, cpath) = get_config_path()
 
     # verify that our config is missing
-    exist = file_exists(cpath)
+    assert not file_exists(cpath)
 
-    # file is missing
-    assert exist is False
-
-    # interactivley supply username and password
+    # interactively supply username and password
     invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
     monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
 
-    # construct cli paramters
-    params = ["--init"]
-
     # launch cli with params
-    sys.argv = ["novem"] + params
-
+    sys.argv = ["novem", "--init"]
     run_cli()
     out, err = capsys.readouterr()
 
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
+    # verify that our config is there
+    assert file_exists(cpath)
 
     # check if novem config file exist
     config = configparser.ConfigParser()
@@ -390,27 +381,20 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
     invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
     monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
 
-    # construct cli kkkkkkkkkkkkaramters
-    params = ["--init", "--profile", profile_name, "--force"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    # launch cli
+    sys.argv = ["novem", "--init", "--profile", profile_name, "--force"]
 
     # run cli
     run_cli()
     out, err = capsys.readouterr()
 
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
+    # file is there
+    assert file_exists(cpath)
 
     # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    # print_file(cpath)
     assert config.has_section("general") is True
 
     # verify that we have a general section containing
@@ -428,7 +412,7 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
 
 
 # confirm that we can create a new user profile with --profile
-def test_misisng_user(requests_mock, fs, capsys, monkeypatch):
+def test_missing_user(requests_mock, fs, capsys, monkeypatch):
     # The default setting is to use the api_root reference for
     # the primary novem api
     api_root = "https://api.novem.no/v1/"
@@ -440,11 +424,8 @@ def test_misisng_user(requests_mock, fs, capsys, monkeypatch):
     # get default config path
     (cfolder, cpath) = get_config_path()
 
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
     # file is missing
-    assert exist is False
+    assert not file_exists(cpath)
 
     # interactivley supply username and password
     invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
@@ -518,14 +499,8 @@ api_root = https://2.api.novem.no/v1/
     invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
     monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
 
-    # construct cli kkkkkkkkkkkkaramters
-    # params = ["--init", '-c',f1n]
-    params = ["--init", "-c", f1n]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
     # run cli
+    sys.argv = ["novem", "--init", "-c", f1n]
     run_cli()
     out, err = capsys.readouterr()
 
@@ -533,7 +508,7 @@ api_root = https://2.api.novem.no/v1/
     invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
     monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
 
-    # construct cli kkkkkkkkkkkkaramters
+    # construct cli parameters
     # params = ["--init", '-c',f1n]
     params = ["--init", "-c", f2n]
 
@@ -569,3 +544,11 @@ api_root = https://2.api.novem.no/v1/
     assert c2[profile]["username"] == auth_req["username"]
     assert c2[profile]["token"] == "path2-token"
     assert c2[profile]["token_name"] == auth_req["token_name"]
+
+
+def test_can_start_lib_without_config_file(requests_mock, fs):
+    requests_mock.register_uri(
+        "put",
+        f"{API_ROOT}vis/plots/myplot")
+
+    novem.Plot('myplot', token='foobar')
