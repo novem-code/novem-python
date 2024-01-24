@@ -1,15 +1,13 @@
 import configparser
-import io
 import json
-import sys
 
 import pytest
 
 import novem
-from novem.cli import run_cli
 from novem.utils import API_ROOT, get_config_path
 
 from .utils import file_exists
+from .conftest import CliExit
 
 # we need to test the different cli aspects
 auth_req = {
@@ -45,70 +43,49 @@ auth_resp_2 = {
 }
 
 
-# Auth endpoint for our token
-def auth(request, context):
-    # return a valid auth endpoint
-    return json.dumps(auth_resp)
+def mk_auth_responder(resp: dict):
+    return lambda request, context: json.dumps(resp)
 
 
-# Auth endpoint for our token
-def auth2(request, context):
-    # return a valid auth endpoint
-    return json.dumps(auth_resp_2)
+# requests mock
+# fs mock
 
-
-# request mock
-# fx mock
-# captreus sys
-# monekypath stdin
-def test_empty_config(requests_mock, fs, capsys, monkeypatch):
-
-    # The default setting is to use the api_root reference for
-    # the primary novem api
-    api_root = "https://api.novem.no/v1/"
-
+def test_empty_config(requests_mock, fs, cli):
     # register mocks
     # virtualize authentication endpoint
-    requests_mock.register_uri("post", f"{api_root}token", text=auth)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp))
 
     # get default config path
-    (cfolder, cpath) = get_config_path()
+    cfolder, cpath = get_config_path()
 
     # verify that our config is missing
     assert not file_exists(cpath)
 
     # interactively supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
-    # launch cli with params
-    sys.argv = ["novem", "--init"]
-    run_cli()
-    out, err = capsys.readouterr()
+    out, err = cli("--init", stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
     # verify that our config is there
     assert file_exists(cpath)
 
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
     assert config["general"]["profile"] == auth_req["username"]
-    assert config["general"]["api_root"] == api_root
+    assert config["general"]["api_root"] == API_ROOT
 
     # verify that we have empty app sections for
     # cli, pylib, fuse
-    assert config.has_section("app:cli") is True
-    assert config.has_section("app:pylib") is True
-    assert config.has_section("app:fuse") is True
+    assert config.has_section("app:cli")
+    assert config.has_section("app:pylib")
+    assert config.has_section("app:fuse")
 
     # verify that we have a user:username section
     profile = f'profile:{auth_req["username"]}'
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -116,66 +93,42 @@ def test_empty_config(requests_mock, fs, capsys, monkeypatch):
     assert config[profile]["token"] == auth_resp["token"]
     assert config[profile]["token_name"] == auth_req["token_name"]
 
-    return
 
-
-# other tests
-
-
-# confirm that we can create a new user profile with --profile
-def test_specify_user(requests_mock, fs, capsys, monkeypatch):
-
-    # The default setting is to use the api_root reference for
-    # the primary novem api
-    api_root = "https://api.novem.no/v1/"
+def test_specify_user(requests_mock, fs, cli):
+    # confirm that we can create a new user profile with --profile
 
     # register mocks
     # virtualize authentication endpoint
-    requests_mock.register_uri("post", f"{api_root}token", text=auth)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp))
 
     # get default config path
-    (cfolder, cpath) = get_config_path()
+    cfolder, cpath = get_config_path()
 
     # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is False
-
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
+    assert not file_exists(cpath)
 
     profile_name = "demo_test"
-    # construct cli paramters
-    params = ["--init", "--profile", profile_name]
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    out, err = cli(
+        "--init", "--profile", profile_name,
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    run_cli()
-    out, err = capsys.readouterr()
+    # verify that our config is there
+    assert file_exists(cpath)
 
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
-
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
     assert config["general"]["profile"] == profile_name
-    assert config["general"]["api_root"] == api_root
+    assert config["general"]["api_root"] == API_ROOT
 
     # verify that we have a user:username section
     profile = f"profile:{profile_name}"
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -185,59 +138,40 @@ def test_specify_user(requests_mock, fs, capsys, monkeypatch):
 
 
 # confirm that we can create a new user profile with --profile
-def test_add_two_user(requests_mock, fs, capsys, monkeypatch):
-
-    # The default setting is to use the api_root reference for
-    # the primary novem api
-    api_root = "https://api.novem.no/v1/"
+def test_add_two_user(requests_mock, fs, cli):
 
     # register mocks
     # virtualize authentication endpoint
-    requests_mock.register_uri("post", f"{api_root}token", text=auth)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp))
 
     # get default config path
-    (cfolder, cpath) = get_config_path()
+    cfolder, cpath = get_config_path()
 
     # verify that our config is missing
-    exist = file_exists(cpath)
+    assert not file_exists(cpath)
 
-    # file is missing
-    assert exist is False
-
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
+    # interactively supply username and password
     profile_name = "demo_test"
-    # construct cli paramters
-    params = ["--init", "--profile", profile_name]
+    out, err = cli(
+        "--init", "--profile", profile_name,
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    # verify that our config is there
+    assert file_exists(cpath)
 
-    run_cli()
-    out, err = capsys.readouterr()
-
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
-
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
     assert config["general"]["profile"] == profile_name
-    assert config["general"]["api_root"] == api_root
+    assert config["general"]["api_root"] == API_ROOT
 
     # verify that we have a user:username section
     profile = f"profile:{profile_name}"
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -247,38 +181,26 @@ def test_add_two_user(requests_mock, fs, capsys, monkeypatch):
 
     u2 = "demouser_2"
 
-    # interactivley supply username and password
-    invalues = f'{u2}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
+    # interactively supply username and password
     profile_name = "demo_test_2"
-    # construct cli paramters
-    params = ["--init", "--profile", profile_name]
+    out, err = cli(
+        "--init", "--profile", profile_name,
+        stdin=f'{u2}\n{auth_req["password"]}')
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    # verify that our config is there
+    assert file_exists(cpath)
 
-    run_cli()
-    out, err = capsys.readouterr()
-
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
-
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
 
     # verify that we have a user:username section
     profile = f"profile:{profile_name}"
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -288,59 +210,40 @@ def test_add_two_user(requests_mock, fs, capsys, monkeypatch):
 
 
 # confirm that we can create a new user profile with --profile
-def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
-
-    # The default setting is to use the api_root reference for
-    # the primary novem api
-    api_root = "https://api.novem.no/v1/"
+def test_fail_if_exist(requests_mock, fs, cli):
 
     # register mocks
     # virtualize authentication endpoint
-    requests_mock.register_uri("post", f"{api_root}token", text=auth)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp))
 
     # get default config path
-    (cfolder, cpath) = get_config_path()
+    cfolder, cpath = get_config_path()
 
     # verify that our config is missing
-    exist = file_exists(cpath)
+    assert not file_exists(cpath)
 
-    # file is missing
-    assert exist is False
-
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
+    # interactively supply username and password
     profile_name = auth_req["username"]
-    # construct cli paramters
-    params = ["--init", "--profile", profile_name]
+    out, err = cli(
+        "--init", "--profile", profile_name,
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    # verify that our config is there
+    assert file_exists(cpath)
 
-    run_cli()
-    out, err = capsys.readouterr()
-
-    # verify that our config is missing
-    exist = file_exists(cpath)
-
-    # file is missing
-    assert exist is True
-
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
     assert config["general"]["profile"] == profile_name
-    assert config["general"]["api_root"] == api_root
+    assert config["general"]["api_root"] == API_ROOT
 
     # verify that we have a user:username section
     profile = f"profile:{profile_name}"
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -348,61 +251,42 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
     assert config[profile]["token"] == auth_resp["token"]
     assert config[profile]["token_name"] == auth_req["token_name"]
 
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
-    # construct cli paramters
-    params = ["--init", "--profile", profile_name]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
     # assert that we exit with message
+    with pytest.raises(CliExit) as e:
+        cli(
+            "--init", "--profile", profile_name,
+            stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run_cli()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-    out, err = capsys.readouterr()
+    out, err = e.value.args
+    assert e.value.code == 1
     assert out == (
         ' !  The supplied profile "demouser" already exist,'
         " use --force to override\n"
     )
 
     # verify that we work with override
-
-    # virtualize authentication endpoint
-
     requests_mock.reset_mock()
-    requests_mock.register_uri("post", f"{api_root}token", text=auth2)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp_2))
 
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
+    # interactively supply username and password
+    out, err = cli(
+        "--init", "--profile", profile_name, "--force",
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    # launch cli
-    sys.argv = ["novem", "--init", "--profile", profile_name, "--force"]
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
-
-    # file is there
+    # verify that our config is there
     assert file_exists(cpath)
 
-    # check if novem config file exist
     config = configparser.ConfigParser()
     config.read(cpath)
 
-    assert config.has_section("general") is True
+    assert config.has_section("general")
 
     # verify that we have a general section containing
     # a default username and api_url
 
     # verify that we have a user:username section
     profile = f"profile:{profile_name}"
-    assert config.has_section(profile) is True
+    assert config.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -412,37 +296,28 @@ def test_fail_if_exist(requests_mock, fs, capsys, monkeypatch):
 
 
 # confirm that we can create a new user profile with --profile
-def test_missing_user(requests_mock, fs, capsys, monkeypatch):
-    # The default setting is to use the api_root reference for
-    # the primary novem api
-    api_root = "https://api.novem.no/v1/"
-
+def test_missing_user(requests_mock, fs, cli):
     # register mocks
     # virtualize authentication endpoint
-    requests_mock.register_uri("post", f"{api_root}token", text=auth)
+    requests_mock.register_uri("post", f"{API_ROOT}token", text=mk_auth_responder(auth_resp))
 
     # get default config path
-    (cfolder, cpath) = get_config_path()
+    cfolder, cpath = get_config_path()
 
     # file is missing
     assert not file_exists(cpath)
 
-    # interactivley supply username and password
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
     profile_name = auth_req["username"]
-    # construct cli paramters
-    params = ["--profile", profile_name]
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
+    # interactively supply username and password
+    with pytest.raises(CliExit) as e:
+        cli(
+            "--profile", profile_name,
+            stdin=f'{auth_req["username"]}\n{auth_req["password"]}'
+            )
 
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run_cli()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-    out, err = capsys.readouterr()
+    out, err = e.value.args
+    assert e.value.code == 1
     assert out == (
         f'Profile "{profile_name}" doens\'t exist in your config. '
         f"Please add it using:\nnovem --init --profile {profile_name}\n"
@@ -450,7 +325,7 @@ def test_missing_user(requests_mock, fs, capsys, monkeypatch):
 
 
 # confirm that we can create a new user profile with --profile
-def test_config_param(requests_mock, fs, capsys, monkeypatch):
+def test_config_param(requests_mock, fs, cli):
 
     # write sample config to location 1
     # write different config to location 2
@@ -474,15 +349,13 @@ api_root = https://2.api.novem.no/v1/
     url_2 = "https://2.api.novem.no/v1/token"
 
     def a1(request, context):  # return a valid auth endpoint
-        ar = auth_resp
-        ar["token"] = "path1-token"
+        ar = {**auth_resp, 'token': "path1-token"}
         return json.dumps(ar)
 
     requests_mock.register_uri("post", f"{url_1}", text=a1)
 
     def a2(request, context):  # return a valid auth endpoint
-        ar = auth_resp
-        ar["token"] = "path2-token"
+        ar = {**auth_resp, 'token': "path2-token"}
         return json.dumps(ar)
 
     requests_mock.register_uri("post", f"{url_2}", text=a2)
@@ -496,31 +369,14 @@ api_root = https://2.api.novem.no/v1/
         f.write(f2)
 
     # it should read the supplied config file, but also operate on it
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
+    cli(
+        "--init", "-c", f1n,
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    # run cli
-    sys.argv = ["novem", "--init", "-c", f1n]
-    run_cli()
-    out, err = capsys.readouterr()
+    cli(
+        "--init", "-c", f2n,
+        stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    # it should read the supplied config file, but also operate on it
-    invalues = f'{auth_req["username"]}\n{auth_req["password"]}'
-    monkeypatch.setattr("sys.stdin", io.StringIO(invalues))
-
-    # construct cli parameters
-    # params = ["--init", '-c',f1n]
-    params = ["--init", "-c", f2n]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
-    # print(out)
-
-    # check if novem config file exist
     c1 = configparser.ConfigParser()
     c1.read(f1n)
 
@@ -529,7 +385,7 @@ api_root = https://2.api.novem.no/v1/
 
     profile_name = auth_req["username"]
     profile = f"profile:{profile_name}"
-    assert c1.has_section(profile) is True
+    assert c1.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
@@ -537,7 +393,7 @@ api_root = https://2.api.novem.no/v1/
     assert c1[profile]["token"] == "path1-token"
     assert c1[profile]["token_name"] == auth_req["token_name"]
 
-    assert c2.has_section(profile) is True
+    assert c2.has_section(profile)
 
     # verify that the section contains
     # username, token, token_name
