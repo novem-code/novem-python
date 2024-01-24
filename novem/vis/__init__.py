@@ -50,9 +50,7 @@ class NovemVisAPI(NovemAPI):
 
         self.user = None
 
-        if self._config["ignore_ssl_warn"] or (
-            "ignore_ssl" in kwargs and kwargs["ignore_ssl"]
-        ):
+        if self._config["ignore_ssl_warn"] or ("ignore_ssl" in kwargs and kwargs["ignore_ssl"]):
             # supress ssl warnings
             s.verify = False
             import urllib3
@@ -90,10 +88,7 @@ class NovemVisAPI(NovemAPI):
         qpath = f"{self._api_root}vis/{self._vispath}/{self.id}/"
 
         if self.user:
-            qpath = (
-                f"{self._api_root}users/{self.user}/vis/"
-                f"{self._vispath}/{self.id}/"
-            )
+            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}/"
 
         # create util function
         def rec_tree(path: str) -> None:
@@ -130,11 +125,7 @@ class NovemVisAPI(NovemAPI):
             nodes: List[Dict[str, str]] = req.json()
 
             # Recurse relevant structure
-            for r in [
-                x
-                for x in nodes
-                if x["type"] not in ["system_file", "system_dir"]
-            ]:
+            for r in [x for x in nodes if x["type"] not in ["system_file", "system_dir"]]:
                 rec_tree(f'{path}/{r["name"]}')
 
         # start recurison
@@ -152,10 +143,7 @@ class NovemVisAPI(NovemAPI):
         qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
 
         if self.user:
-            qpath = (
-                f"{self._api_root}users/{self.user}/vis/"
-                f"{self._vispath}/{self.id}{relpath}"
-            )
+            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
 
         # TODO: we're using some hard coded unicode symbols and colors here
         # probably better to make this configurable by the user and perhaps
@@ -171,9 +159,7 @@ class NovemVisAPI(NovemAPI):
         h = "─"
 
         # create util function
-        def rec_tree(
-            path: str, level: int = 0, last: List[bool] = [False]
-        ) -> Tuple[List[str], str]:
+        def rec_tree(path: str, level: int = 0, last: List[bool] = [False]) -> Tuple[List[str], str]:
             qp = f"{qpath}{path}"
             req = s.get(
                 qp,
@@ -213,11 +199,7 @@ class NovemVisAPI(NovemAPI):
                     pfx += f"{v}   "
 
             # drop system stuff
-            nodes = [
-                x
-                for x in nodes
-                if x["type"] not in ["system_file", "system_dir"]
-            ]
+            nodes = [x for x in nodes if x["type"] not in ["system_file", "system_dir"]]
 
             resp = ""
             # convert element into a tree structure
@@ -240,10 +222,7 @@ class NovemVisAPI(NovemAPI):
 
                 if r["type"] == "dir":
                     if colors:
-                        resp += (
-                            f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}"
-                            f'{r["name"]}/{cl.ENDC}\n'
-                        )
+                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}" f'{r["name"]}/{cl.ENDC}\n'
                     else:
                         resp += f'{pfx}{co}{h}{h} {a} {r["name"]}/\n'
 
@@ -285,10 +264,7 @@ class NovemVisAPI(NovemAPI):
         # other actions so only the GET method supports the custom user
         # pathing
         if self.user:
-            qpath = (
-                f"{self._api_root}users/{self.user}/vis/"
-                f"{self._vispath}/{self.id}{relpath}"
-            )
+            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"
@@ -319,10 +295,7 @@ class NovemVisAPI(NovemAPI):
         # other actions so only the GET method supports the custom user
         # pathing
         if self.user:
-            qpath = (
-                f"{self._api_root}users/{self.user}/vis/"
-                f"{self._vispath}/{self.id}{relpath}"
-            )
+            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"

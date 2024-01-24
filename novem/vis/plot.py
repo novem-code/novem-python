@@ -54,7 +54,7 @@ class Plot(NovemVisAPI):
         """
         Set's the data of the plot
 
-        The paramter either needs to be a text string
+        The parameter either needs to be a text string
         of CSV formatted text or an object with a to_csv
         function.
         """
@@ -90,11 +90,7 @@ class Plot(NovemVisAPI):
 
         # get a list of valid properties
         # exclude data as it needs to be run last
-        props = [
-            x
-            for x in dir(self)
-            if x[0] != "_" and x not in ["data", "read", "delete", "write"]
-        ]
+        props = [x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write"]]
 
         do_data = False
         for k, v in kwargs.items():
@@ -200,11 +196,7 @@ class Plot(NovemVisAPI):
 
         (both options results in the same effect)
         """
-        props = [
-            x
-            for x in dir(self)
-            if x[0] != "_" and x not in ["data", "read", "delete", "write"]
-        ]
+        props = [x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write"]]
 
         if key in props:
             self.__setattr__(key, value)

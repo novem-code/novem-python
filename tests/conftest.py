@@ -1,5 +1,6 @@
 import io
 import sys
+
 import pytest
 
 from novem.cli import run_cli

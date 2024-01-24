@@ -301,13 +301,7 @@ def group(args: Dict[str, Any]) -> None:
         novem.create(path)
         return
 
-    if (
-        "invite_user" in args
-        and args["invite_user"]
-        and has_group
-        and group_name
-        and not has_org
-    ):
+    if "invite_user" in args and args["invite_user"] and has_group and group_name and not has_org:
         iu = args["invite_user"]
         path = f"/admin/groups/{group_name}/roles/members/{iu}"
         novem.create(path)

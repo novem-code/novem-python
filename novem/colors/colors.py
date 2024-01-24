@@ -17,9 +17,7 @@ class NovemColorException(NovemException):
 
 
 class StaticColor(Applicator):
-    def __init__(
-        self, plane: str, color: str, dark: Optional[str] = None
-    ) -> None:
+    def __init__(self, plane: str, color: str, dark: Optional[str] = None) -> None:
 
         # todo: validate colors and plane
         if plane not in ["bg", "fg"]:

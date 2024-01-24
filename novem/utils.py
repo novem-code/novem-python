@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from novem.types import Config
 
-API_ROOT = 'https://api.novem.no/v1/'
+API_ROOT = "https://api.novem.no/v1/"
 NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 
@@ -63,12 +63,8 @@ def colors() -> None:
 
     # disable colors if not supported
     for handle in [sys.stdout, sys.stderr]:
-        if (hasattr(handle, "isatty") and handle.isatty()) or (
-            "TERM" in os.environ and os.environ["TERM"] == "ANSI"
-        ):
-            if platform.system() == "Windows" and not (
-                "TERM" in os.environ and os.environ["TERM"] == "ANSI"
-            ):
+        if (hasattr(handle, "isatty") and handle.isatty()) or ("TERM" in os.environ and os.environ["TERM"] == "ANSI"):
+            if platform.system() == "Windows" and not ("TERM" in os.environ and os.environ["TERM"] == "ANSI"):
                 disable_colors()
         else:
             disable_colors()
@@ -121,12 +117,14 @@ def get_current_config(
     current api_root
     """
 
-    if kwargs.get('token', False) or 'ignore_config' in kwargs:
-        return True, Config({
-            'token': kwargs.get('token', None),
-            'api_root': kwargs.get('api_root', API_ROOT),
-            'ignore_ssl_warn': kwargs.get('ignore_ssl', False),
-        })
+    if kwargs.get("token", False) or "ignore_config" in kwargs:
+        return True, Config(
+            {
+                "token": kwargs.get("token", None),
+                "api_root": kwargs.get("api_root", API_ROOT),
+                "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
+            }
+        )
 
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
@@ -134,11 +132,13 @@ def get_current_config(
     else:
         config_path = kwargs["config_path"]
 
-    co = Config({
-        "ignore_ssl_warn": False,
-        "api_root": API_ROOT,
-        "token": None,
-    })
+    co = Config(
+        {
+            "ignore_ssl_warn": False,
+            "api_root": API_ROOT,
+            "token": None,
+        }
+    )
 
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -183,9 +183,7 @@ def get_current_config(
     return (True, co)
 
 
-def pretty_format(
-    values: List[Dict[str, str]], order: List[Dict[str, Any]]
-) -> str:
+def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> str:
     """
     Constructs a pretty print table of the values in values
     in the order of List

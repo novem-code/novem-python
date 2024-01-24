@@ -4,12 +4,7 @@ import uuid
 from functools import partial
 
 from novem import Mail, Plot
-from novem.mail import (
-    AuthorSection,
-    ParagraphSection,
-    PreviewSection,
-    VisSection,
-)
+from novem.mail import AuthorSection, ParagraphSection, PreviewSection, VisSection
 
 
 def test_mail_sections(requests_mock):
@@ -38,9 +33,7 @@ def test_mail_sections(requests_mock):
         text=partial(verify_plot_put, "create", "ignore"),
     )
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname)
 
     # email mock
     mail_id = "test_mail"
@@ -55,9 +48,7 @@ def test_mail_sections(requests_mock):
         text=partial(verify_mail_put, "create", "ignore"),
     )
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/mails/{mail_id}/shortname", text=mail_shortname
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/mails/{mail_id}/shortname", text=mail_shortname)
 
     # grab a reference to a plot
     plt = Plot(
@@ -175,9 +166,7 @@ def test_mail_attribs(requests_mock):
     )
 
     # shortname mocks
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/mails/{mail_id}/shortname", text=mail_shortname
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/mails/{mail_id}/shortname", text=mail_shortname)
 
     # let's verify that shortname works
     # create an e-mail
@@ -227,9 +216,7 @@ def setup_mail_mock(requests_mock, conf):
                 text=partial(verify_post, "create", "ignore"),
             )
         elif r[0] == "get":
-            requests_mock.register_uri(
-                "get", f"{api_root}vis/mails/{mail_id}{r[1]}", text=r[2]
-            )
+            requests_mock.register_uri("get", f"{api_root}vis/mails/{mail_id}{r[1]}", text=r[2])
 
     m = Mail(
         mail_id,

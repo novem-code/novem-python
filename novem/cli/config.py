@@ -26,12 +26,8 @@ def update_config(
 
         # create path and file if not exist
         Path(novem_dir).mkdir(parents=True, exist_ok=True)
-        Path(novem_config).touch(
-            mode=stat.S_IRUSR | stat.S_IWUSR, exist_ok=True
-        )
-        os.chmod(
-            novem_config, stat.S_IRUSR | stat.S_IWUSR
-        )  # ensure file is not world readable
+        Path(novem_config).touch(mode=stat.S_IRUSR | stat.S_IWUSR, exist_ok=True)
+        os.chmod(novem_config, stat.S_IRUSR | stat.S_IWUSR)  # ensure file is not world readable
     else:
         novem_config = path
 

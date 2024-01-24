@@ -62,16 +62,18 @@ class NovemAPI(object):
         # api root should always be supplied in the result
         self._api_root = config["api_root"]
 
-        if config.get('token', None):
+        if config.get("token", None):
             assert config["token"]
             self.token = config["token"]
 
         elif not config_status:
-            print("""\
+            print(
+                """\
 Novem config file is missing.  Either specify config file location with
 the config_path parameter, or setup a new token using
 $ python -m novem --init
-""")
+"""
+            )
             sys.exit(0)
 
         if self._api_root[-1] != "/":

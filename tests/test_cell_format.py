@@ -62,9 +62,7 @@ def test_color_assign(requests_mock):
         text=post_value,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     for t in [": : <", ": : -", ": : >"]:
         n.cell.align = t
@@ -80,9 +78,7 @@ def test_color_assign(requests_mock):
 
     test_values = ""
 
-    p = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    p = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     p.freeze()
 

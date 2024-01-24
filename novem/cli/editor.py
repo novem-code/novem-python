@@ -70,10 +70,7 @@ def get_editor() -> str:
         if path is not None:
             return path
 
-    raise EditorError(
-        "Unable to find a viable editor on this system."
-        "Please consider setting your $EDITOR variable"
-    )
+    raise EditorError("Unable to find a viable editor on this system. Please consider setting your $EDITOR variable")
 
 
 def get_tty_filename() -> str:
@@ -89,9 +86,7 @@ def edit(
     suffix: str = "",
 ) -> str:
     editor = get_editor()
-    args = [editor] + get_editor_args(
-        os.path.basename(os.path.realpath(editor))
-    )
+    args = [editor] + get_editor_args(os.path.basename(os.path.realpath(editor)))
 
     if use_tty is None:
         use_tty = sys.stdin.isatty() and not sys.stdout.isatty()
