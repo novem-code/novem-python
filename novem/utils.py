@@ -1,11 +1,12 @@
 import configparser
+from dataclasses import dataclass
 import io
 import os
 import platform
 import select
 import sys
 import unicodedata
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
@@ -301,43 +302,50 @@ def pretty_format(
     return los
 
 
-def data_on_stdin() -> Tuple[bool, str]:
+def data_on_stdin() -> Optional[str]:
     """
     identify if there is data waiting on sys.stdin
     """
 
-    has_data = False
+    @dataclass
+    class Result:
+        has_data: bool
+        is_test: bool
 
-    try:
-        # use msvcrt on windows
-        import msvcrt
-
-        if msvcrt.kbhit():  # type: ignore
-            has_data = True
-    except ImportError:
+    def _data_ready() -> Result:
         try:
-            # use select on linux
-            has_data = bool(
-                select.select(
-                    [
-                        sys.stdin,
-                    ],
-                    [],
-                    [],
-                    0.0,
-                )[0]
-            )
-        except io.UnsupportedOperation:
-            # We're going to assume that this is the pytest wrapper
-            # if sys.stdin is an instance of io.StringIO we are mocking data
-            # on stdin, so it should be true. else ignore.
-            has_data = isinstance(sys.stdin, io.StringIO)
+            # use msvcrt on windows
+            import msvcrt
 
-    ctnt = ""
-    if has_data:
-        ctnt = "".join([x for x in sys.stdin])
-        if ctnt == "":
-            ctnt = ""
-            has_data = False
+            r = msvcrt.kbhit()  # type: ignore
+            return Result(has_data=r, is_test=False)
 
-    return has_data, ctnt
+        except ImportError:
+            try:
+                # use select on linux
+                has_data = bool(
+                    select.select(
+                        [
+                            sys.stdin,
+                        ],
+                        [],
+                        [],
+                        0.0,
+                    )[0]
+                )
+
+                return Result(has_data=has_data, is_test=False)
+            except io.UnsupportedOperation:
+                # We're going to assume that this is the pytest wrapper
+                # if sys.stdin is an instance of io.StringIO we are mocking data
+                # on stdin, so it should be true. else ignore.
+                has_data = isinstance(sys.stdin, io.StringIO)
+                return Result(has_data=has_data, is_test=True)
+
+    r = _data_ready()
+
+    is_noninteractive = not sys.stdin.isatty()
+    has_data = r.has_data or (is_noninteractive and not r.is_test)
+
+    ctnt = "".join(sys.stdin.readlines()) if has_data else ""
+    return ctnt if ctnt else None
