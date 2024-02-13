@@ -117,28 +117,22 @@ def get_current_config(
     current api_root
     """
 
+    co = Config(
+        {
+            "token": kwargs.get("token", None),
+            "api_root": kwargs.get("api_root", API_ROOT),
+            "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
+        }
+    )
+
     if kwargs.get("token", False) or "ignore_config" in kwargs:
-        return True, Config(
-            {
-                "token": kwargs.get("token", None),
-                "api_root": kwargs.get("api_root", API_ROOT),
-                "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
-            }
-        )
+        return True, co
 
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
         (novem_dir, config_path) = get_config_path()
     else:
         config_path = kwargs["config_path"]
-
-    co = Config(
-        {
-            "ignore_ssl_warn": False,
-            "api_root": API_ROOT,
-            "token": None,
-        }
-    )
 
     config = configparser.ConfigParser()
     config.read(config_path)

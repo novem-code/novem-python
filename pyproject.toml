@@ -15,6 +15,7 @@ pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
 urllib3 = "^1.26.15"
 pandas = "^1.5.3"
+typing-extensions = "^4.9.0"
 
 [tool.poetry.scripts]
 novem = 'novem.cli:run_cli'
