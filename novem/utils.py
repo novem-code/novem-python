@@ -333,10 +333,6 @@ def data_on_stdin() -> Tuple[bool, str]:
             # on stdin, so it should be true. else ignore.
             has_data = isinstance(sys.stdin, io.StringIO)
 
-    # we will also check tty
-    if not has_data and not os.isatty(0):
-        has_data = True
-
     ctnt = ""
     if has_data:
         ctnt = "".join([x for x in sys.stdin])
