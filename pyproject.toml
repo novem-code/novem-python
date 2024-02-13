@@ -15,6 +15,7 @@ pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
 urllib3 = "^1.26.15"
 pandas = "^1.5.3"
+typing-extensions = "^4.9.0"
 
 [tool.poetry.scripts]
 novem = 'novem.cli:run_cli'
@@ -32,12 +33,15 @@ requests-mock = "^1.9.3"
 types-requests = "^2.27.7"
 pyfakefs = "^4.5.5"
 
+[tool.poetry.group.dev.dependencies]
+pandas-stubs = "^1.2"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-line-length = 79
+line-length = 120
 target-version = ['py38']
 include = '\.pyi?$'
 exclude = '''
@@ -65,7 +69,7 @@ multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
-line_length = 79
+line_length = 120
 
 [tool.pytest.ini_options]
 filterwarnings = [

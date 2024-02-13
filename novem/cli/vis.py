@@ -68,15 +68,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         flt = re.compile(fv, re.I)
 
-        plist = [
-            x
-            for x in plist
-            if (
-                flt.match(x["id"])
-                or flt.match(x["name"])
-                or flt.match(x["type"])
-            )
-        ]
+        plist = [x for x in plist if (flt.match(x["id"]) or flt.match(x["name"]) or flt.match(x["type"]))]
 
     plist = sorted(plist, key=lambda x: x["id"])
 
@@ -158,9 +150,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
             p["summary"] = "Shared with all members of the given user group"
             p["type"] = "user group"
         if re.match("^\\+.+~.+$", p["name"]):
-            p[
-                "summary"
-            ] = "Shared with all members of the given organisation group"
+            p["summary"] = "Shared with all members of the given organisation group"
             p["type"] = "org group"
 
         plist.append(p)

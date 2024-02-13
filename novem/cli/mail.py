@@ -121,29 +121,20 @@ def mail(args: Dict[str, Any]) -> None:
                         p.api_write(path, ctnt)
                         found_stdin = True
                     elif found_stdin:
-                        print(
-                            "stdin can only be sent to a single destination"
-                            " per invocation"
-                        )
+                        print("stdin can only be sent to a single destination per invocation")
                         sys.exit(1)
                     else:
-                        print(
-                            f'No data found on stdin, "-w {path}" requires'
-                            f" data to be supplied on stdin"
-                        )
+                        print(f'No data found on stdin, "-w {path}" requires data to be supplied on stdin')
                         sys.exit(1)
 
                 elif len(i) == 2 and i[1][0] == "@":
+                    fn = os.path.expanduser(i[1][1:])
                     try:
-                        fn = os.path.expanduser(i[1][1:])
                         with open(fn, "r") as f:
                             ctnt = f.read()
                             p.api_write(path, ctnt)
                     except FileNotFoundError:
-                        print(
-                            f'The supplied input file "{fn}" does not exist.'
-                            f" Please review your options"
-                        )
+                        print(f'The supplied input file "{fn}" does not exist. Please review your options')
                         sys.exit(1)
 
                 else:
@@ -189,7 +180,7 @@ def mail(args: Dict[str, Any]) -> None:
     if x:
         # get file endpoint
         if os.name == "nt":
-            from colorama import just_fix_windows_console
+            from colorama import just_fix_windows_console  # type: ignore
 
             just_fix_windows_console()
         print(p.files.ansi, end="")  # type: ignore

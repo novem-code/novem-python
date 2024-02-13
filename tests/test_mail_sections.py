@@ -39,9 +39,7 @@ def test_mail_section_visualisation(requests_mock):
         text=partial(verify_put, "create", "ignore"),
     )
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname)
 
     # grab a reference to a plot
     plt = Plot(
@@ -165,9 +163,7 @@ def test_mail_section_attachment(requests_mock):
         text=partial(verify_put, "create", "ignore"),
     )
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_id}/shortname", text=plot_shortname)
 
     # grab a reference to a plot
     plt = Plot(

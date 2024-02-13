@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Union
 from novem.exceptions import Novem401
 
 if os.name == "nt":
-    from pyreadline3 import Readline
+    from pyreadline3 import Readline  # type: ignore
 
     readline = Readline()
 else:
@@ -50,15 +50,9 @@ def do_update_config(
     token: str,
     path: Optional[str],
 ) -> None:
-    (status, path) = update_config(
-        profile, username, api_root, token_name, token, path
-    )
+    (status, path) = update_config(profile, username, api_root, token_name, token, path)
 
-    print(
-        f"{cl.OKGREEN} \u2713 {cl.ENDC}new token "
-        f'{cl.OKCYAN}"{token_name}"{cl.ENDC} created and'
-        f" saved to {path}"
-    )
+    print(f'{cl.OKGREEN} \u2713 {cl.ENDC}new token {cl.OKCYAN}"{token_name}"{cl.ENDC} created and saved to {path}')
 
     # save file
 
@@ -76,6 +70,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
 
     api_root: str = curconf["api_root"]
 
+    assert "profile" in curconf
     profile: str = curconf["profile"]
 
     # let's grab our token
@@ -89,9 +84,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
 
     token_name: Union[str, None] = None
     if not token_name:
-        token_hostname: str = "".join(
-            [x for x in hostname.lower() if x in valid_char]
-        )
+        token_hostname: str = "".join([x for x in hostname.lower() if x in valid_char])
         nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
         token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
 
@@ -108,6 +101,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
     print(f"Refresh token for profile: {profile}")
 
     # get novem username
+    assert "username" in curconf
     prefill = curconf["username"]
 
     username = input_with_prefill(" \u2022 novem username: ", prefill)
@@ -121,15 +115,10 @@ def refresh_config(args: Dict[str, Any]) -> None:
         "username": username,
         "password": password,
         "token_name": token_name,
-        "token_description": (
-            f'cli token created for "{hostname}" '
-            f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'
-        ),
+        "token_description": (f'cli token created for "{hostname}" ' f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
     }
 
-    novem = NovemAPI(
-        api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl
-    )
+    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl)
 
     try:
         res = novem.create_token(req)
@@ -144,7 +133,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
     do_update_config(profile, username, api_root, token_name, token, None)
 
 
-def init_config(args: Dict[str, Any] = None) -> None:
+def init_config(args: Dict[str, Any]) -> None:
     """
     Initialize user and config
 
@@ -226,9 +215,7 @@ def init_config(args: Dict[str, Any] = None) -> None:
 
     token_name: Union[str, None] = None
     if not token_name:
-        token_hostname: str = "".join(
-            [x for x in hostname.lower() if x in valid_char]
-        )
+        token_hostname: str = "".join([x for x in hostname.lower() if x in valid_char])
         nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
         token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
 
@@ -261,34 +248,23 @@ def init_config(args: Dict[str, Any] = None) -> None:
         "username": username,
         "password": password,
         "token_name": token_name,
-        "token_description": (
-            f'cli token created for "{hostname}" '
-            f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'
-        ),
+        "token_description": (f'cli token created for "{hostname}" ' f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
     }
 
     if _do_debug:
         print("INIT: construct request")
 
     if not api_root:
-        (hasconf, curconf) = get_current_config(**args)
-        # if our config exist, try to read it from there
-        if not hasconf:
-            api_root = "https://api.novem.no/v1/"
-        else:
-            api_root = curconf["api_root"]
+        _, curconf = get_current_config(**args)
+        api_root = curconf["api_root"]
 
     # let's grab our token
-    ignore_ssl = False
-    if "ignore_ssl" in args:
-        ignore_ssl = args["ignore_ssl"]
+    ignore_ssl = args.get("ignore_ssl", False)
 
     if _do_debug:
         print("INIT: request token")
 
-    novem = NovemAPI(
-        api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl
-    )
+    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl)
 
     try:
         res = novem.create_token(req)
@@ -304,9 +280,7 @@ def init_config(args: Dict[str, Any] = None) -> None:
         profile = username
 
     # let's write our config
-    do_update_config(
-        profile, username, api_root, token_name, token, config_path
-    )
+    do_update_config(profile, username, api_root, token_name, token, config_path)
 
 
 def print_short(parser: Any) -> None:
@@ -318,10 +292,7 @@ def print_short(parser: Any) -> None:
     print("  novem -h, --help      print a concise help")
     print("  novem --guide         print the comprehensive novem cli guide")
     print()
-    print(
-        "  novem --init          if you already have an account and want"
-        " to get started"
-    )
+    print("  novem --init          if you already have an account and want to get started")
     print()
     print("  novem -p              list your plots")
     print("  novem -m              list your mails")
@@ -396,14 +367,9 @@ def run_cli_wrapped() -> None:
     # verify profile
     if args and args["profile"]:
         config_path: str = args["config_path"]
-        profile_exists: bool = check_if_profile_exists(
-            args["profile"], config_path
-        )
+        profile_exists: bool = check_if_profile_exists(args["profile"], config_path)
         if not profile_exists:
-            print(
-                f'Profile "{args["profile"]}" doens\'t exist in your config. '
-                "Please add it using:"
-            )
+            print(f'Profile "{args["profile"]}" doens\'t exist in your config. ' "Please add it using:")
             print(f'novem --init --profile {args["profile"]}')
 
             sys.exit(1)

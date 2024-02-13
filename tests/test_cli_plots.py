@@ -17,10 +17,7 @@ auth_req = {
     "username": "demouser",
     "password": "demopass",
     "token_name": "demotoken",
-    "token_description": (
-        'cli token created for "{hostname}" '
-        'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'
-    ),
+    "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
 
@@ -367,9 +364,7 @@ def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
         context.status_code = 200
         return json.dumps([{"name": x} for x in shares])
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/plots/{plot_name}/shared", text=get_share
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_name}/shared", text=get_share)
 
     requests_mock.register_uri(
         "put",
@@ -562,10 +557,7 @@ def test_plot_input_from_file_fails(requests_mock, fs, capsys, monkeypatch):
     assert pytest_wrapped_e.type == SystemExit
     assert pytest_wrapped_e.value.code == 1
     out, err = capsys.readouterr()
-    assert out == (
-        f'The supplied input file "{filename}" does not exist.'
-        " Please review your options\n"
-    )
+    assert out == (f'The supplied input file "{filename}" does not exist.' " Please review your options\n")
 
 
 out_stdin = ""
@@ -668,10 +660,7 @@ def test_plot_input_from_stdin_fail(requests_mock, fs, capsys, monkeypatch):
     assert pytest_wrapped_e.value.code == 1
 
     out, err = capsys.readouterr()
-    assert out == (
-        'No data found on stdin, "-w /config/caption" requires data '
-        "to be supplied on stdin\n"
-    )
+    assert out == ('No data found on stdin, "-w /config/caption" requires data ' "to be supplied on stdin\n")
 
     assert content != out_fc
 

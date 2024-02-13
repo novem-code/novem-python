@@ -90,10 +90,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help=(
-            "which user to use, combine with --init to setup a"
-            " new profile and --force to override an existing one"
-        ),
+        help=("which user to use, combine with --init to setup a new profile and --force to override an existing one"),
     )
 
     parser.add_argument(
@@ -119,8 +116,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         "--init",
         dest="init",
         action="store_true",
-        help="authenticate with the novem service and create"
-        " default configuration",
+        help="authenticate with the novem service and create default configuration",
     )
 
     setup.add_argument(
@@ -164,8 +160,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         "-D",
         dest="delete",
         action="store_true",
-        help="delete the current visualisation defined by -[pdmgv] or "
-        "share defined by -s",
+        help="delete the current visualisation defined by -[pdmgv] or share defined by -s",
     )
 
     vis.add_argument(
@@ -175,8 +170,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default="",
         nargs="?",
-        help="select a share group to operate on, no paramter will list"
-        " all current shares",
+        help="select a share group to operate on, no parameter will list all current shares",
     )
 
     vis.add_argument(
@@ -245,8 +239,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="specify entity to view vis for, @username, "
-        "+org, @username~usergroup or +org~orggroup are supported",
+        help="specify entity to view vis for, @username, +org, @username~usergroup or +org~orggroup are supported",
     )
 
     vis.add_argument(
@@ -257,8 +250,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=-1,
         nargs="?",
-        help="print a tree overview of the api structure at the "
-        "given path, all input/output options are ignored",
+        help="print a tree overview of the api structure at the given path, all input/output options are ignored",
     )
 
     term = parser.add_argument_group("terminal")
@@ -269,8 +261,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store_true",
         required=False,
         default=False,
-        help="shorthand for requesting a terminal friendly output, "
-        "identical to doing -r files/plot.ansi",
+        help="shorthand for requesting a terminal friendly output, identical to doing -r files/plot.ansi",
     )
 
     term.add_argument(
@@ -279,7 +270,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="comma separated list of query paramters to include "
+        help="comma separated list of query parameters to include "
         "with request such as cols=$COLUMNS,rows=$(($lines-1))",
     )
 
@@ -289,8 +280,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store_true",
         required=False,
         default=False,
-        help='shorthand for creating a "full screen" version of '
-        "the terminal vis",
+        help='shorthand for creating a "full screen" version of ' "the terminal vis",
     )
 
     # Currently not added as it would expand on our dependencies
@@ -315,8 +305,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default="",
         nargs="?",
-        help="select plot to operate on, no paramter will list"
-        " all your plots",
+        help="select plot to operate on, no parameter will list all your plots",
     )
 
     plot.add_argument(
@@ -325,8 +314,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting the type of the plot, "
-        "identical to doing -w config/type TYPE",
+        help="shorthand for setting the type of the plot, identical to doing -w config/type TYPE",
     )
 
     mail = parser.add_argument_group("mail")
@@ -338,8 +326,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default="",
         nargs="?",
-        help="select mail to operate on, no paramter will list"
-        " all your mails",
+        help="select mail to operate on, no parameter will list all your mails",
     )
 
     mail.add_argument(
@@ -349,8 +336,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting recipient of mail, "
-        "identical to doing -w recipients/to RECIPIENTS",
+        help="shorthand for setting recipient of mail, identical to doing -w recipients/to RECIPIENTS",
     )
 
     mail.add_argument(
@@ -360,8 +346,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting recipient of mail, "
-        "identical to doing -w recipients/cc RECIPIENTS",
+        help="shorthand for setting recipient of mail, identical to doing -w recipients/cc RECIPIENTS",
     )
 
     mail.add_argument(
@@ -371,8 +356,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting recipient of mail, "
-        "identical to doing -w recipients/bcc RECIPIENTS",
+        help="shorthand for setting recipient of mail, identical to doing -w recipients/bcc RECIPIENTS",
     )
 
     mail.add_argument(
@@ -382,8 +366,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting subject of mail, "
-        "identical to doing -w config/subject SUBJECT",
+        help="shorthand for setting subject of mail, identical to doing -w config/subject SUBJECT",
     )
 
     mail.add_argument(
@@ -411,8 +394,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default="",
         nargs="?",
-        help="select invite to operate on, no paramter will list"
-        " all pending invitations",
+        help="select invite to operate on, no parameter will list all pending invitations",
     )
 
     invite.add_argument(
@@ -448,8 +430,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=ap.SUPPRESS,
         nargs="?",
-        help="select an organisation operate on, no paramter will list"
-        " all organisations of which you are a member",
+        help="select an organisation operate on, no parameter will list all organisations of which you are a member",
     )
 
     group.add_argument(
@@ -460,7 +441,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         default=ap.SUPPRESS,
         nargs="?",
         help="select an organisation -O or user -u group operate on, no "
-        "paramter will list all organisations groups of which you are a "
+        "parameter will list all organisations groups of which you are a "
         "member",
     )
 

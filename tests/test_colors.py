@@ -33,40 +33,16 @@ def test_ix_color_constructors():
     assert str(DC(None, "red", None, "green")) == "bg red,green(_,_)^lin"
     assert str(DC("bg", min="red", max="green")) == "bg red,green(_,_)^lin"
 
-    assert (
-        str(DC("bg", "red", "neutral", "green"))
-        == "bg red,neutral,green(_,_,_)^lin"
-    )
-    assert (
-        str(DC("bg", "red", "neutral", "green", vmid=0))
-        == "bg red,neutral,green(_,0,_)^lin"
-    )
-    assert (
-        str(DC("bg", "bad", "neutral", "good", vmid=0))
-        == "bg bad,neutral,good(_,0,_)^lin"
-    )
+    assert str(DC("bg", "red", "neutral", "green")) == "bg red,neutral,green(_,_,_)^lin"
+    assert str(DC("bg", "red", "neutral", "green", vmid=0)) == "bg red,neutral,green(_,0,_)^lin"
+    assert str(DC("bg", "bad", "neutral", "good", vmid=0)) == "bg bad,neutral,good(_,0,_)^lin"
 
-    assert (
-        str(DC("bg", min="red", max="green", vmin=-100, vmax=100))
-        == "bg red,green(-100,100)^lin"
-    )
-    assert (
-        str(DC("bg", min="red", max="green", vmin=_, vmax=100))
-        == "bg red,green(_,100)^lin"
-    )
-    assert (
-        str(DC("bg", min="red", max="green", vmin=-100, vmax=_))
-        == "bg red,green(-100,_)^lin"
-    )
+    assert str(DC("bg", min="red", max="green", vmin=-100, vmax=100)) == "bg red,green(-100,100)^lin"
+    assert str(DC("bg", min="red", max="green", vmin=_, vmax=100)) == "bg red,green(_,100)^lin"
+    assert str(DC("bg", min="red", max="green", vmin=-100, vmax=_)) == "bg red,green(-100,_)^lin"
 
-    assert (
-        str(DC("bg", "red", "neutral", "green", vmin=10))
-        == "bg red,neutral,green(10,_,_)^lin"
-    )
-    assert (
-        str(DC("bg", "red", "neutral", "green", vmin=10, vmax=100))
-        == "bg red,neutral,green(10,_,100)^lin"
-    )
+    assert str(DC("bg", "red", "neutral", "green", vmin=10)) == "bg red,neutral,green(10,_,_)^lin"
+    assert str(DC("bg", "red", "neutral", "green", vmin=10, vmax=100)) == "bg red,neutral,green(10,_,100)^lin"
 
     assert (
         str(
@@ -159,9 +135,7 @@ def test_color_assign(requests_mock):
         text=post_color_type,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     # assign type to color sends post request
     for ctv in ["ix", "clr"]:
@@ -274,9 +248,7 @@ def test_color_freeze(requests_mock):
         text=post_color_type,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     n.freeze()
 
@@ -396,9 +368,7 @@ def test_color_selector(requests_mock):
         text=post_color_type,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     n.freeze()
 
@@ -519,9 +489,7 @@ def test_color_df_loc_selector(requests_mock):
         text=post_color_type,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     cpath = os.path.abspath(os.path.dirname(__file__))
     df = pd.read_csv(f"{cpath}/files/hier.csv")
@@ -617,9 +585,7 @@ def test_color_df_iloc_selector(requests_mock):
         text=post_color_type,
     )
 
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     cpath = os.path.abspath(os.path.dirname(__file__))
     df = pd.read_csv(f"{cpath}/files/nei_rgn_tb.csv", index_col=0)

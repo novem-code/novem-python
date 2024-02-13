@@ -49,7 +49,7 @@ class Mail(NovemVisAPI):
         """
         Set's the content of the mail
 
-        The paramter either needs to be a text string
+        The parameter either needs to be a text string
         of CSV formatted text or an object with a to_csv
         function.
         """
@@ -72,12 +72,7 @@ class Mail(NovemVisAPI):
 
         # get a list of valid properties
         # exclude content as it needs to be run last
-        props = [
-            x
-            for x in dir(self)
-            if x[0] != "_"
-            and x not in ["content", "read", "delete", "write", "status"]
-        ]
+        props = [x for x in dir(self) if x[0] != "_" and x not in ["content", "read", "delete", "write", "status"]]
 
         do_content = False
         do_status = False
@@ -118,9 +113,7 @@ class Mail(NovemVisAPI):
             ctnt = self._preview.get_markdown()
 
         if len(self._sections):
-            ctnt += "\n\n" + "\n\n".join(
-                [s.get_markdown() for s in self._sections]
-            )
+            ctnt += "\n\n" + "\n\n".join([s.get_markdown() for s in self._sections])
 
         return ctnt
 

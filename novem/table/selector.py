@@ -22,9 +22,7 @@ def enhance_positions(positions: List[int], ior: int) -> List[int]:
     elif ior < 0:
         return list(range(min(positions) + ior, min(positions))) + positions
     else:  # ior > 0
-        return positions + list(
-            range(max(positions) + 1, max(positions) + 1 + ior)
-        )
+        return positions + list(range(max(positions) + 1, max(positions) + 1 + ior))
 
 
 class Selector(object):
@@ -91,15 +89,10 @@ class Selector(object):
 
         if frame is None:
             # TODO: Raise exception
-            raise NovemSelectorException(
-                "We need a reference to correctly infer pandas selections"
-            )
+            raise NovemSelectorException("We need a reference to correctly infer pandas selections")
 
         if filter is None:
-            raise NovemSelectorException(
-                "There is no data in our dataframe, we need at "
-                "least one value."
-            )
+            raise NovemSelectorException("There is no data in our dataframe, we need at " "least one value.")
 
         # Grab levels
         cl = filter.index.nlevels
@@ -150,9 +143,7 @@ class Selector(object):
             position = frame.index.get_loc(row_label)
             if isinstance(position, np.ndarray):
                 position = np.flatnonzero(position)
-                position = [
-                    pos for pos in position if pos not in used_positions
-                ]
+                position = [pos for pos in position if pos not in used_positions]
                 used_positions.update(position[:1])
                 row_positions.append(position[0])
             else:
@@ -166,9 +157,7 @@ class Selector(object):
             position = frame.columns.get_loc(col_label)
             if isinstance(position, np.ndarray):
                 position = np.flatnonzero(position)
-                position = [
-                    pos for pos in position if pos not in used_col_positions
-                ]
+                position = [pos for pos in position if pos not in used_col_positions]
                 used_col_positions.update(position[:1])
                 col_positions.append(position[0])
             else:

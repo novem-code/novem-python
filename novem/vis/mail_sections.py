@@ -108,21 +108,10 @@ class NovemEmailSectionApi(NovemEmailSection):
             v = kwargs[k]
 
             # the content of the param must be a string or a list of strings
-            if not (
-                isinstance(v, str)
-                or (
-                    isinstance(v, list)
-                    and not sum([1 for x in v if not isinstance(x, str)])
-                )
-            ):
+            if not (isinstance(v, str) or (isinstance(v, list) and not sum([1 for x in v if not isinstance(x, str)]))):
 
                 # consider exception
-                print(
-                    (
-                        f'WARN: Section parameter "{k}" must be a string or '
-                        "a list of strings"
-                    )
-                )
+                print((f'WARN: Section parameter "{k}" must be a string or ' "a list of strings"))
 
             # get some meta data about our param
             vp = valid_param_map[k]
@@ -148,32 +137,20 @@ class NovemEmailSectionApi(NovemEmailSection):
                     dz = 1
                     clr = ""
                     if dd not in vdl:
-                        print(
-                            f'WARN: valid direction option for "{k}" '
-                            f'is one of {",".join(vdl)}'
-                        )
+                        print(f'WARN: valid direction option for "{k}" ' f'is one of {",".join(vdl)}')
                     if len(ds) > 1:
                         try:
                             dz = int(ds[1])
                         except ValueError:
-                            print(
-                                f'WARN: valid size option for "{k}" '
-                                "is between 0 and 5"
-                            )
+                            print(f'WARN: valid size option for "{k}" ' "is between 0 and 5")
 
                         if dz > 5 or dz < 0:
-                            print(
-                                f'WARN: valid size option for "{k}" '
-                                "is between 0 and 5"
-                            )
+                            print(f'WARN: valid size option for "{k}" ' "is between 0 and 5")
 
                     if len(splt) > 1 and "color" in vp:
                         cls = splt[1:]
                         if len(cls) > 2:
-                            print(
-                                "WARN: a maximum of two colors can "
-                                f'be supplied for "{k}"'
-                            )
+                            print("WARN: a maximum of two colors can " f'be supplied for "{k}"')
                             cls = cls[:2]
 
                         # validate colors?
@@ -186,10 +163,7 @@ class NovemEmailSectionApi(NovemEmailSection):
                     # only colors
                     cls = v.split(" ")
                     if len(cls) > 2:
-                        print(
-                            "WARN: a maximum of two colors can "
-                            f'be supplied for "{k}"'
-                        )
+                        print("WARN: a maximum of two colors can " f'be supplied for "{k}"')
                         cls = cls[:2]
 
                         # validate colors?
@@ -245,9 +219,7 @@ class NovemEmailSectionApi(NovemEmailSection):
 
         return "100%"
 
-    def isinval(
-        self, value: Optional[str], default: Optional[str], opts: List[str]
-    ) -> Optional[str]:
+    def isinval(self, value: Optional[str], default: Optional[str], opts: List[str]) -> Optional[str]:
         """
         Novem value in options check
         """
@@ -311,9 +283,7 @@ class VisSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # add param for our mandatory section
         vsn = vis.shortname.strip()
@@ -377,9 +347,7 @@ class CalloutSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # add our body
         self._body = markdown
@@ -405,9 +373,7 @@ class PreviewSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # add our body
         self._body = markdown
@@ -435,9 +401,7 @@ class ParagraphSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # add our body
         self._body = markdown
@@ -466,9 +430,7 @@ class AuthorSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # strip @s from username
         username = username.lower().replace("@", "")
@@ -501,9 +463,7 @@ class AttachmentSection(NovemEmailSectionApi):
         locs = locals()
 
         # invoke super for param generations
-        super().__init__(
-            locs, signature(self.__class__.__init__).parameters, **kwargs
-        )
+        super().__init__(locs, signature(self.__class__.__init__).parameters, **kwargs)
 
         # add param for our mandatory section
         vsn = ref.shortname.strip()

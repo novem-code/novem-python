@@ -6,8 +6,11 @@ import platform
 import select
 import sys
 import unicodedata
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
+from novem.types import Config
+
+API_ROOT = "https://api.novem.no/v1/"
 NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 
@@ -27,24 +30,25 @@ class cl:
 
 
 def disable_colors() -> None:
-    cl.HEADER = ""
-    cl.OKBLUE = ""
-    cl.OKCYAN = ""
-    cl.OKGREEN = ""
-    cl.WARNING = ""
-    cl.FAIL = ""
-    cl.ENDC = ""
-    cl.BOLD = ""
-    cl.UNDERLINE = ""
-    cl.FGGRAY = ""
-    cl.BGGRAY = ""
+    c = cast(Any, cl)
+    c.HEADER = ""
+    c.OKBLUE = ""
+    c.OKCYAN = ""
+    c.OKGREEN = ""
+    c.WARNING = ""
+    c.FAIL = ""
+    c.ENDC = ""
+    c.BOLD = ""
+    c.UNDERLINE = ""
+    c.FGGRAY = ""
+    c.BGGRAY = ""
 
 
 def colors() -> None:
     # ignore color disable if --colors in argv
     for a in sys.argv:
         if os.name == "nt":
-            from colorama import just_fix_windows_console
+            from colorama import just_fix_windows_console  # type: ignore
 
             just_fix_windows_console()
         if a == "--color":
@@ -59,12 +63,8 @@ def colors() -> None:
 
     # disable colors if not supported
     for handle in [sys.stdout, sys.stderr]:
-        if (hasattr(handle, "isatty") and handle.isatty()) or (
-            "TERM" in os.environ and os.environ["TERM"] == "ANSI"
-        ):
-            if platform.system() == "Windows" and not (
-                "TERM" in os.environ and os.environ["TERM"] == "ANSI"
-            ):
+        if (hasattr(handle, "isatty") and handle.isatty()) or ("TERM" in os.environ and os.environ["TERM"] == "ANSI"):
+            if platform.system() == "Windows" and not ("TERM" in os.environ and os.environ["TERM"] == "ANSI"):
                 disable_colors()
         else:
             disable_colors()
@@ -106,7 +106,7 @@ def get_config_path() -> Tuple[str, str]:
 
 def get_current_config(
     **kwargs: Any,
-) -> Tuple[bool, Dict[str, Any]]:
+) -> Tuple[bool, Config]:
     """
     Resolve and return the current config options
 
@@ -117,35 +117,25 @@ def get_current_config(
     current api_root
     """
 
+    co = Config(
+        {
+            "token": kwargs.get("token", None),
+            "api_root": kwargs.get("api_root", API_ROOT),
+            "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
+        }
+    )
+
+    if kwargs.get("token", False) or "ignore_config" in kwargs:
+        return True, co
+
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
         (novem_dir, config_path) = get_config_path()
     else:
         config_path = kwargs["config_path"]
 
-    co: Dict[str, Any] = {}
-
-    # defaults
-    co["ignore_ssl_warn"] = False
-
-    # in addition, we can be instructed to ignore the config
-    # if we are ignoring the config then the api root must be provided
-    if "ignore_config" in kwargs:
-        co["api_root"] = kwargs["api_root"]
-
-        # return (True:Bool, co:Dict[str, str])
-        return (True, co)
-
-    # construct a config object
     config = configparser.ConfigParser()
-
-    # check if novem config file exist
     config.read(config_path)
-
-    # if api_root is present in kwagars it overrides all other options
-    co["api_root"] = ""
-    if "api_root" in kwargs and kwargs["api_root"]:
-        co["api_root"] = kwargs["api_root"]
 
     # the configuration file has an invalid format
     try:
@@ -153,11 +143,12 @@ def get_current_config(
         profile = general["profile"]
         if "api_root" in general:
             co["api_root"] = general["api_root"]
+
     except KeyError:
         return (False, co)
 
     # override profile
-    if "profile" in kwargs and kwargs["profile"]:
+    if kwargs.get("profile", False):
         profile = kwargs["profile"]
 
     # get our config
@@ -176,19 +167,17 @@ def get_current_config(
         return (True, co)
 
     # kwargs supercedes
-    if "api_root" in kwargs and kwargs["api_root"]:
+    if kwargs.get("api_root", False):
         co["api_root"] = kwargs["api_root"]
 
-    if "token" in kwargs and kwargs["token"]:
+    if kwargs.get("token", False):
         co["token"] = kwargs["token"]
 
     co["profile"] = profile
     return (True, co)
 
 
-def pretty_format(
-    values: List[Dict[str, str]], order: List[Dict[str, Any]]
-) -> str:
+def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> str:
     """
     Constructs a pretty print table of the values in values
     in the order of List

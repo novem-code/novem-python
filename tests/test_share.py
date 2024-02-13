@@ -51,9 +51,7 @@ def test_plot(requests_mock):
     def get_shares(request, context):
         return json.dumps([{"name": v} for v in valid_names])
 
-    requests_mock.register_uri(
-        "get", f"{api_root}vis/plots/{plot_id}/shared", text=get_shares
-    )
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_id}/shared", text=get_shares)
 
     requests_mock.register_uri(
         "put",
@@ -80,9 +78,7 @@ def test_plot(requests_mock):
     )
 
     # create a novem api object
-    n = Plot(
-        plot_id, type=plot_type, config_path=config_file  # config location
-    )
+    n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
     # share with public and novem_demo
     n.shared = "public"
