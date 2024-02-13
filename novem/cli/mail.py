@@ -105,7 +105,8 @@ def mail(args: Dict[str, Any]) -> None:
             p.type = ptype
 
         found_stdin = False
-        stdin_has_data, stdin_data = data_on_stdin()
+        stdin_data = data_on_stdin()
+        stdin_has_data = bool(stdin_data)
 
         # check if we have any explicit inputs [-w's]
         if args["input"] and len(args["input"]):
