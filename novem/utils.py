@@ -1,11 +1,11 @@
 import configparser
-from dataclasses import dataclass
 import io
 import os
 import platform
 import select
 import sys
 import unicodedata
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from novem.types import Config
@@ -148,8 +148,7 @@ def get_current_config(
         return (False, co)
 
     # override profile
-    if kwargs.get("profile", False):
-        profile = kwargs["profile"]
+    profile = kwargs.get("profile") or profile
 
     # get our config
     try:

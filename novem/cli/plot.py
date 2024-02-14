@@ -57,6 +57,7 @@ def plot(args: Dict[str, Any]) -> None:
         config_path=args["config_path"],
         qpr=args["qpr"],
         debug=args["debug"],
+        profile=args["profile"],
     )
 
     # this is a data dump instruction, we'll ignore everything else

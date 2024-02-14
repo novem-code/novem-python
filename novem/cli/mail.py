@@ -62,6 +62,7 @@ def mail(args: Dict[str, Any]) -> None:
         subject=args["subject"],
         qpr=args["qpr"],
         debug=args["debug"],
+        profile=args["profile"],
     )
 
     # this is a data dump instruction, we'll ignore everything else
