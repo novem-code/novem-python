@@ -21,11 +21,10 @@ else:
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
+from .common import mail, plot
 from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
-from .mail import mail
-from .plot import plot
 from .setup import setup
 
 sys.tracebacklimit = 0
