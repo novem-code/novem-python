@@ -297,7 +297,7 @@ def test_missing_user(requests_mock, fs, cli):
     out, err = e.value.args
     assert e.value.code == 1
     assert out == (
-        f'Profile "{profile_name}" doens\'t exist in your config. '
+        f'Profile "{profile_name}" doesn\'t exist in your config. '
         f"Please add it using:\nnovem --init --profile {profile_name}\n"
     )
 

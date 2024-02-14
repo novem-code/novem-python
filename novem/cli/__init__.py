@@ -369,8 +369,12 @@ def run_cli_wrapped() -> None:
         config_path: str = args["config_path"]
         profile_exists: bool = check_if_profile_exists(args["profile"], config_path)
         if not profile_exists:
-            print(f'Profile "{args["profile"]}" doens\'t exist in your config. ' "Please add it using:")
-            print(f'novem --init --profile {args["profile"]}')
+            print(
+                f"""\
+Profile "{args["profile"]}" doesn't exist in your config. Please add it using:
+novem --init --profile {args["profile"]}\
+"""
+            )
 
             sys.exit(1)
 

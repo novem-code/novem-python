@@ -87,7 +87,7 @@ def mail(args: Dict[str, Any]) -> None:
     if "edit" in args and args["edit"]:
         path = args["edit"]
 
-        # fetch our target and warn if it doens't exist
+        # fetch our target and warn if it doesn't exist
         ctnt = p.api_read(f"/{path}")
 
         # get new content
