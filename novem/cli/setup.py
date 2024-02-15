@@ -1,8 +1,16 @@
 import argparse as ap
 import shutil
+from enum import Enum
 from typing import Any, Dict, Tuple
 
 width = min(80, shutil.get_terminal_size().columns - 2)
+
+
+class Share(Enum):
+    NOT_GIVEN = 0
+    CREATE = 1
+    DELETE = 2
+    LIST = 3
 
 
 def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
@@ -462,7 +470,21 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     #    help="specify role to give invited user, empty means member"
     # )
 
-    # Gather the provided arguements as an array.
-    args: Dict[str, str] = vars(parser.parse_args(raw_args))
+    args = vars(parser.parse_args(raw_args))
+
+    # fix up the --share option
+    share = args.pop("share")
+    if share == "":
+        args["share"] = (Share.NOT_GIVEN, None)
+    elif share is None:
+        args["share"] = (Share.LIST, None)
+    elif args["create"]:
+        args["create"] = None
+        args["share"] = (Share.CREATE, share)
+    elif args["delete"]:
+        args["delete"] = None
+        args["share"] = (Share.DELETE, share)
+    else:
+        args["share"] = None
 
     return (parser, args)

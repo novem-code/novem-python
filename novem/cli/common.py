@@ -5,6 +5,7 @@ from typing import Any, Dict, Literal, Optional
 from novem import Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
+from novem.cli.setup import Share
 from novem.cli.vis import list_vis, list_vis_shares
 from novem.utils import data_on_stdin
 from novem.vis import NovemVisAPI
@@ -69,7 +70,7 @@ class VisBase:
             return
 
         # if delete flag is set, we need to delete it
-        if args["delete"] and not args["share"]:
+        if args["delete"]:
             # creating a plot just to delete it seems wasteful
             # We'll just use the raw api
             novem = NovemAPI(**args)
@@ -184,20 +185,17 @@ class VisBase:
                 self.set_data(vis, ctnt)
 
         # check if we are changing any permissions
-        share: str = args["share"]
+        share_op, share_target = args["share"]
+        if share_op is Share.CREATE:
+            # add a share to the vis
+            vis.shared += share_target  # type: ignore
 
-        if share is not None and share != "" and args["create"]:
-            # add a share to the plot
+        if share_op is Share.DELETE:
+            # remove a share from the vis
+            vis.shared -= share_target  # type: ignore
 
-            vis.shared += share  # type: ignore
-
-        if share is not None and share != "" and args["delete"]:
-            # remove a share from the plot
-
-            vis.shared -= share  # type: ignore
-
-        # check if we should print our shares, we will not provide other outputs
-        if share is None:
+        if share_op is Share.LIST:
+            # check if we should print our shares, we will not provide other outputs
             list_vis_shares(name, args, self.title)
             return
 
