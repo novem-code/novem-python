@@ -21,11 +21,10 @@ else:
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
+from .common import mail, plot
 from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
-from .mail import mail
-from .plot import plot
 from .setup import setup
 
 sys.tracebacklimit = 0
@@ -369,8 +368,12 @@ def run_cli_wrapped() -> None:
         config_path: str = args["config_path"]
         profile_exists: bool = check_if_profile_exists(args["profile"], config_path)
         if not profile_exists:
-            print(f'Profile "{args["profile"]}" doens\'t exist in your config. ' "Please add it using:")
-            print(f'novem --init --profile {args["profile"]}')
+            print(
+                f"""\
+Profile "{args["profile"]}" doesn't exist in your config. Please add it using:
+novem --init --profile {args["profile"]}\
+"""
+            )
 
             sys.exit(1)
 

@@ -1,5 +1,7 @@
+import base64
 import configparser
 import json
+import re
 
 import pytest
 
@@ -297,7 +299,7 @@ def test_missing_user(requests_mock, fs, cli):
     out, err = e.value.args
     assert e.value.code == 1
     assert out == (
-        f'Profile "{profile_name}" doens\'t exist in your config. '
+        f'Profile "{profile_name}" doesn\'t exist in your config. '
         f"Please add it using:\nnovem --init --profile {profile_name}\n"
     )
 
@@ -380,3 +382,43 @@ def test_can_start_lib_without_config_file(requests_mock, fs):
     requests_mock.register_uri("put", f"{API_ROOT}vis/plots/myplot")
 
     novem.Plot("myplot", token="foobar")
+
+
+def test_can_override_profile_for_plot(requests_mock, fs, cli):
+    conf = """\
+[general]
+profile = user1
+
+[profile:user1]
+username = user1
+api_root = https://1
+token = token1
+
+[profile:user2]
+username = user2
+api_root = https://2
+token = token2
+"""
+
+    request = None
+
+    def mk_response(r, context):
+        nonlocal request
+        request = (r.hostname, r.path, base64.decodebytes(r.headers["Authorization"].partition(" ")[2].encode()))
+        return "[]"
+
+    matcher = re.compile(r"https://(\d+)/u/(.+)/p/")
+    requests_mock.register_uri("GET", matcher, text=mk_response)
+
+    # write config file #1
+    with open("conf", "w") as f:
+        f.write(conf)
+
+    cli("--conf", "conf", "-p")
+    assert request == ("1", "/u/user1/p/", b":token1")
+
+    cli("--conf", "conf", "--profile", "user1", "-p")
+    assert request == ("1", "/u/user1/p/", b":token1")
+
+    cli("--conf", "conf", "--profile", "user2", "-p")
+    assert request == ("2", "/u/user2/p/", b":token2")

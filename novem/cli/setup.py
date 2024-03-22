@@ -1,8 +1,16 @@
 import argparse as ap
 import shutil
+from enum import Enum
 from typing import Any, Dict, Tuple
 
-width = min(80, shutil.get_terminal_size().columns - 2)
+width = min(120, shutil.get_terminal_size().columns - 2)
+
+
+class Share(Enum):
+    NOT_GIVEN = 0
+    CREATE = 1
+    DELETE = 2
+    LIST = 3
 
 
 def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
@@ -10,9 +18,6 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
 
 
 def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
-    # formatter = lambda prog: ap.RawDescriptionHelpFormatter(prog,
-    # width=width)
-
     parser = ap.ArgumentParser(
         prog="novem",
         description="Novem commandline interface.",
@@ -81,7 +86,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help=("specify configuration file to use"),
+        help="specify configuration file to use",
     )
 
     parser.add_argument(
@@ -90,7 +95,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help=("which user to use, combine with --init to setup a new profile and --force to override an existing one"),
+        help="which user to use, combine with --init to setup a new profile and --force to override an existing one",
     )
 
     parser.add_argument(
@@ -142,8 +147,8 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store_true",
         required=False,
         default=False,
-        help="refresh the token for the current profile "
-        "(or the one supplied by --profile), requires username and password",
+        help="refresh the token for the current profile (or the one supplied by --profile), "
+        "requires username and password",
     )
 
     vis = parser.add_argument_group("common visualisation arguments")
@@ -196,9 +201,8 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="append",
         nargs="+",
         metavar=("PATH", "VALUE"),
-        help="write the suppied VALUE to the given PATH. PATH is mandatory "
-        "but value can be an explicit value, an @prefixed filename or the "
-        "input from standard in ",
+        help="write the supplied VALUE to the given PATH. PATH is mandatory. VALUE can be an explicit value, "
+        "a filename prefixed with @ or data on stdin",
     )
 
     vis.add_argument(
@@ -208,7 +212,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=None,
         metavar=("PATH"),
-        help="reads the content of PATH and prints it to standard out",
+        help="read the content of PATH and prints it to stdout",
     )
 
     vis.add_argument(
@@ -218,8 +222,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=None,
         metavar=("PATH"),
-        help="opens the content located at PATH in your default $EDITOR "
-        " and updates the saved content on editor exit",
+        help="open the content located at PATH in $EDITOR and update the saved content on editor exit",
     )
 
     vis.add_argument(
@@ -270,8 +273,8 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="comma separated list of query parameters to include "
-        "with request such as cols=$COLUMNS,rows=$(($lines-1))",
+        help="comma separated list of query parameters to include with request such as "
+        "cols=$COLUMNS,rows=$(($lines-1))",
     )
 
     term.add_argument(
@@ -280,21 +283,21 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store_true",
         required=False,
         default=False,
-        help='shorthand for creating a "full screen" version of ' "the terminal vis",
+        help='shorthand for creating a "full screen" version of the terminal vis',
     )
 
     # Currently not added as it would expand on our dependencies
     # we might consider adding it or providing it as a separate package
     # in the future
-    # term.add_argument(
-    #     "--watch",
-    #     dest="watch",
-    #     action="store_true",
-    #     required=False,
-    #     default=False,
-    #     help="connects to the server and redraws the visual when "
-    #     "new information is available",
-    # )
+    if 0:
+        term.add_argument(
+            "--watch",
+            dest="watch",
+            action="store_true",
+            required=False,
+            default=False,
+            help="connect to the server and redraws the visual when new information is available",
+        )
 
     plot = parser.add_argument_group("plot")
 
@@ -417,10 +420,17 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
 
     group = parser.add_argument_group(
         "group",
-        description="Operate on novem groups, -C to create, -D to "
-        "delete the group\n"
-        "--invite and --remove to manage members\n-O and -u to specify org or "
-        "user groups",
+        description="""\
+Operate on novem groups.
+
+-C, --create - create
+-D, --delete - delete the group
+--invite      - invite a member to a group
+--remove      - manage members
+
+Examples:
+  --invite bob -C analysts
+""",
     )
 
     group.add_argument(
@@ -440,9 +450,9 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         required=False,
         default=ap.SUPPRESS,
         nargs="?",
-        help="select an organisation -O or user -u group operate on, no "
-        "parameter will list all organisations groups of which you are a "
-        "member",
+        help="""\
+select an organisation -O or user -u group operate on.
+No parameter will list all organisations groups of which you are a member""",
     )
 
     group.add_argument(
@@ -462,7 +472,21 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     #    help="specify role to give invited user, empty means member"
     # )
 
-    # Gather the provided arguements as an array.
-    args: Dict[str, str] = vars(parser.parse_args(raw_args))
+    args = vars(parser.parse_args(raw_args))
+
+    # fix up the --share option
+    share = args.pop("share")
+    if share == "":
+        args["share"] = (Share.NOT_GIVEN, None)
+    elif share is None:
+        args["share"] = (Share.LIST, None)
+    elif args["create"]:
+        args["create"] = None
+        args["share"] = (Share.CREATE, share)
+    elif args["delete"]:
+        args["delete"] = None
+        args["share"] = (Share.DELETE, share)
+    else:
+        args["share"] = None
 
     return (parser, args)
