@@ -19,6 +19,8 @@
         poetryEnv = poetry2nix.mkPoetryEnv {
           projectDir = ./.;
           preferWheels = true;
+          groups = [];
+          checkGroups = [];
         };
       in {
         checks = {
