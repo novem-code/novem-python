@@ -33,7 +33,7 @@
         packages = {
           # Main Novem Python app/package
           novem = poetry2nix.mkPoetryApplication {
-            projectDir = self;
+            projectDir = ./.;
             preferWheels = true;
           };
           poetryEnv = poetryEnv;
