@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "novem"
-version = "0.4.11"
-description = "python library for the novem.no data visualisation platform"
-authors = ["Sondov Engen <sondov@novem.no>"]
-homepage = "https://novem.no"
-repository = "https://github.com/novem-no/novem"
+version = "0.4.12"
+description = "python library for the novem data visualisation platform"
+authors = ["Sondov Engen <sondov@novem.no>", "Bjørnar Snoksrud <bjornars@novem.no>", "Martin Myrseth <myme@novem.no>"]
+homepage = "https://novem.io"
+repository = "https://github.com/novem-code/novem-python"
 readme = "README.md"
 license = "MIT"
 
