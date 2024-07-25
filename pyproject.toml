@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "novem"
-version = "0.4.13"  # do not touch manually, use `poetry run bump_version`
+version = "0.4.14"  # do not touch manually, use `poetry run bump_version`
 description = "python library for the novem data visualisation platform"
 authors = ["Sondov Engen <sondov@novem.no>", "Bjørnar Snoksrud <bjornars@novem.no>", "Martin Myrseth <myme@novem.no>"]
 homepage = "https://novem.io"
