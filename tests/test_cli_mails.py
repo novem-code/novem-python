@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 from .utils import write_config
 
@@ -17,7 +17,7 @@ class Capture:
     out: Any = None
 
 
-def mk_responder(resp: str, code, capture: Capture | None = None):
+def mk_responder(resp: str, code, capture: Union[Capture, None] = None):
     def inner(res, context):
         if capture:
             capture.out = res.body.decode("utf-8")
