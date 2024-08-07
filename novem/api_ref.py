@@ -8,10 +8,11 @@ from .utils import get_current_config
 from .version import __version__
 
 
-def get_ua() -> Dict[str, str]:
+def get_ua(is_cli: bool) -> Dict[str, str]:
+    name = "NovemCli" if is_cli else "NovemLib"
     py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     return {
-        "User-Agent": f"NovemLib/{__version__} Python/{py_version}",
+        "User-Agent": f"{name}/{__version__} Python/{py_version}",
     }
 
 
@@ -58,7 +59,7 @@ class NovemAPI(object):
 
         self._config = config
         self._session = requests.Session()
-        self._session.headers.update(get_ua())
+        self._session.headers.update(get_ua(kwargs.get("is_cli", False)))
         self._session.proxies = urllib.request.getproxies()
 
         if self._config["ignore_ssl_warn"]:

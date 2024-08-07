@@ -252,7 +252,7 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
 # TODO: shift this logic to a group class
 # and make it available from python as well
 def group(args: Dict[str, Any]) -> None:
-    novem = NovemAPI(**args)
+    novem = NovemAPI(**args, is_cli=True)
 
     has_org = "org" in args and args["org"] != ""
     has_group = "group" in args and args["group"] != ""

@@ -44,6 +44,7 @@ class VisBase:
                 qpr=args["qpr"],
                 debug=args["debug"],
                 profile=args["profile"],
+                is_cli=True,
             )
 
         elif self.type == "plot":
@@ -56,6 +57,7 @@ class VisBase:
                 qpr=args["qpr"],
                 debug=args["debug"],
                 profile=args["profile"],
+                is_cli=True,
             )
         else:
             assert False, "Invalid type"
@@ -73,7 +75,7 @@ class VisBase:
         if args["delete"]:
             # creating a plot just to delete it seems wasteful
             # We'll just use the raw api
-            novem = NovemAPI(**args)
+            novem = NovemAPI(**args, is_cli=True)
 
             try:
                 novem.delete(f"vis/{self.fragment}/{name}")

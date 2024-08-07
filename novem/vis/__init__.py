@@ -12,8 +12,6 @@ from .shared import NovemShare
 
 
 class NovemVisAPI(NovemAPI):
-    """ """
-
     shared: Optional[NovemShare] = None
     files: Optional[NovemFiles] = None
 

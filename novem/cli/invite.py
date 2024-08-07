@@ -123,8 +123,7 @@ def list_invites(args: Dict[str, Any], novem: NovemAPI) -> None:
 
 
 def invite(args: Dict[str, Any]) -> None:
-
-    novem = NovemAPI(**args)
+    novem = NovemAPI(**args, is_cli=True)
 
     # we are invoked so plot must exist
     invite_name = args["invite"]
