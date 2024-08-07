@@ -1,6 +1,4 @@
-import sys
-
-from novem.cli import run_cli
+from typing import Any
 
 from .utils import write_config
 
@@ -12,110 +10,50 @@ auth_req = {
     "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
-
-# Auth endpoint for our token
-def missing(request, context):
-
-    # return a valid auth endpoint
-    context.status_code = 404
-
-    return
+api_root = "https://api.novem.no/v1/"
 
 
-out_test = ""
+class Capture:
+    out: Any = None
 
 
-def test_mail_test(requests_mock, fs, capsys, monkeypatch):
-    api_root = "https://api.novem.no/v1/"
+def mk_responder(resp: str, code, capture: Capture | None = None):
+    def inner(res, context):
+        if capture:
+            capture.out = res.body.decode("utf-8")
+        context.status_code = code
+        return resp
 
-    # create a config
+    return inner
+
+
+def mk_missing():
+    return mk_responder("", 404)
+
+
+def test_status_set_when_sending_test_mail(requests_mock, cli):
     write_config(auth_req)
-
-    # plot name
     mail_name = "test_mail"
 
-    global out_test
-    out_test = ""
+    capture = Capture()
+    requests_mock.register_uri("PUT", f"{api_root}vis/plots/{mail_name}", status_code=201)
+    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/content", text=mk_responder("OK", 200))
+    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/status", text=mk_responder("OK", 200, capture))
 
-    requests_mock.register_uri(
-        "PUT",
-        f"{api_root}vis/plots/{mail_name}",
-        status_code=201,
-    )
-
-    def capture_content(request, context):
-        global out_test
-        out_test = request.body.decode("utf-8")
-        context.status_code = 200
-        return "OK"
-
-    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/content", text=capture_content)
-
-    def set_status(request, context):
-        global out_test
-        out_test = request.body.decode("utf-8")
-        context.status_code = 200
-        return "OK"
-
-    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/status", text=set_status)
-
-    # try to delete a non-existent plot
-    params = ["-m", mail_name, "-w", "content", "hi", "-T"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-
-    expected = "testing"
-
-    assert expected == out_test
+    # send a test mail
+    cli("-m", mail_name, "-w", "content", "hi", "-T")
+    assert capture.out == "testing"
 
 
-def test_mail_send(requests_mock, fs, capsys, monkeypatch):
-    api_root = "https://api.novem.no/v1/"
-
-    # create a config
+def test_status_set_when_sending_mail(requests_mock, cli):
     write_config(auth_req)
-
-    # plot name
     mail_name = "test_mail"
 
-    global out_test
-    out_test = ""
+    capture = Capture()
+    requests_mock.register_uri("PUT", f"{api_root}vis/plots/{mail_name}", status_code=201)
+    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/content", text=mk_responder("OK", 200))
+    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/status", text=mk_responder("OK", 200, capture))
 
-    requests_mock.register_uri(
-        "PUT",
-        f"{api_root}vis/plots/{mail_name}",
-        status_code=201,
-    )
-
-    def capture_content(request, context):
-        global out_test
-        out_test = request.body.decode("utf-8")
-        context.status_code = 200
-        return "OK"
-
-    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/content", text=capture_content)
-
-    def set_status(request, context):
-        global out_test
-        out_test = request.body.decode("utf-8")
-        context.status_code = 200
-        return "OK"
-
-    requests_mock.register_uri("POST", f"{api_root}vis/mails/{mail_name}/status", text=set_status)
-
-    # try to delete a non-existent plot
-    params = ["-m", mail_name, "-w", "content", "hi", "-S"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-
-    expected = "sending"
-
-    assert expected == out_test
+    # send the mail
+    cli("-m", mail_name, "-w", "content", "hi", "-S")
+    assert capture.out == "sending"
