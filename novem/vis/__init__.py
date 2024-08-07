@@ -7,27 +7,12 @@ from novem.exceptions import Novem403, Novem404
 from ..api_ref import NovemAPI
 from ..utils import cl
 from ..utils import colors as clrs
-from ..version import __version__
 from .files import NovemFiles
 from .shared import NovemShare
 
 
 class NovemVisAPI(NovemAPI):
     """ """
-
-    _hdr_post: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-        "Content-type": "text/plain",
-    }
-    _hdr_put: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
-    _hdr_get: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
-    _hdr_del: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
 
     shared: Optional[NovemShare] = None
     files: Optional[NovemFiles] = None
@@ -78,10 +63,7 @@ class NovemVisAPI(NovemAPI):
             qp = f"{qpath}{path}"
             fp = f"{outpath}{path}"
             # print(f"QP: {qp}")
-            req = self._session.get(
-                qp,
-                headers=self._hdr_get,
-            )
+            req = self._session.get(qp)
 
             if not req.ok:
                 return None
@@ -142,10 +124,7 @@ class NovemVisAPI(NovemAPI):
         # create util function
         def rec_tree(path: str, level: int = 0, last: List[bool] = [False]) -> Tuple[List[str], str]:
             qp = f"{qpath}{path}"
-            req = self._session.get(
-                qp,
-                headers=self._hdr_get,
-            )
+            req = self._session.get(qp)
 
             if not req.ok:
                 return ([], "")
@@ -251,10 +230,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = self._session.get(
-            qpath,
-            headers=self._hdr_get,
-        )
+        r = self._session.get(qpath)
 
         # TODO: verify result and raise exception if not ok
         if r.status_code == 404:
@@ -280,10 +256,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = self._session.get(
-            qpath,
-            headers=self._hdr_get,
-        )
+        r = self._session.get(qpath)
 
         # TODO: verify result and raise exception if not ok
         if r.status_code == 404:
@@ -309,10 +282,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"DELETE: {path}")
 
-        r = self._session.delete(
-            path,
-            headers=self._hdr_del,
-        )
+        r = self._session.delete(path)
 
         if r.status_code == 404:
             raise Novem404(path)
@@ -347,10 +317,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"PUT: {path}")
 
-        r = self._session.put(
-            path,
-            headers=self._hdr_put,
-        )
+        r = self._session.put(path)
 
         if r.status_code == 404:
             raise Novem404(path)
@@ -392,7 +359,7 @@ class NovemVisAPI(NovemAPI):
 
         r = self._session.post(
             path,
-            headers=self._hdr_post,
+            headers={"Content-type": "text/plain"},
             data=value.encode("utf-8"),
         )
 

@@ -5,6 +5,14 @@ from typing import Any, Dict, Optional
 import requests
 
 from .utils import get_current_config
+from .version import __version__
+
+
+def get_ua() -> Dict[str, str]:
+    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    return {
+        "User-Agent": f"NovemLib/{__version__} Python/{py_version}",
+    }
 
 
 class NovemException(Exception):
@@ -50,6 +58,7 @@ class NovemAPI(object):
 
         self._config = config
         self._session = requests.Session()
+        self._session.headers.update(get_ua())
         self._session.proxies = urllib.request.getproxies()
 
         if self._config["ignore_ssl_warn"]:
