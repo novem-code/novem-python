@@ -1,9 +1,6 @@
 import os
 import sys
-import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
-
-import requests
 
 from novem.exceptions import Novem403, Novem404
 
@@ -13,8 +10,6 @@ from ..utils import colors as clrs
 from ..version import __version__
 from .files import NovemFiles
 from .shared import NovemShare
-
-s = requests.Session()
 
 
 class NovemVisAPI(NovemAPI):
@@ -34,8 +29,6 @@ class NovemVisAPI(NovemAPI):
         "User-Agent": f"NovemPythonLibrary-{__version__}",
     }
 
-    _proxies: Dict[Any, Any] = {}
-
     shared: Optional[NovemShare] = None
     files: Optional[NovemFiles] = None
 
@@ -43,19 +36,9 @@ class NovemVisAPI(NovemAPI):
     _debug: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
-
-        self._proxies = urllib.request.getproxies()
-
         super().__init__(**kwargs)
 
         self.user = None
-
-        if self._config["ignore_ssl_warn"] or ("ignore_ssl" in kwargs and kwargs["ignore_ssl"]):
-            # supress ssl warnings
-            s.verify = False
-            import urllib3
-
-            urllib3.disable_warnings()
 
         if "debug" in kwargs and kwargs["debug"]:
             self._debug = True
@@ -95,11 +78,9 @@ class NovemVisAPI(NovemAPI):
             qp = f"{qpath}{path}"
             fp = f"{outpath}{path}"
             # print(f"QP: {qp}")
-            req = s.get(
+            req = self._session.get(
                 qp,
-                auth=("", self.token),
                 headers=self._hdr_get,
-                proxies=self._proxies,
             )
 
             if not req.ok:
@@ -161,11 +142,9 @@ class NovemVisAPI(NovemAPI):
         # create util function
         def rec_tree(path: str, level: int = 0, last: List[bool] = [False]) -> Tuple[List[str], str]:
             qp = f"{qpath}{path}"
-            req = s.get(
+            req = self._session.get(
                 qp,
-                auth=("", self.token),
                 headers=self._hdr_get,
-                proxies=self._proxies,
             )
 
             if not req.ok:
@@ -272,11 +251,9 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = s.get(
+        r = self._session.get(
             qpath,
-            auth=("", self.token),
             headers=self._hdr_get,
-            proxies=self._proxies,
         )
 
         # TODO: verify result and raise exception if not ok
@@ -303,11 +280,9 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = s.get(
+        r = self._session.get(
             qpath,
-            auth=("", self.token),
             headers=self._hdr_get,
-            proxies=self._proxies,
         )
 
         # TODO: verify result and raise exception if not ok
@@ -334,11 +309,9 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"DELETE: {path}")
 
-        r = s.delete(
+        r = self._session.delete(
             path,
-            auth=("", self.token),
             headers=self._hdr_del,
-            proxies=self._proxies,
         )
 
         if r.status_code == 404:
@@ -374,11 +347,9 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"PUT: {path}")
 
-        r = s.put(
+        r = self._session.put(
             path,
-            auth=("", self.token),
             headers=self._hdr_put,
-            proxies=self._proxies,
         )
 
         if r.status_code == 404:
@@ -419,12 +390,10 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"POST: {path}")
 
-        r = s.post(
+        r = self._session.post(
             path,
-            auth=("", self.token),
             headers=self._hdr_post,
             data=value.encode("utf-8"),
-            proxies=self._proxies,
         )
 
         if r.status_code == 404:
