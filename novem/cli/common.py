@@ -199,6 +199,15 @@ class VisBase:
             list_vis_shares(name, args, self.title)
             return
 
+        # E-mail needs sending/testing
+        if isinstance(vis, Mail):
+            mail: Mail = vis
+
+            if args["test"]:
+                mail.test()
+            elif args["send"]:
+                mail._send()
+
         # Output - we only allow a singular -o or -x and will return as soon as
         # we find one
 
