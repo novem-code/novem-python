@@ -16,7 +16,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
     pfx = type[0].lower()
 
-    novem = NovemAPI(**args)
+    novem = NovemAPI(**args, is_cli=True)
     # see if list flag is set
 
     (config_status, config) = get_current_config(**args)
@@ -196,7 +196,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
 
 def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
 
-    novem = NovemAPI(**args)
+    novem = NovemAPI(**args, is_cli=True)
     # see if list flag is set
 
     pth = type.lower()

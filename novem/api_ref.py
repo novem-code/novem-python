@@ -5,8 +5,15 @@ from typing import Any, Dict, Optional
 import requests
 
 from .utils import get_current_config
+from .version import __version__
 
-s = requests.Session()
+
+def get_ua(is_cli: bool) -> Dict[str, str]:
+    name = "NovemCli" if is_cli else "NovemLib"
+    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    return {
+        "User-Agent": f"{name}/{__version__} Python/{py_version}",
+    }
 
 
 class NovemException(Exception):
@@ -51,10 +58,13 @@ class NovemAPI(object):
         config_status, config = get_current_config(**kwargs)
 
         self._config = config
+        self._session = requests.Session()
+        self._session.headers.update(get_ua(kwargs.get("is_cli", False)))
+        self._session.proxies = urllib.request.getproxies()
 
         if self._config["ignore_ssl_warn"]:
             # supress ssl warnings
-            s.verify = False
+            self._session.verify = False
             import urllib3
 
             urllib3.disable_warnings()
@@ -65,6 +75,7 @@ class NovemAPI(object):
         if config.get("token", None):
             assert config["token"]
             self.token = config["token"]
+            self._session.auth = ("", self.token)
 
         elif not config_status:
             print(
@@ -90,8 +101,9 @@ $ python -m novem --init
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
 
-        r = s.post(
+        r = self._session.post(
             f"{self._api_root}token",
+            auth=None,
             json=params,
         )
 
@@ -106,9 +118,8 @@ $ python -m novem --init
 
     def delete(self, path: str) -> bool:
 
-        r = s.delete(
+        r = self._session.delete(
             f"{self._api_root}{path}",
-            auth=("", self.token),
         )
 
         if not r.ok:
@@ -122,9 +133,8 @@ $ python -m novem --init
 
     def read(self, path: str) -> str:
 
-        r = s.get(
+        r = self._session.get(
             f"{self._api_root}{path}",
-            auth=("", self.token),
         )
 
         if not r.ok:
@@ -136,14 +146,12 @@ $ python -m novem --init
 
     def write(self, path: str, value: str) -> None:
 
-        r = s.post(
+        r = self._session.post(
             f"{self._api_root}{path}",
-            auth=("", self.token),
             headers={
                 "Content-type": "text/plain",
             },
             data=value.encode("utf-8"),
-            proxies=urllib.request.getproxies(),
         )
 
         if not r.ok:
@@ -155,10 +163,8 @@ $ python -m novem --init
 
     def create(self, path: str) -> None:
 
-        r = s.put(
+        r = self._session.put(
             f"{self._api_root}{path}",
-            auth=("", self.token),
-            proxies=urllib.request.getproxies(),
         )
 
         if not r.ok:

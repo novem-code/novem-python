@@ -1,41 +1,17 @@
 import os
 import sys
-import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
-
-import requests
 
 from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl
 from ..utils import colors as clrs
-from ..version import __version__
 from .files import NovemFiles
 from .shared import NovemShare
 
-s = requests.Session()
-
 
 class NovemVisAPI(NovemAPI):
-    """ """
-
-    _hdr_post: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-        "Content-type": "text/plain",
-    }
-    _hdr_put: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
-    _hdr_get: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
-    _hdr_del: Dict[str, str] = {
-        "User-Agent": f"NovemPythonLibrary-{__version__}",
-    }
-
-    _proxies: Dict[Any, Any] = {}
-
     shared: Optional[NovemShare] = None
     files: Optional[NovemFiles] = None
 
@@ -43,19 +19,9 @@ class NovemVisAPI(NovemAPI):
     _debug: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
-
-        self._proxies = urllib.request.getproxies()
-
         super().__init__(**kwargs)
 
         self.user = None
-
-        if self._config["ignore_ssl_warn"] or ("ignore_ssl" in kwargs and kwargs["ignore_ssl"]):
-            # supress ssl warnings
-            s.verify = False
-            import urllib3
-
-            urllib3.disable_warnings()
 
         if "debug" in kwargs and kwargs["debug"]:
             self._debug = True
@@ -95,12 +61,7 @@ class NovemVisAPI(NovemAPI):
             qp = f"{qpath}{path}"
             fp = f"{outpath}{path}"
             # print(f"QP: {qp}")
-            req = s.get(
-                qp,
-                auth=("", self.token),
-                headers=self._hdr_get,
-                proxies=self._proxies,
-            )
+            req = self._session.get(qp)
 
             if not req.ok:
                 return None
@@ -161,12 +122,7 @@ class NovemVisAPI(NovemAPI):
         # create util function
         def rec_tree(path: str, level: int = 0, last: List[bool] = [False]) -> Tuple[List[str], str]:
             qp = f"{qpath}{path}"
-            req = s.get(
-                qp,
-                auth=("", self.token),
-                headers=self._hdr_get,
-                proxies=self._proxies,
-            )
+            req = self._session.get(qp)
 
             if not req.ok:
                 return ([], "")
@@ -272,12 +228,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = s.get(
-            qpath,
-            auth=("", self.token),
-            headers=self._hdr_get,
-            proxies=self._proxies,
-        )
+        r = self._session.get(qpath)
 
         # TODO: verify result and raise exception if not ok
         if r.status_code == 404:
@@ -303,12 +254,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"GET: {qpath}")
 
-        r = s.get(
-            qpath,
-            auth=("", self.token),
-            headers=self._hdr_get,
-            proxies=self._proxies,
-        )
+        r = self._session.get(qpath)
 
         # TODO: verify result and raise exception if not ok
         if r.status_code == 404:
@@ -334,12 +280,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"DELETE: {path}")
 
-        r = s.delete(
-            path,
-            auth=("", self.token),
-            headers=self._hdr_del,
-            proxies=self._proxies,
-        )
+        r = self._session.delete(path)
 
         if r.status_code == 404:
             raise Novem404(path)
@@ -374,12 +315,7 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"PUT: {path}")
 
-        r = s.put(
-            path,
-            auth=("", self.token),
-            headers=self._hdr_put,
-            proxies=self._proxies,
-        )
+        r = self._session.put(path)
 
         if r.status_code == 404:
             raise Novem404(path)
@@ -419,12 +355,10 @@ class NovemVisAPI(NovemAPI):
         if self._debug:
             print(f"POST: {path}")
 
-        r = s.post(
+        r = self._session.post(
             path,
-            auth=("", self.token),
-            headers=self._hdr_post,
+            headers={"Content-type": "text/plain"},
             data=value.encode("utf-8"),
-            proxies=self._proxies,
         )
 
         if r.status_code == 404:

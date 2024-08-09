@@ -117,7 +117,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
         "token_description": (f'cli token created for "{hostname}" ' f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
     }
 
-    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl)
+    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
 
     try:
         res = novem.create_token(req)
@@ -263,7 +263,7 @@ def init_config(args: Dict[str, Any]) -> None:
     if _do_debug:
         print("INIT: request token")
 
-    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl)
+    novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
 
     try:
         res = novem.create_token(req)
@@ -384,7 +384,7 @@ novem --init --profile {args["profile"]}\
 
     # check info and if present get info
     if args and args["info"]:
-        novem = NovemAPI(**args)
+        novem = NovemAPI(**args, is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
         return
