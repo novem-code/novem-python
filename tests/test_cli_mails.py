@@ -31,7 +31,7 @@ def mk_missing():
     return mk_responder("", 404)
 
 
-def test_status_set_when_sending_test_mail(requests_mock, cli):
+def test_status_set_when_sending_test_mail(requests_mock, cli, fs):
     write_config(auth_req)
     mail_name = "test_mail"
 
@@ -45,7 +45,7 @@ def test_status_set_when_sending_test_mail(requests_mock, cli):
     assert capture.out == "testing"
 
 
-def test_status_set_when_sending_mail(requests_mock, cli):
+def test_status_set_when_sending_mail(requests_mock, cli, fs):
     write_config(auth_req)
     mail_name = "test_mail"
 
