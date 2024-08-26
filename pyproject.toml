@@ -21,7 +21,6 @@ novem = 'novem.cli:run_cli'
 bump_version = 'scripts.bump_version:main'
 
 [tool.poetry.group.dev.dependencies]
-black = {version = "^24.3.0", allow-prereleases = true}
 flake8 = "^7.1.1"
 isort = "^5.10.1"
 mypy = "^0.930"
@@ -33,6 +32,7 @@ pytest = "^7.1.0"
 pytest-cov = "^3.0.0"
 requests-mock = "^1.9.3"
 types-requests = "^2.27.7"
+black = "^24.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
