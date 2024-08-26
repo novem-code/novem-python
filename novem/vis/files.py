@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 from novem.exceptions import Novem404
 
 if TYPE_CHECKING:
@@ -7,9 +8,9 @@ if TYPE_CHECKING:
 
 class NovemFiles(object):
 
-    def __init__(self, api: 'NovemVisAPI') -> None:
+    def __init__(self, api: "NovemVisAPI") -> None:
         """ """
-        self.api: 'NovemVisAPI' = api
+        self.api: "NovemVisAPI" = api
 
     def get(self, fn: str) -> str:
         try:

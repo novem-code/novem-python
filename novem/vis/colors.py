@@ -7,9 +7,9 @@ if TYPE_CHECKING:
 
 
 class NovemColors(object):
-    def __init__(self, api: 'Plot') -> None:
+    def __init__(self, api: "Plot") -> None:
         """ """
-        self.api: 'Plot' = api
+        self.api: "Plot" = api
         super().__init__()
 
     def get(self) -> str:

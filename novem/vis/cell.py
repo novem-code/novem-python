@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from novem.table import Selector
 
@@ -40,9 +40,9 @@ class IProxy(str):
 
 
 class NovemCellConfig(object):
-    def __init__(self, api: 'Plot') -> None:
+    def __init__(self, api: "Plot") -> None:
         """ """
-        self.api: 'Plot' = api
+        self.api: "Plot" = api
         super().__init__()
 
     def read(self, path: str) -> str:

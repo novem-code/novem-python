@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from novem.vis.plot import Plot
 
@@ -11,9 +10,9 @@ exposes the tree hierarchy with easy getters and setters
 
 
 class NovemConfigBase(object):
-    def __init__(self, api: 'Plot') -> None:
+    def __init__(self, api: "Plot") -> None:
         """ """
-        self.api: 'Plot' = api
+        self.api: "Plot" = api
 
     def set(self, path: str, value: str) -> None:
         return self.api._write(path, value)
@@ -57,8 +56,8 @@ class NovemConfigLegend(NovemConfigBase):
 
 
 class NovemPlotConfig(object):
-    def __init__(self, api: 'Plot') -> None:
+    def __init__(self, api: "Plot") -> None:
         """ """
-        self.api: 'Plot' = api
+        self.api: "Plot" = api
 
         self.legend = NovemConfigLegend(api)

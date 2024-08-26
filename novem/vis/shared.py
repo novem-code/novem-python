@@ -12,9 +12,9 @@ class NovemShare(object):
     Novem share
     """
 
-    def __init__(self, api: 'NovemVisAPI') -> None:
+    def __init__(self, api: "NovemVisAPI") -> None:
         """ """
-        self.api: 'NovemVisAPI' = api
+        self.api: "NovemVisAPI" = api
 
     def get(self) -> List[str]:
         """

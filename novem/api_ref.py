@@ -174,6 +174,7 @@ $ python -m novem --init
             else:
                 print(r.json())
 
+
 #
 #    @abstractmethod
 #    def _read(self, relpath: str) -> str:
