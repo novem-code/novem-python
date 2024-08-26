@@ -5,7 +5,7 @@ try:
     import pandas as pd
 except ImportError:
     pd = None  # type: ignore
-    np = None
+    np = None  # type: ignore
 
 from novem.exceptions import NovemException
 
