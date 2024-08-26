@@ -30,7 +30,7 @@ pydantic = "^1.8.2"
 pyfakefs = "^5.6.0"
 pytest = "^7.1.0"
 pytest-cov = "^3.0.0"
-requests-mock = "^1.9.3"
+requests-mock = "^1.12.1"
 types-requests = "^2.27.7"
 black = "^24.8.0"
 
