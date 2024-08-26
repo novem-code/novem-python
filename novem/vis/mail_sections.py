@@ -51,12 +51,12 @@ class NovemEmailSectionApi(NovemEmailSection):
             if p.annotation is str or p.annotation is Optional[str]:
                 # This is a string argument, if value is not None add it
                 if v:
-                    ts = f"{k.replace('_',' ')}: {v}"
+                    ts = f"{k.replace('_', ' ')}: {v}"
                     self._kwparams.append(ts)
 
             elif p.annotation is bool:
                 if v:
-                    ts = f"{k.replace('_',' ')}: true"
+                    ts = f"{k.replace('_', ' ')}: true"
                     self._kwparams.append(ts)
 
             elif p.annotation is List[str]:

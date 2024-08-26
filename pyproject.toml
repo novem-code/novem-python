@@ -9,7 +9,7 @@ readme = "README.md"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8.1"
 requests = "^2.26.0"
 pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
@@ -22,7 +22,7 @@ bump_version = 'scripts.bump_version:main'
 
 [tool.poetry.group.dev.dependencies]
 black = {version = "^24.3.0", allow-prereleases = true}
-flake8 = "^4.0.1"
+flake8 = "^7.1.1"
 isort = "^5.10.1"
 mypy = "^0.930"
 pandas-stubs = "^1.2"
