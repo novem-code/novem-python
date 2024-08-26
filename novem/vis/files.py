@@ -1,18 +1,15 @@
+from typing import TYPE_CHECKING
 from novem.exceptions import Novem404
 
-from ..api_ref import NovemAPI
+if TYPE_CHECKING:
+    from novem.vis import NovemVisAPI
 
 
 class NovemFiles(object):
-    """
-    Novem Files
-    """
 
-    # api: NovemAPI = None
-
-    def __init__(self, api: NovemAPI) -> None:
+    def __init__(self, api: 'NovemVisAPI') -> None:
         """ """
-        self.api: NovemAPI = api
+        self.api: 'NovemVisAPI' = api
 
     def get(self, fn: str) -> str:
         try:

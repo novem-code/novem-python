@@ -1,10 +1,10 @@
 from typing import Any, List, Optional
 
 try:
-    import numpy as np
+    import numpy as np  # type: ignore
     import pandas as pd
 except ImportError:
-    pd = None
+    pd = None  # type: ignore
     np = None
 
 from novem.exceptions import NovemException

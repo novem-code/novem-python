@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
 from novem.table import Selector
 
-from ..api_ref import NovemAPI
+if TYPE_CHECKING:
+    from novem.vis.plot import Plot
 
 # from novem.table import CellAlign, CellBorder, CellFormat,
 # CellPadding, CellText, CellWidth, CellMerge
@@ -39,9 +40,9 @@ class IProxy(str):
 
 
 class NovemCellConfig(object):
-    def __init__(self, api: NovemAPI) -> None:
+    def __init__(self, api: 'Plot') -> None:
         """ """
-        self.api: NovemAPI = api
+        self.api: 'Plot' = api
         super().__init__()
 
     def read(self, path: str) -> str:

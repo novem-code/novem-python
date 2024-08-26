@@ -1,9 +1,10 @@
 import json
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 from novem.exceptions import Novem404
 
-from ..api_ref import NovemAPI
+if TYPE_CHECKING:
+    from novem.vis import NovemVisAPI
 
 
 class NovemShare(object):
@@ -11,11 +12,9 @@ class NovemShare(object):
     Novem share
     """
 
-    # api: NovemAPI = None
-
-    def __init__(self, api: NovemAPI) -> None:
+    def __init__(self, api: 'NovemVisAPI') -> None:
         """ """
-        self.api: NovemAPI = api
+        self.api: 'NovemVisAPI' = api
 
     def get(self) -> List[str]:
         """

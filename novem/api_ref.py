@@ -174,52 +174,60 @@ $ python -m novem --init
             else:
                 print(r.json())
 
-    def _read(self, relpath: str) -> str:
-        """
-        Read the api value located at realtive path
-        """
-        ...
-
-    def _write(self, relpath: str, value: str) -> None:
-        """
-        relpath: relative path to the plot baseline /config/type
-                 for the type file in the config folder
-        value: the value to write to the file
-        """
-        pass
-
-    def api_read(self, relpath: str) -> str:
-        """
-        Read the api value located at realtive path
-        """
-        ...
-
-    def api_read_bytes(self, relpath: str) -> bytes:
-        """
-        Read the api value located at realtive path
-        """
-        ...
-
-    def api_delete(self, relpath: str) -> None:
-        """
-        relpath: relative path to the plot baseline /config/type
-                 for the type file in the config folder
-        value: the value to write to the file
-        """
-        pass
-
-    def api_create(self, relpath: str) -> None:
-        """
-        relpath: relative path to the plot baseline /config/type
-                 for the type file in the config folder
-        value: the value to write to the file
-        """
-        pass
-
-    def api_write(self, relpath: str, value: str) -> None:
-        """
-        relpath: relative path to the plot baseline /config/type
-                 for the type file in the config folder
-        value: the value to write to the file
-        """
-        pass
+#
+#    @abstractmethod
+#    def _read(self, relpath: str) -> str:
+#        """
+#        Read the api value located at realtive path
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def _write(self, relpath: str, value: str) -> None:
+#        """
+#        relpath: relative path to the plot baseline /config/type
+#                 for the type file in the config folder
+#        value: the value to write to the file
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def api_read(self, relpath: str) -> str:
+#        """
+#        Read the api value located at realtive path
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def api_read_bytes(self, relpath: str) -> bytes:
+#        """
+#        Read the api value located at realtive path
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def api_delete(self, relpath: str) -> None:
+#        """
+#        relpath: relative path to the plot baseline /config/type
+#                 for the type file in the config folder
+#        value: the value to write to the file
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def api_create(self, relpath: str) -> None:
+#        """
+#        relpath: relative path to the plot baseline /config/type
+#                 for the type file in the config folder
+#        value: the value to write to the file
+#        """
+#        pass
+#
+#    @abstractmethod
+#    def api_write(self, relpath: str, value: str) -> None:
+#        """
+#        relpath: relative path to the plot baseline /config/type
+#                 for the type file in the config folder
+#        value: the value to write to the file
+#        """
+#        pass
