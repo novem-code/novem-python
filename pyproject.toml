@@ -20,21 +20,19 @@ typing-extensions = "^4.9.0"
 novem = 'novem.cli:run_cli'
 bump_version = 'scripts.bump_version:main'
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
+black = {version = "^24.3.0", allow-prereleases = true}
+flake8 = "^4.0.1"
+isort = "^5.10.1"
+mypy = "^0.930"
+pandas-stubs = "^1.2"
+pre-commit = "^2.16.0"
+pydantic = "^1.8.2"
+pyfakefs = "^4.5.5"
 pytest = "^7.1.0"
 pytest-cov = "^3.0.0"
-pre-commit = "^2.16.0"
-flake8 = "^4.0.1"
-black = {version = "^24.3.0", allow-prereleases = true}
-mypy = "^0.930"
-pydantic = "^1.8.2"
-isort = "^5.10.1"
 requests-mock = "^1.9.3"
 types-requests = "^2.27.7"
-pyfakefs = "^4.5.5"
-
-[tool.poetry.group.dev.dependencies]
-pandas-stubs = "^1.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
