@@ -9,34 +9,31 @@ readme = "README.md"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8.1"
 requests = "^2.26.0"
 pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
 urllib3 = "^1.26.15"
-pandas = "^1.5.3"
 typing-extensions = "^4.9.0"
-numpy = "^1.21.0"
 
 [tool.poetry.scripts]
 novem = 'novem.cli:run_cli'
 bump_version = 'scripts.bump_version:main'
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.1.0"
-pytest-cov = "^3.0.0"
-pre-commit = "^2.16.0"
-flake8 = "^4.0.1"
-black = {version = "^24.3.0", allow-prereleases = true}
-mypy = "^0.930"
-pydantic = "^1.8.2"
-isort = "^5.10.1"
-requests-mock = "^1.9.3"
-types-requests = "^2.27.7"
-pyfakefs = "^4.5.5"
-
 [tool.poetry.group.dev.dependencies]
-pandas-stubs = "^1.2"
+flake8 = "^7.1.1"
+isort = "^5.13.2"
+mypy = "^1.11.2"
+pre-commit = "^2.16.0"
+pydantic = "^2.8.2"
+pyfakefs = "^5.6.0"
+pytest = "^8.3.2"
+pytest-cov = "^5.0.0"
+requests-mock = "^1.12.1"
+types-requests = "^2.27.7"
+black = "^24.8.0"
+pandas = { version = "2.2.2", python = "^3.10" }
+pandas-stubs = { version = "2.2.2.240807" , python = "^3.10" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

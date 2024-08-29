@@ -1,7 +1,11 @@
 from typing import Any, List, Optional
 
-import numpy as np
-import pandas as pd
+try:
+    import numpy as np  # type: ignore
+    import pandas as pd
+except ImportError:
+    pd = None  # type: ignore
+    np = None  # type: ignore
 
 from novem.exceptions import NovemException
 
@@ -83,6 +87,8 @@ class Selector(object):
         self.ior = ior
 
     def _pd_ix_lookup(self) -> str:
+        assert pd, "pandas is not installed"
+        assert np, "numpy is not installed"
 
         filter = self.selector
         frame = self.ref
@@ -195,7 +201,10 @@ class Selector(object):
         if isinstance(self.selector, str):
             return self.selector
 
-        return self._pd_ix_lookup()
+        if pd and np:
+            return self._pd_ix_lookup()
+
+        raise RuntimeError("Unable to to handle selector of type " + str(type(self.selector)))
 
     def __str__(self) -> str:
         """

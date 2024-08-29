@@ -31,7 +31,7 @@ class NovemEmailSectionApi(NovemEmailSection):
         locs: Dict[str, Any],
         params: Any,
         /,
-        **kwargs: str,
+        **kwargs: Any,
     ) -> None:
         """Novem e-mail sections add additional features to your e-mail."""
 
@@ -51,12 +51,12 @@ class NovemEmailSectionApi(NovemEmailSection):
             if p.annotation is str or p.annotation is Optional[str]:
                 # This is a string argument, if value is not None add it
                 if v:
-                    ts = f"{k.replace('_',' ')}: {v}"
+                    ts = f"{k.replace('_', ' ')}: {v}"
                     self._kwparams.append(ts)
 
             elif p.annotation is bool:
                 if v:
-                    ts = f"{k.replace('_',' ')}: true"
+                    ts = f"{k.replace('_', ' ')}: true"
                     self._kwparams.append(ts)
 
             elif p.annotation is List[str]:
@@ -68,7 +68,7 @@ class NovemEmailSectionApi(NovemEmailSection):
 
     # let's parse and populate our default arguments according to
     # https://novem.no/docs/mail/sections/overview#common-parameters
-    def _process_common_params(self, **kwargs: str) -> None:
+    def _process_common_params(self, **kwargs: Any) -> None:
         """
         Process the e-mail section parameters common to all novem mail
         #sections.
@@ -125,7 +125,7 @@ class NovemEmailSectionApi(NovemEmailSection):
             if isinstance(v, str):
                 vs = [v]
             else:
-                vs = v
+                vs = v  # type: ignore
 
             args = []
             # iterate over our v and construct our options
@@ -244,8 +244,8 @@ class VisSection(NovemEmailSectionApi):
         include_caption: bool = True,
         include_title: bool = False,
         include_link: bool = False,
-        override_title: str = None,
-        override_caption: str = None,
+        override_title: Optional[str] = None,
+        override_caption: Optional[str] = None,
         **kwargs: str,
     ) -> None:
         """Add a novem visual to your e-mail.
@@ -298,7 +298,7 @@ class CalloutSection(NovemEmailSectionApi):
         /,
         type: Optional[str] = "info",
         desc: Optional[str] = None,
-        cborder: str = None,
+        cborder: Optional[str] = None,
         **kwargs: str,
     ) -> None:
         """Add a novem visual to your e-mail.
@@ -447,7 +447,7 @@ class AttachmentSection(NovemEmailSectionApi):
         /,
         format: str = "pdf",  # output format
         name: Optional[str] = None,  # optional name
-        **kwargs: str,
+        **kwargs: Any,
     ) -> None:
         """Add a novem visual to your e-mail.
 

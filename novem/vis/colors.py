@@ -1,14 +1,15 @@
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 from novem.table import Selector
 
-from ..api_ref import NovemAPI
+if TYPE_CHECKING:
+    from novem.vis.plot import Plot
 
 
 class NovemColors(object):
-    def __init__(self, api: NovemAPI) -> None:
+    def __init__(self, api: "Plot") -> None:
         """ """
-        self.api: NovemAPI = api
+        self.api: "Plot" = api
         super().__init__()
 
     def get(self) -> str:

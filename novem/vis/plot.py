@@ -188,7 +188,7 @@ class Plot(NovemVisAPI):
     def w(self, key: str, value: str) -> Any:
         """
         Set a novem plot property, if key is a valid
-        class porp then it will set that, else it will
+        class prop then it will set that, else it will
         try to invoke an api call
 
         w('type','bar') -> invokes set attribute type
