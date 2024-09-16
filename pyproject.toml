@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "novem"
-version = "0.4.15"  # do not touch manually, use `poetry run bump_version`
+version = "0.4.16"  # do not touch manually, use `poetry run bump_version`
 description = "python library for the novem data visualisation platform"
 authors = ["Sondov Engen <sondov@novem.no>", "Bjørnar Snoksrud <bjornars@novem.no>", "Martin Myrseth <myme@novem.no>"]
 homepage = "https://novem.io"
@@ -33,7 +33,7 @@ requests-mock = "^1.12.1"
 types-requests = "^2.27.7"
 black = "^24.8.0"
 pandas = { version = "2.2.2", python = "^3.10" }
-pandas-stubs = { version = "2.2.2.240807" , python = "^3.10" }
+pandas-stubs = { version = "2.2.2.240807",  python = "^3.10" }
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
