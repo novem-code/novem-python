@@ -1,6 +1,9 @@
 from typing import List, Optional, Union
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None  # type: ignore
 
 
 def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None) -> str:
