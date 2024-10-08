@@ -1,10 +1,20 @@
-from typing import Any, Dict, Optional
+from io import StringIO
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from novem.vis import NovemVisAPI
 
 from .cell import NovemCellConfig
 from .colors import NovemColors
 from .plot_config import NovemPlotConfig
+
+# Import pandas for type checking, not runtime
+if TYPE_CHECKING:
+    import pandas as pd
+else:
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None  # type: ignore
 
 
 class Plot(NovemVisAPI):
@@ -176,8 +186,27 @@ class Plot(NovemVisAPI):
     # Interactive utility functions
     ###
 
-    def df(self, data: Any, **kwargs: Any) -> Any:
+    @property
+    def df(self) -> "pd.DataFrame":
         """
+        Get a dataframe representation of the data for
+        this plot
+        """
+        if pd is None:
+            raise ImportError(
+                "Pandas is required for this functionality. Please install it using 'pip install pandas'."
+            )
+
+        raw_data = self._read("/data")
+
+        # Convert the CSV string to a DataFrame
+        df = pd.read_csv(StringIO(raw_data))
+
+        return df
+
+    def wdf(self, data: Any, **kwargs: Any) -> Any:
+        """
+        Wrap dataframe
         Expects a dataframe as input and returns the
         same dataframe so it can be chained
         """
