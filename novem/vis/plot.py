@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from novem.vis import NovemVisAPI
 
@@ -7,10 +7,14 @@ from .cell import NovemCellConfig
 from .colors import NovemColors
 from .plot_config import NovemPlotConfig
 
-try:
+# Import pandas for type checking, not runtime
+if TYPE_CHECKING:
     import pandas as pd
-except ImportError:
-    pd = None  # type: ignore
+else:
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None  # type: ignore
 
 
 class Plot(NovemVisAPI):
@@ -183,7 +187,7 @@ class Plot(NovemVisAPI):
     ###
 
     @property
-    def df(self) -> Any:
+    def df(self) -> "pd.DataFrame":
         """
         Get a dataframe representation of the data for
         this plot
