@@ -73,14 +73,15 @@ def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = Non
     for level in range(index.nlevels):
         current_label = None
         start_row = 0
+
         for row, label in enumerate(index.get_level_values(level)):
-            if label != current_label:
-                if current_label is not None and start_row < row - 1:
-                    merge_instructions.append(
-                        f"{start_row + aio}:{row + aio - 1} {level} lbl{len(merge_instructions) + 1}"
-                    )
-                current_label = label
-                start_row = row
+            if label == current_label:
+                continue
+            if current_label is not None and start_row < row - 1:
+                merge_instructions.append(f"{start_row + aio}:{row + aio - 1} {level} lbl{len(merge_instructions) + 1}")
+            current_label = label
+            start_row = row
+
         if start_row < row:
             merge_instructions.append(f"{start_row + aio}:{row + aio} {level} lbl{len(merge_instructions) + 1}")
 
