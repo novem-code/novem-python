@@ -17,4 +17,3 @@ jobs:
       repo_full_name: ${{ github.repository }}
     secrets:
       discord_webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-
