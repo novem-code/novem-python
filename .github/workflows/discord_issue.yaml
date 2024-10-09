@@ -1,0 +1,41 @@
+name: Issue Notification
+on:
+  issues:
+    types:
+     - opened
+     - closed
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send issue notification to Discord
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          # Determine the message based on the event type
+          if [[ "${{ github.event.action }}" == "opened" ]]; then
+            ACTION_TEXT="has been opened."
+          elif [[ "${{ github.event.action }}" == "closed" ]]; then
+            ACTION_TEXT="has been closed."
+          else
+            echo "Unhandled event type. Exiting."
+            exit 0
+          fi
+          REPO_NAME=$(echo $REPO_FULL_NAME | cut -d'/' -f2)
+          MESSAGE=$(jq -n \
+            --arg repo "$REPO_NAME" \
+            --arg number "$ISSUE_NUMBER" \
+            --arg title "$ISSUE_TITLE" \
+            --arg url "$ISSUE_URL" \
+            --arg icon "<:devissue:1275356587946545172>" \
+            --arg action "$ACTION_TEXT" \
+            '{content: "\($icon) \($repo) > [Issue #\($number): \($title)](\($url)) \($action)"}')
+          # Send the notification to Discord
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "$MESSAGE" \
+            "$DISCORD_WEBHOOK"

@@ -1,0 +1,24 @@
+name: Discord Push Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify_push:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Merge pull request')
+    uses: novem-code/github-actions/.github/workflows/discord_push.yml@main
+    with:
+      branch_name: 'main'
+      commit_message: ${{ github.event.head_commit.message }}
+      commit_url: ${{ github.event.head_commit.url }}
+      repo_full_name: ${{ github.repository }}
+    secrets:
+      discord_webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+  dummy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make sure the action is always successful
+        run: echo happy
