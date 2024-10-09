@@ -1,0 +1,19 @@
+name: Discord PR Notification
+
+on:
+  pull_request_target:
+    types:
+     - opened
+     # - synchronize
+     - closed
+
+jobs:
+  notify:
+    uses: novem-code/github-actions/.github/workflows/discord_pr.yml@main
+    with:
+      pr_title: ${{ github.event.pull_request.title }}
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_url: ${{ github.event.pull_request.html_url }}
+      repo_full_name: ${{ github.repository }}
+    secrets:
+      discord_webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
