@@ -1,7 +1,7 @@
 name: Discord PR Notification
 
 on:
-  pull_request:
+  pull_request_target:
     types:
      - opened
      # - synchronize
@@ -17,4 +17,3 @@ jobs:
       repo_full_name: ${{ github.repository }}
     secrets:
       discord_webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
-

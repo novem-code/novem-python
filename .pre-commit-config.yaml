@@ -1,27 +1,28 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
--   repo: https://github.com/PyCQA/flake8
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: '\.yml$|\.yaml$'
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/PyCQA/flake8
     rev: 7.1.1
     hooks:
-    -   id: flake8
--   repo: https://github.com/psf/black
+      - id: flake8
+  - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
       - id: black
--   repo: https://github.com/pre-commit/mirrors-mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.11.2
     hooks:
-        - id: mypy
-          additional_dependencies: [types-requests, pydantic] # add if use pydantic
--   repo: https://github.com/PyCQA/isort
+      - id: mypy
+        additional_dependencies: [types-requests, pydantic] # add if use pydantic
+  - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
-    -   id: isort
+      - id: isort
