@@ -1,3 +1,4 @@
+import os
 import sys
 import urllib.request
 from typing import Any, Dict, Optional
@@ -72,7 +73,12 @@ class NovemAPI(object):
         # api root should always be supplied in the result
         self._api_root = config["api_root"]
 
-        if config.get("token", None):
+        # check if NOVEM_TOKEN is set in environment, it takes precedence
+        if "NOVEM_TOKEN" in os.environ:
+            self.token = os.environ["NOVEM_TOKEN"]
+            self._session.auth = ("", self.token)
+
+        elif config.get("token", None):
             assert config["token"]
             self.token = config["token"]
             self._session.auth = ("", self.token)
