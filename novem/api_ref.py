@@ -1,3 +1,4 @@
+import os
 import sys
 import urllib.request
 from typing import Any, Dict, Optional
@@ -72,17 +73,24 @@ class NovemAPI(object):
         # api root should always be supplied in the result
         self._api_root = config["api_root"]
 
+        env_token = os.getenv("NOVEM_TOKEN")
+
         if config.get("token", None):
             assert config["token"]
             self.token = config["token"]
+            self._session.auth = ("", self.token)
+
+        elif env_token is not None:
+            self.token = env_token
             self._session.auth = ("", self.token)
 
         elif not config_status:
             print(
                 """\
 Novem config file is missing.  Either specify config file location with
-the config_path parameter, or setup a new token using
+the config_path parameter, setup a new token using
 $ python -m novem --init
+or set the NOVEM_TOKEN environment variable.\
 """
             )
             sys.exit(0)
