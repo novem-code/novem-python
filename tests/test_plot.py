@@ -1,8 +1,12 @@
 import configparser
+import io
 import os
+from contextlib import redirect_stdout
 from functools import partial
+from unittest.mock import patch
 
 from novem import Plot
+from novem.utils import API_ROOT
 
 to_csv_test_string = "the to_csv function was invoked"
 
@@ -119,3 +123,22 @@ def test_plot(requests_mock):
         assert v is True
 
     assert n._api_root == "https://api.novem.no/v1/"
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "test_token"})
+def test_plot_log(requests_mock, fs):
+    requests_mock.register_uri("get", f"{API_ROOT}vis/plots/foo", text='{"id": "foo"}', status_code=200)
+    requests_mock.register_uri("get", f"{API_ROOT}vis/plots/foo/log", text="log_test_plot", status_code=200)
+
+    p = Plot(id="foo", create=False)
+
+    # Redirect stdout to a StringIO object
+    f = io.StringIO()
+    with redirect_stdout(f):
+        p.log
+
+    # Get the printed output
+    output = f.getvalue().strip()
+
+    # Assert that the output matches the expected string
+    assert output == "log_test_plot"

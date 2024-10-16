@@ -1,10 +1,14 @@
 import configparser
+import io
 import os
 import uuid
+from contextlib import redirect_stdout
 from functools import partial
+from unittest.mock import patch
 
 from novem import Mail, Plot
 from novem.mail import AuthorSection, ParagraphSection, PreviewSection, VisSection
+from novem.utils import API_ROOT
 
 
 def test_mail_sections(requests_mock):
@@ -324,17 +328,6 @@ def test_mail_attrib_url(requests_mock):
     }
     m = setup_mail_mock(requests_mock, conf)
     assert m.url == "subject test value out"
-
-
-def test_mail_attrib_log(requests_mock):
-    conf = {
-        "mail_id": "test_mail",
-        "reqs": [
-            ["get", "/log", "subject test value out"],
-        ],
-    }
-    m = setup_mail_mock(requests_mock, conf)
-    assert m.log == "subject test value out"
 
 
 def test_mail_attrib_name(requests_mock):
@@ -830,3 +823,22 @@ def test_mail_content_call(requests_mock):
     m(content_val)
 
     assert gcheck["content"]
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "test_token"})
+def test_mail_log(requests_mock, fs):
+    requests_mock.register_uri("get", f"{API_ROOT}vis/mails/foo", text='{"id": "foo"}', status_code=200)
+    requests_mock.register_uri("get", f"{API_ROOT}vis/mails/foo/log", text="log_test_mail", status_code=200)
+
+    m = Mail(id="foo", create=False)
+
+    # Redirect stdout to a StringIO object
+    f = io.StringIO()
+    with redirect_stdout(f):
+        m.log
+
+    # Get the printed output
+    output = f.getvalue().strip()
+
+    # Assert that the output matches the expected string
+    assert output == "log_test_mail"

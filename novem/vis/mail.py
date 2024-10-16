@@ -226,10 +226,6 @@ class Mail(NovemVisAPI):
     def shortname(self) -> str:
         return self.api_read("/shortname").strip()
 
-    @property
-    def log(self) -> str:
-        return self.api_read("/log").strip()
-
     ###
     # Important attributes that cause render and sending
     ###

@@ -382,6 +382,15 @@ class NovemVisAPI(NovemAPI):
             print("should raise a general error")
 
     @property
+    def log(self) -> None:
+        """
+        print the current novem logs for the given vis
+        """
+        print(self.api_read("/log"))
+
+        return None
+
+    @property
     def qpr(self) -> str:
         if self._qpr:
             return self._qpr.replace("&", ",")
