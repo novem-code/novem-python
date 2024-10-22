@@ -86,3 +86,122 @@ def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = Non
             merge_instructions.append(f"{start_row + aio}:{row + aio} {level} lbl{len(merge_instructions) + 1}")
 
     return "\n".join(merge_instructions)
+
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None  # type: ignore
+
+
+def merge_from_index_first_rows(
+    src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None, level: Optional[int] = None
+) -> str:
+    """
+    Get comma-separated list of first rows from each merge group at specified level.
+
+    Args:
+        src (Union[pd.DataFrame, pd.Index]): The source DataFrame or Index object to analyze.
+        io (Optional[int]): Initial offset. If provided, overrides the calculated offset.
+        level (Optional[int]): The level of the MultiIndex to analyze. If None, uses the
+            innermost (most granular) level.
+
+    Returns:
+        str: Comma-separated list of row numbers representing first rows of merged sections
+    """
+    if not isinstance(src, (pd.DataFrame, pd.Index)):
+        raise TypeError("Input must be a pandas DataFrame or Index object")
+
+    if isinstance(src, pd.DataFrame):
+        index = src.index
+        aio = src.columns.nlevels
+    else:
+        index = src
+        aio = 1
+
+    # Handle io parameter properly
+    offset = io if io is not None else aio
+
+    if not isinstance(index, pd.MultiIndex):
+        index = pd.MultiIndex.from_arrays([index])
+
+    if len(index) == 0:
+        return ""
+
+    # Handle level parameter properly
+    if level is None:
+        actual_level = index.nlevels - 1
+    else:
+        actual_level = level if level >= 0 else index.nlevels + level
+
+    if not 0 <= actual_level < index.nlevels:
+        raise ValueError(f"Level {level} out of range for index with {index.nlevels} levels")
+
+    first_rows: List[int] = []
+    current_label = None
+
+    for row, label in enumerate(index.get_level_values(actual_level)):
+        if label != current_label:
+            first_rows.append(row + offset)
+            current_label = label
+
+    return ",".join(map(str, first_rows))
+
+
+def merge_from_index_last_rows(
+    src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None, level: Optional[int] = None
+) -> str:
+    """
+    Get comma-separated list of last rows from each merge group at specified level.
+
+    Args:
+        src (Union[pd.DataFrame, pd.Index]): The source DataFrame or Index object to analyze.
+        io (Optional[int]): Initial offset. If provided, overrides the calculated offset.
+        level (Optional[int]): The level of the MultiIndex to analyze. If None, uses the
+            innermost (most granular) level.
+
+    Returns:
+        str: Comma-separated list of row numbers representing last rows of merged sections
+    """
+    if not isinstance(src, (pd.DataFrame, pd.Index)):
+        raise TypeError("Input must be a pandas DataFrame or Index object")
+
+    if isinstance(src, pd.DataFrame):
+        index = src.index
+        aio = src.columns.nlevels
+    else:
+        index = src
+        aio = 1
+
+    # Handle io parameter properly
+    offset = io if io is not None else aio
+
+    if not isinstance(index, pd.MultiIndex):
+        index = pd.MultiIndex.from_arrays([index])
+
+    if len(index) == 0:
+        return ""
+
+    # Handle level parameter properly
+    if level is None:
+        actual_level = index.nlevels - 1
+    else:
+        actual_level = level if level >= 0 else index.nlevels + level
+
+    if not 0 <= actual_level < index.nlevels:
+        raise ValueError(f"Level {level} out of range for index with {index.nlevels} levels")
+
+    last_rows: List[int] = []
+    current_label = None
+
+    for row, label in enumerate(index.get_level_values(actual_level)):
+        if label != current_label:
+            if current_label is not None:
+                last_rows.append(row - 1 + offset)
+            current_label = label
+
+    # Add the last group's last row
+    if len(index) > 0:
+        last_rows.append(len(index) - 1 + offset)
+
+    return ",".join(map(str, last_rows))
