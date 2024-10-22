@@ -5,7 +5,7 @@ from os import path
 from pathlib import Path
 from typing import Optional, Tuple
 
-from ..utils import get_config_path
+from ..utils import API_ROOT, get_config_path
 
 
 def update_config(
@@ -35,6 +35,8 @@ def update_config(
 
     # read our config object
     config.read(novem_config)
+
+    api_root = api_root or os.getenv("NOVEM_API_ROOT") or API_ROOT
 
     add_api_root = True
 
