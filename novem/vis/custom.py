@@ -1,12 +1,13 @@
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from novem.vis.plot import Plot
 
 
+@dataclass
 class NovemCustom:
-    def __init__(self, api: "Plot") -> None:
-        self.api: "Plot" = api
+    api: "Plot"
 
     @property
     def js(self) -> str:
