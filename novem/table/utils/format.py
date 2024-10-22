@@ -88,12 +88,6 @@ def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = Non
     return "\n".join(merge_instructions)
 
 
-try:
-    import pandas as pd
-except ImportError:
-    pd = None  # type: ignore
-
-
 def merge_from_index_first_rows(
     src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None, level: Optional[int] = None
 ) -> str:
