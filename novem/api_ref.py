@@ -11,7 +11,6 @@ from .utils import get_current_config
 from .version import __version__
 
 did_token_warning = False
-did_api_root_warning = False
 
 
 def get_ua(is_cli: bool) -> Dict[str, str]:
