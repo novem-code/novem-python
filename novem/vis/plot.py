@@ -5,6 +5,7 @@ from novem.vis import NovemVisAPI
 
 from .cell import NovemCellConfig
 from .colors import NovemColors
+from .custom import NovemCustom
 from .plot_config import NovemPlotConfig
 
 # Import pandas for type checking, not runtime
@@ -23,6 +24,7 @@ class Plot(NovemVisAPI):
     """
 
     colors: Optional[NovemColors] = None
+    custom: Optional[NovemCustom] = None
     cell: Optional[NovemCellConfig] = None
     config: Optional[NovemPlotConfig] = None
 
@@ -53,6 +55,7 @@ class Plot(NovemVisAPI):
         self._pending: Dict[str, str] = {}
 
         self.colors = NovemColors(self)
+        self.custom = NovemCustom(self)
         self.cell = NovemCellConfig(self)
         self.config = NovemPlotConfig(self)
 
