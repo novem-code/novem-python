@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 try:
     import pandas as pd
@@ -88,6 +88,62 @@ def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = Non
     return "\n".join(merge_instructions)
 
 
+def find_index_breaks(
+    src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None, level: Optional[int] = None
+) -> Tuple[List[int], int, int]:
+    """
+    Find the points where groups change in an index and calculate relevant metadata.
+
+    Args:
+        src (Union[pd.DataFrame, pd.Index]): The source DataFrame or Index object to analyze.
+        io (Optional[int]): Initial offset. If provided, overrides the calculated offset.
+        level (Optional[int]): The level of the MultiIndex to analyze. If None, uses the
+            innermost (most granular) level.
+
+    Returns:
+        Tuple[List[int], int, int]: A tuple containing:
+            - List of row indices where groups begin (break points)
+            - The calculated offset value
+            - Total length of the source data
+    """
+    if not isinstance(src, (pd.DataFrame, pd.Index)):
+        raise TypeError("Input must be a pandas DataFrame or Index object")
+
+    if isinstance(src, pd.DataFrame):
+        index = src.index
+        aio = src.columns.nlevels
+    else:
+        index = src
+        aio = 1
+
+    offset = io if io is not None else aio
+
+    if not isinstance(index, pd.MultiIndex):
+        index = pd.MultiIndex.from_arrays([index])
+
+    total_length = len(index)
+    if total_length == 0:
+        return [], offset, 0
+
+    if level is None:
+        actual_level = index.nlevels - 1
+    else:
+        actual_level = level if level >= 0 else index.nlevels + level
+
+    if not 0 <= actual_level < index.nlevels:
+        raise ValueError(f"Level {level} out of range for index with {index.nlevels} levels")
+
+    break_points: List[int] = []
+    current_label = None
+
+    for row, label in enumerate(index.get_level_values(actual_level)):
+        if label != current_label:
+            break_points.append(row)
+            current_label = label
+
+    return break_points, offset, total_length
+
+
 def merge_from_index_first_rows(
     src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None, level: Optional[int] = None
 ) -> str:
@@ -103,43 +159,10 @@ def merge_from_index_first_rows(
     Returns:
         str: Comma-separated list of row numbers representing first rows of merged sections
     """
-    if not isinstance(src, (pd.DataFrame, pd.Index)):
-        raise TypeError("Input must be a pandas DataFrame or Index object")
-
-    if isinstance(src, pd.DataFrame):
-        index = src.index
-        aio = src.columns.nlevels
-    else:
-        index = src
-        aio = 1
-
-    # Handle io parameter properly
-    offset = io if io is not None else aio
-
-    if not isinstance(index, pd.MultiIndex):
-        index = pd.MultiIndex.from_arrays([index])
-
-    if len(index) == 0:
+    break_points, offset, _ = find_index_breaks(src, io, level)
+    if not break_points:
         return ""
-
-    # Handle level parameter properly
-    if level is None:
-        actual_level = index.nlevels - 1
-    else:
-        actual_level = level if level >= 0 else index.nlevels + level
-
-    if not 0 <= actual_level < index.nlevels:
-        raise ValueError(f"Level {level} out of range for index with {index.nlevels} levels")
-
-    first_rows: List[int] = []
-    current_label = None
-
-    for row, label in enumerate(index.get_level_values(actual_level)):
-        if label != current_label:
-            first_rows.append(row + offset)
-            current_label = label
-
-    return ",".join(map(str, first_rows))
+    return ",".join(str(point + offset) for point in break_points)
 
 
 def merge_from_index_last_rows(
@@ -157,45 +180,17 @@ def merge_from_index_last_rows(
     Returns:
         str: Comma-separated list of row numbers representing last rows of merged sections
     """
-    if not isinstance(src, (pd.DataFrame, pd.Index)):
-        raise TypeError("Input must be a pandas DataFrame or Index object")
-
-    if isinstance(src, pd.DataFrame):
-        index = src.index
-        aio = src.columns.nlevels
-    else:
-        index = src
-        aio = 1
-
-    # Handle io parameter properly
-    offset = io if io is not None else aio
-
-    if not isinstance(index, pd.MultiIndex):
-        index = pd.MultiIndex.from_arrays([index])
-
-    if len(index) == 0:
+    break_points, offset, total_length = find_index_breaks(src, io, level)
+    if not break_points:
         return ""
 
-    # Handle level parameter properly
-    if level is None:
-        actual_level = index.nlevels - 1
-    else:
-        actual_level = level if level >= 0 else index.nlevels + level
-
-    if not 0 <= actual_level < index.nlevels:
-        raise ValueError(f"Level {level} out of range for index with {index.nlevels} levels")
-
     last_rows: List[int] = []
-    current_label = None
 
-    for row, label in enumerate(index.get_level_values(actual_level)):
-        if label != current_label:
-            if current_label is not None:
-                last_rows.append(row - 1 + offset)
-            current_label = label
+    # Handle groups before the last one
+    for i in range(len(break_points) - 1):
+        last_rows.append(break_points[i + 1] - 1)
 
-    # Add the last group's last row
-    if len(index) > 0:
-        last_rows.append(len(index) - 1 + offset)
+    # Handle the last group
+    last_rows.append(total_length - 1)
 
-    return ",".join(map(str, last_rows))
+    return ",".join(str(row + offset) for row in last_rows)
