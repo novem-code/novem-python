@@ -5,6 +5,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from novem.utils import API_ROOT
+
 from .utils import get_current_config
 from .version import __version__
 
@@ -74,6 +76,8 @@ class NovemAPI(object):
 
         # api root should always be supplied in the result
         self._api_root = config["api_root"]
+        if not self._api_root:
+            self._api_root = os.getenv("NOVEM_API_ROOT") or API_ROOT
 
         env_token = os.getenv("NOVEM_TOKEN")
         global did_token_warning

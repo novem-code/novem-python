@@ -120,7 +120,7 @@ def get_current_config(
     co = Config(
         {
             "token": kwargs.get("token", None),
-            "api_root": kwargs.get("api_root", API_ROOT),
+            "api_root": kwargs.get("api_root", None),
             "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
         }
     )
