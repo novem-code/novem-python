@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from ..utils import API_ROOT, get_config_path
+from ..version import __version__
 
 
 def update_config(
@@ -63,6 +64,8 @@ def update_config(
     # TODO: Expand default app configs here when needed
     if not config.has_section("app:cli"):
         config.add_section("app:cli")
+
+    config.set("app:cli", "version", __version__)
 
     if not config.has_section("app:pylib"):
         config.add_section("app:pylib")
