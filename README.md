@@ -2,7 +2,7 @@
 # novem - data visualisation for coders
 
 A wrapper library for the novem.no data visualisation platform. Create charts,
-documents e-mails and dashboards through one simple api.
+documents, e-mails and dashboards through one simple API.
 
 **NB:** novem is currently in closed alpha, if you want to try it out please
 reach out to hello@novem.no
@@ -33,32 +33,32 @@ print(line.url)
 
 
 ## Getting started
-To get started with novem you'll have to register an account, currently this
-can be done by reaching out to the novem developers on hello@novem.no.
+To get started with novem you will have to register an account. Please
+[reach out](mailto:hello@novem.no) to us!
 
 Once you have a username and password you can setup your environment using:
 ```bash
   python -m novem --init
 ```
 
-In additon to invoking the novem module as shown above, the novem package also
+In addition to invoking the novem module as shown above, the novem package also
 includes an extensive command-line interface (cli). Check out CLI.md in this
-repostiory or [novem.io](https://novem.io) for more details.
+repository or [novem.io](https://novem.io) for more details.
 
 
 
 ## Creating a plot
-Novem represents plots as a Plot class that can be imported from the main novem
-package `from novem import Plot`.
+Novem represents plots as a `Plot` class that can be imported from the main
+novem package `from novem import Plot`.
 
-The plot class takes a single mandatory positional argument, the name of the
+The `Plot` class takes a single mandatory positional argument, the name of the
 plot.
  * If the plot name is new, the instantiation of the class will create the plot.
  * If the plot name already exist, then the new object will operate on the
    existing plot.
 
 In addition to the name, there are two broad categories of options for a
-plot, data and config:
+plot: data and config.
  * The **data** contains the actual information to visualise (usually in the form
    of numeric csv)
  * **Config**, which contains information about the visual such as:
@@ -67,10 +67,9 @@ plot, data and config:
 
 
 There are two ways to interact with the plots, one can either supply all
-the neccessary options as named arguments when creating the plot, or use the
-property accessors to modfity them one by one (this is more helpful when working
-with the plot in an interactive way). Below is an example of the two
-approaches.
+the necessary options as named arguments when creating the plot, or use the
+property accessors to modify them one by one (this is more helpful when working
+with the plot interactively). Below is an example of both approaches.
 
 ```python
 from novem import Plot
@@ -89,9 +88,9 @@ barchart.title = "barchart title"
 barchart.caption = "caption"
 ```
 
-In addition to setting individual properties, the plot object is also callable.
-This means that the resulting plot can be used as a function, either by being
-provided data as an argument, or used as part of a pipe chain.
+In addition to setting individual properties, the `Plot` object is also
+callable.  This means that the resulting plot can be used as a function, either
+by being provided data as an argument, or used as part of a pipe chain.
 
 ```python
 from novem import Plot
@@ -138,4 +137,4 @@ in this repository.
 
 ## LICENSE
 This python library is licensed under the MIT license, see the LICENSE file for
-details
+details.
