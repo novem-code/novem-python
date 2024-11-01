@@ -172,7 +172,7 @@ def test_plot(requests_mock):
     for k, v in gcheck.items():
         assert v is True, f"Operation {k} was not performed"
 
-    assert n._api_root == "https://api.novem.no/v1/"
+    assert n._api_root == "https://api.novem.io/v1/"
 
 
 @patch.dict(os.environ, {"NOVEM_TOKEN": "test_token"})

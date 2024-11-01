@@ -10,7 +10,7 @@ auth_req = {
     "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
-api_root = "https://api.novem.no/v1/"
+api_root = "https://api.novem.io/v1/"
 
 
 class Capture:

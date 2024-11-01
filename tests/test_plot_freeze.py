@@ -122,4 +122,4 @@ def test_plot(requests_mock):
     for k, v in gcheck.items():
         assert v is True
 
-    assert n._api_root == "https://api.novem.no/v1/"
+    assert n._api_root == "https://api.novem.io/v1/"

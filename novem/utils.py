@@ -12,7 +12,7 @@ from packaging.version import InvalidVersion, Version
 
 from novem.types import Config
 
-API_ROOT = "https://api.novem.no/v1/"
+API_ROOT = "https://api.novem.io/v1/"
 NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 

@@ -43,7 +43,7 @@ Once you have a username and password you can setup your environment using:
 
 In additon to invoking the novem module as shown above, the novem package also
 includes an extensive command-line interface (cli). Check out CLI.md in this
-repostiory or [novem.no](https://novem.no) for more details.
+repostiory or [novem.io](https://novem.io) for more details.
 
 
 

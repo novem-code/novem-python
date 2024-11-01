@@ -49,7 +49,7 @@ class NovemAPI(object):
     Novem API class
 
     * Read config file
-    * Communicate with api.novem.no
+    * Communicate with API_ROOT
     * Offer utilities for subclasses
     """
 
