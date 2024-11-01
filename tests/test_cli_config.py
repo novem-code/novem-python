@@ -316,6 +316,9 @@ def test_config_param(requests_mock, fs, cli):
 [general]
 profile = demouser
 api_root = https://1.api.novem.io/v1/
+
+[app:cli]
+version = 0.5.0
 """
 
     f2n = "c2.conf"
@@ -323,6 +326,9 @@ api_root = https://1.api.novem.io/v1/
 [general]
 profile = demouser
 api_root = https://2.api.novem.io/v1/
+
+[app:cli]
+version = 0.5.0
 """
 
     url_1 = "https://1.api.novem.io/v1/token"
@@ -388,6 +394,9 @@ def test_can_override_profile_for_plot(requests_mock, fs, cli):
     conf = """\
 [general]
 profile = user1
+
+[app:cli]
+version = 0.5.0
 
 [profile:user1]
 username = user1

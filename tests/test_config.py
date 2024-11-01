@@ -24,6 +24,7 @@ token_name = test-token-name
 token = {token}
 
 [app:cli]
+version = 0.5.0
 
 [app:python]
 

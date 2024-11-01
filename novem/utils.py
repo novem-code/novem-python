@@ -359,6 +359,9 @@ def migrate_config_04_to_05(path: str, config: configparser.ConfigParser, co: Co
         return False
 
     # set this to 0.5 instead of the actual version to allow for stacked migrations in the future
+    if not config.has_section("app:cli"):
+        config.add_section("app:cli")
+
     config["app:cli"]["version"] = "0.5"
 
     for section in config.sections():
