@@ -8,6 +8,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
+from packaging.version import InvalidVersion, Version
+
 from novem.types import Config
 
 API_ROOT = "https://api.novem.no/v1/"
@@ -141,11 +143,15 @@ def get_current_config(
     try:
         general = config["general"]
         profile = general["profile"]
+
         if "api_root" in general:
             co["api_root"] = general["api_root"]
 
     except KeyError:
         return (False, co)
+
+    else:
+        migrate_config_04_to_05(config_path, config, co)
 
     # override profile
     profile = kwargs.get("profile") or profile
@@ -337,3 +343,32 @@ def data_on_stdin() -> Optional[str]:
 
     ctnt = "".join(sys.stdin.readlines()) if has_data else ""
     return ctnt if ctnt else None
+
+
+def migrate_config_04_to_05(path: str, config: configparser.ConfigParser, co: Config) -> bool:
+    # before: there is no `version` key in the [app:cli] section, or the version is less than 0.5
+    # action: insert version, and rewrite all `api.novem.no` URLs to `api.novem.io'
+
+    try:
+        version = Version(config["app:cli"]["version"])
+    except (KeyError, InvalidVersion):
+        version = Version("0.4")
+
+    if version >= Version("0.5"):
+        # we're good!
+        return False
+
+    # set this to 0.5 instead of the actual version to allow for stacked migrations in the future
+    config["app:cli"]["version"] = "0.5"
+
+    for section in config.sections():
+        if "api_root" in config[section]:
+            config[section]["api_root"] = config[section]["api_root"].replace("api.novem.no", "api.novem.io")
+
+    co["api_root"] = co["api_root"].replace("api.novem.no", "api.novem.io")
+
+    with open(path, "w") as configfile:
+        config.write(configfile)
+
+    print("Migrating to 0.5 complete. API url updated from api.novem.no to api.novem.io")
+    return True
