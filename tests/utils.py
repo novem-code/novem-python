@@ -25,9 +25,10 @@ def write_config(obj):
     ctxt = f"""
 [general]
 profile = demouser
-api_root = https://api.novem.no/v1/
+api_root = https://api.novem.io/v1/
 
 [app:cli]
+version = 0.5.0
 
 [app:pylib]
 

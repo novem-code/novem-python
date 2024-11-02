@@ -42,6 +42,8 @@
 
         # Development env
         # Enter using `nix develop` (or using `direnv`)
-        devShells.default = poetryEnv.env;
+        devShells.default = poetryEnv.env.overrideAttrs (_: {
+          buildInputs = [ pkgs.poetry ];
+        });
       });
 }

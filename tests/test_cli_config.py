@@ -315,18 +315,24 @@ def test_config_param(requests_mock, fs, cli):
     f1 = """
 [general]
 profile = demouser
-api_root = https://1.api.novem.no/v1/
+api_root = https://1.api.novem.io/v1/
+
+[app:cli]
+version = 0.5.0
 """
 
     f2n = "c2.conf"
     f2 = """
 [general]
 profile = demouser
-api_root = https://2.api.novem.no/v1/
+api_root = https://2.api.novem.io/v1/
+
+[app:cli]
+version = 0.5.0
 """
 
-    url_1 = "https://1.api.novem.no/v1/token"
-    url_2 = "https://2.api.novem.no/v1/token"
+    url_1 = "https://1.api.novem.io/v1/token"
+    url_2 = "https://2.api.novem.io/v1/token"
 
     def a1(request, context):  # return a valid auth endpoint
         ar = {**auth_resp, "token": "path1-token"}
@@ -388,6 +394,9 @@ def test_can_override_profile_for_plot(requests_mock, fs, cli):
     conf = """\
 [general]
 profile = user1
+
+[app:cli]
+version = 0.5.0
 
 [profile:user1]
 username = user1

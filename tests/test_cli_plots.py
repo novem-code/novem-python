@@ -32,7 +32,7 @@ def missing(request, context):
 
 def test_plot_list(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -261,7 +261,7 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_delete_missing(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -293,7 +293,7 @@ def test_plot_delete_missing(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_share_list(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -341,7 +341,7 @@ def test_plot_share_list(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -410,7 +410,7 @@ out_caption = ""
 
 def test_plot_single_input(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -459,7 +459,7 @@ out_fc = ""
 
 def test_plot_input_from_file(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -510,7 +510,7 @@ def test_plot_input_from_file(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_input_from_file_fails(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -565,7 +565,7 @@ out_stdin = ""
 
 def test_plot_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -613,7 +613,7 @@ def test_plot_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_input_from_stdin_fail(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -670,7 +670,7 @@ out_plot_type = ""
 
 def test_plot_types(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -714,7 +714,7 @@ def test_plot_types(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_x(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)
@@ -751,7 +751,7 @@ def test_plot_x(requests_mock, fs, capsys, monkeypatch):
 
 def test_plot_o(requests_mock, fs, capsys, monkeypatch):
 
-    api_root = "https://api.novem.no/v1/"
+    api_root = "https://api.novem.io/v1/"
 
     # create a config
     write_config(auth_req)

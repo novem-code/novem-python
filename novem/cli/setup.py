@@ -76,7 +76,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         action="store",
         required=False,
         default=None,
-        help="api url to use, defaul is https://api.novem.no/v1/",
+        help="api url to use, default is https://api.novem.io/v1/",
     )
 
     parser.add_argument(

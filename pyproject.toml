@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "novem"
-version = "0.4.19"  # do not touch manually, use `make bump-version`
+version = "0.5.0"  # do not touch manually, use `make bump-version`
 description = "python library for the novem data visualisation platform"
 authors = ["Sondov Engen <sondov@novem.no>", "Bjørnar Snoksrud <bjornars@novem.no>", "Martin Myrseth <myme@novem.no>"]
 homepage = "https://novem.io"
@@ -15,6 +15,7 @@ pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
 urllib3 = "^1.26.15"
 typing-extensions = "^4.9.0"
+packaging = "24.0"
 
 [tool.poetry.scripts]
 novem = 'novem.cli:run_cli'
