@@ -2,7 +2,7 @@ import os
 import sys
 from typing import Any, Dict, Literal, Optional
 
-from novem import Mail, Plot
+from novem import Grid, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
 from novem.cli.setup import Share
@@ -12,7 +12,7 @@ from novem.vis import NovemVisAPI
 
 
 class VisBase:
-    def __init__(self, type: Literal["mail", "plot"]) -> None:
+    def __init__(self, type: Literal["mail", "plot", "grid"]) -> None:
         self.type = type
 
     @property
@@ -26,6 +26,8 @@ class VisBase:
     def set_data(self, nva: NovemVisAPI, data: str) -> None:
         if self.type == "mail":
             nva.content = data
+        elif self.type == "grid":
+            nva.layout = data
         else:
             nva.data = data
 
@@ -49,6 +51,18 @@ class VisBase:
 
         elif self.type == "plot":
             return Plot(
+                name,
+                user=user,
+                ignore_ssl=ignore_ssl,
+                create=create,
+                config_path=args["config_path"],
+                qpr=args["qpr"],
+                debug=args["debug"],
+                profile=args["profile"],
+                is_cli=True,
+            )
+        elif self.type == "grid":
+            return Grid(
                 name,
                 user=user,
                 ignore_ssl=ignore_ssl,
@@ -236,6 +250,11 @@ class VisBase:
 def mail(args: Dict[str, Any]) -> None:
     mail = VisBase("mail")
     mail(args)
+
+
+def grid(args: Dict[str, Any]) -> None:
+    grid = VisBase("grid")
+    grid(args)
 
 
 def plot(args: Dict[str, Any]) -> None:
