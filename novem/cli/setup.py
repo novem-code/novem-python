@@ -320,6 +320,18 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="shorthand for setting the type of the plot, identical to doing -w config/type TYPE",
     )
 
+    grid = parser.add_argument_group("grid")
+
+    grid.add_argument(
+        "-g",
+        dest="grid",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select grid to operate on, no parameter will list all your grids",
+    )
+
     mail = parser.add_argument_group("mail")
 
     mail.add_argument(

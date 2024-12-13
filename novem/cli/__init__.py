@@ -21,7 +21,7 @@ else:
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
-from .common import mail, plot
+from .common import grid, mail, plot
 from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
@@ -294,6 +294,7 @@ def print_short(parser: Any) -> None:
     print("  novem --init          if you already have an account and want to get started")
     print()
     print("  novem -p              list your plots")
+    print("  novem -g              list your grids")
     print("  novem -m              list your mails")
 
 
@@ -404,6 +405,8 @@ novem --init --profile {args["profile"]}\
         plot(args)
     elif args and args["mail"] != "":
         mail(args)
+    elif args and args["grid"] != "":
+        grid(args)
     elif args and args["invite"] != "":
         invite(args)
     elif args and ("group" in args or "org" in args):
