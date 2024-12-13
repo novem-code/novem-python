@@ -391,9 +391,31 @@ def test_mail_recipients_to(requests_mock):
         ],
     }
     m = setup_mail_mock(requests_mock, conf)
+
     m.to = ["@novem_demo", "@test"]
     assert m.to == "@novem_demo\n@test"
+
     m.to = "@novem_demo\n@test"
+    assert m.to == "@novem_demo\n@test"
+
+    conf = {
+        "mail_id": "test_mail",
+        "reqs": [
+            [
+                "get",
+                "/recipients/to",
+                "",
+            ],
+            ["post", "/recipients/to", None],
+        ],
+    }
+    m = setup_mail_mock(requests_mock, conf)
+
+    m.to = ""
+    assert m.to == ""
+
+    m.to = []
+    assert m.to == ""
 
 
 def test_mail_recipients_cc(requests_mock):
@@ -413,9 +435,35 @@ def test_mail_recipients_cc(requests_mock):
         ],
     }
     m = setup_mail_mock(requests_mock, conf)
+
     m.cc = ["@novem_demo", "@test"]
     assert m.cc == "@novem_demo\n@test"
+
     m.cc = "@novem_demo\n@test"
+    assert m.cc == "@novem_demo\n@test"
+
+    conf = {
+        "mail_id": "test_mail",
+        "reqs": [
+            [
+                "get",
+                "/recipients/cc",
+                "",
+            ],
+            [
+                "post",
+                "/recipients/cc",
+                None,
+            ],
+        ],
+    }
+    m = setup_mail_mock(requests_mock, conf)
+
+    m.cc = ""
+    assert m.cc == ""
+
+    m.cc = []
+    assert m.cc == ""
 
 
 def test_mail_recipients_bcc(requests_mock):
@@ -435,9 +483,31 @@ def test_mail_recipients_bcc(requests_mock):
         ],
     }
     m = setup_mail_mock(requests_mock, conf)
+
     m.bcc = ["@novem_demo", "@test"]
     assert m.bcc == "@novem_demo\n@test"
+
     m.bcc = "@novem_demo\n@test"
+    assert m.bcc == "@novem_demo\n@test"
+
+    conf = {
+        "mail_id": "test_mail",
+        "reqs": [
+            [
+                "get",
+                "/recipients/bcc",
+                "",
+            ],
+            ["post", "/recipients/bcc", None],
+        ],
+    }
+    m = setup_mail_mock(requests_mock, conf)
+
+    m.bcc = ""
+    assert m.bcc == ""
+
+    m.bcc = []
+    assert m.bcc == ""
 
 
 ###
