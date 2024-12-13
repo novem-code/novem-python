@@ -1,11 +1,8 @@
 import datetime
 import email.utils as eut
-import io
 import json
-import sys
 from functools import partial
 
-from novem.cli import run_cli
 from novem.utils import pretty_format
 
 from .utils import write_config
@@ -23,21 +20,13 @@ api_root = "https://api.novem.io/v1/"
 
 # Auth endpoint for our token
 def missing(request, context):
-
-    # return a valid auth endpoint
     context.status_code = 404
-
     return
 
 
-def test_grid_list(requests_mock, fs, capsys, monkeypatch):
+def test_grid_list(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
-
-    # grid name
 
     grid_list = [
         {
@@ -178,28 +167,14 @@ def test_grid_list(requests_mock, fs, capsys, monkeypatch):
     )
 
     # try to list all grids
-    params = ["-g", "-l"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    out, err = cli("-g", "-l")
 
     # grab names
-    comp = "\n".join([x["name"] for x in grid_list]) + "\n"
-    assert out == comp
+    expected = "\n".join([x["name"] for x in grid_list]) + "\n"
+    assert out == expected
 
     # try to list all grids with a nice list format
-    params = ["-g"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    out, err = cli("-g")
 
     # construct our pretty print list
     ppo = [
@@ -249,26 +224,19 @@ def test_grid_list(requests_mock, fs, capsys, monkeypatch):
     ]
     plist = user_grid_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
+        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])  # type: ignore
         p["created"] = nd.strftime("%Y-%m-%d %H:%M")
 
-    ppl = pretty_format(plist, ppo)
+    expected = pretty_format(plist, ppo) + "\n"
 
-    assert ppl + "\n" == out
-
-    # print(out)
+    assert expected == out
 
 
-def test_grid_x(requests_mock, fs, capsys, monkeypatch):
+def test_grid_x(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # grid name
     grid_name = "test_grid"
-
     grid_ansi = "one\ntwo\nthree\n"
 
     requests_mock.register_uri(
@@ -283,35 +251,17 @@ def test_grid_x(requests_mock, fs, capsys, monkeypatch):
         text=grid_ansi,
     )
 
-    # try to delete a no existant grid
-    params = ["-g", grid_name, "-x"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
-
+    # display grid
+    out, err = cli("-g", grid_name, "-x")
     assert out == grid_ansi
 
 
-def test_grid_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
+def test_grid_input_from_stdin(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # grid name
     grid_name = "test_grid"
-
     content = "this is the stdin content"
-
-    global out_stdin
-    out_stdin = ""
-
-    # assert in_caption != out_caption
 
     requests_mock.register_uri(
         "put",
@@ -319,8 +269,10 @@ def test_grid_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
         status_code=201,
     )
 
+    out_fc = ""
+
     def set_caption(value, request, context):
-        global out_fc
+        nonlocal out_fc
         out_fc = value
         context.status_code = 200
         return
@@ -331,14 +283,7 @@ def test_grid_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, content),
     )
 
-    # try to delete a no existant grid
-    params = ["-g", grid_name]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    monkeypatch.setattr("sys.stdin", io.StringIO(content))
-    run_cli()
+    # set input from stdin
+    out, err = cli("-g", grid_name, stdin=content)
 
     assert content == out_fc
