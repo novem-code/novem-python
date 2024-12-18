@@ -264,7 +264,7 @@ class Mail(NovemVisAPI):
 
     @to.setter
     def to(self, value: Union[str, List[str]]) -> None:
-        if not value:
+        if value is None:
             return
         if isinstance(value, list):
             value = self._r2s(value)
@@ -278,7 +278,7 @@ class Mail(NovemVisAPI):
 
     @cc.setter
     def cc(self, value: Union[str, List[str]]) -> None:
-        if not value:
+        if value is None:
             return
         if isinstance(value, list):
             value = self._r2s(value)
@@ -292,7 +292,7 @@ class Mail(NovemVisAPI):
 
     @bcc.setter
     def bcc(self, value: Union[str, List[str]]) -> None:
-        if not value:
+        if value is None:
             return
         if isinstance(value, list):
             value = self._r2s(value)
