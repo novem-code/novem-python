@@ -1,16 +1,16 @@
 import datetime
 import email.utils as eut
-import io
 import json
-import sys
 from functools import partial
 
 import pytest
 
-from novem.cli import run_cli
 from novem.utils import pretty_format
+from tests.conftest import CliExit
 
 from .utils import write_config
+
+api_root = "https://api.novem.io/v1/"
 
 # we need to test the different cli aspects
 auth_req = {
@@ -21,23 +21,13 @@ auth_req = {
 }
 
 
-# Auth endpoint for our token
 def missing(request, context):
-
-    # return a valid auth endpoint
     context.status_code = 404
-
     return
 
 
-def test_plot_list(requests_mock, fs, capsys, monkeypatch):
-
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
+def test_plot_list(cli, requests_mock, fs):
     write_config(auth_req)
-
-    # plot name
 
     plot_list = [
         {
@@ -178,28 +168,14 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     )
 
     # try to list all plots
-    params = ["-p", "-l"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    out, err = cli("-p", "-l")
 
     # grab names
-    comp = "\n".join([x["name"] for x in plot_list]) + "\n"
-    assert out == comp
+    expected = "\n".join([x["name"] for x in plot_list]) + "\n"
+    assert out == expected
 
     # try to list all plots with a nice list format
-    params = ["-p"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    out, err = cli("-p")
 
     # construct our pretty print list
     ppo = [
@@ -249,24 +225,18 @@ def test_plot_list(requests_mock, fs, capsys, monkeypatch):
     ]
     plist = user_plot_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
+        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])  # type: ignore
         p["created"] = nd.strftime("%Y-%m-%d %H:%M")
 
     ppl = pretty_format(plist, ppo)
 
     assert ppl + "\n" == out
 
-    # print(out)
 
+def test_plot_delete_missing(cli, requests_mock, fs):
 
-def test_plot_delete_missing(requests_mock, fs, capsys, monkeypatch):
-
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
 
     requests_mock.register_uri(
@@ -276,29 +246,19 @@ def test_plot_delete_missing(requests_mock, fs, capsys, monkeypatch):
         status_code=404,
     )
 
-    # try to delete a no existant plot
-    params = ["-p", "test_plot", "-D"]
+    # try to delete a nonexistent plot
+    with pytest.raises(CliExit) as e:
+        cli("-p", "test_plot", "-D")
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run_cli()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-    out, err = capsys.readouterr()
+    assert e.value.code == 1
+    out, err = e.value.args
     assert out == f"Plot {plot_name} did not exist\n"
 
 
-def test_plot_share_list(requests_mock, fs, capsys, monkeypatch):
+def test_plot_share_list(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
 
     shares = [
@@ -325,30 +285,18 @@ def test_plot_share_list(requests_mock, fs, capsys, monkeypatch):
         status_code=201,
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-s", "-l"]
+    # list out shares for plot
+    out, err = cli("-p", plot_name, "-s", "-l")
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
-
-    comp = "\n".join([x["name"] for x in shares]) + "\n"
-    assert out == comp
+    expected = "\n".join([x["name"] for x in shares]) + "\n"
+    assert out == expected
 
 
-def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
+def test_plot_share_add(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     shares = []
 
     def add_share(value, request, context):
@@ -383,46 +331,22 @@ def test_plot_share_add(requests_mock, fs, capsys, monkeypatch):
         status_code=201,
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-s", "public", "-D"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-
-    params = ["-p", plot_name, "-s", "@demo_user~test", "-C"]
-    sys.argv = ["novem"] + params
-    run_cli()
-
-    params = ["-p", plot_name, "-s", "-l"]
-    sys.argv = ["novem"] + params
-    run_cli()
-    out, err = capsys.readouterr()
+    # change shares
+    cli("-p", plot_name, "-s", "public", "-D")
+    cli("-p", plot_name, "-s", "@demo_user~test", "-C")
+    out, err = cli("-p", plot_name, "-s", "-l")
 
     comp = "\n".join([x for x in shares]) + "\n"
     assert out == comp
 
 
-out_caption = ""
+def test_plot_single_input(cli, requests_mock, fs):
 
-
-def test_plot_single_input(requests_mock, fs, capsys, monkeypatch):
-
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     in_caption = "this is the caption"
-    global out_caption
     out_caption = ""
-
-    # assert in_caption != out_caption
 
     requests_mock.register_uri(
         "put",
@@ -431,7 +355,7 @@ def test_plot_single_input(requests_mock, fs, capsys, monkeypatch):
     )
 
     def set_caption(value, request, context):
-        global out_caption
+        nonlocal out_caption
         out_caption = value
         context.status_code = 200
         return
@@ -442,38 +366,23 @@ def test_plot_single_input(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, in_caption),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-w", "config/caption", in_caption]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
+    # write caption
+    cli("-p", plot_name, "-w", "config/caption", in_caption)
 
     assert in_caption == out_caption
 
 
-out_fc = ""
+def test_plot_input_from_file(cli, requests_mock, fs):
 
-
-def test_plot_input_from_file(requests_mock, fs, capsys, monkeypatch):
-
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     content = "this is the file content"
 
     filename = "caption.txt"
     with open(filename, "w") as f:
         f.write(content)
 
-    global out_fc
     out_fc = ""
 
     # assert in_caption != out_caption
@@ -485,7 +394,7 @@ def test_plot_input_from_file(requests_mock, fs, capsys, monkeypatch):
     )
 
     def set_caption(value, request, context):
-        global out_fc
+        nonlocal out_fc
         out_fc = value
         context.status_code = 200
         return
@@ -496,36 +405,20 @@ def test_plot_input_from_file(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, content),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-w", "config/caption", f"@{filename}"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
+    # write caption from file content
+    cli("-p", plot_name, "-w", "config/caption", f"@{filename}")
 
     assert content == out_fc
 
 
-def test_plot_input_from_file_fails(requests_mock, fs, capsys, monkeypatch):
+def test_plot_input_from_file_fails(cli, requests_mock, fs, capsys):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     content = "this is the file content"
-
     filename = "caption.txt"
-
-    global out_fc
     out_fc = ""
-
-    # assert in_caption != out_caption
 
     requests_mock.register_uri(
         "put",
@@ -534,7 +427,7 @@ def test_plot_input_from_file_fails(requests_mock, fs, capsys, monkeypatch):
     )
 
     def set_caption(value, request, context):
-        global out_fc
+        nonlocal out_fc
         out_fc = value
         context.status_code = 200
         return
@@ -545,40 +438,22 @@ def test_plot_input_from_file_fails(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, content),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-w", "config/caption", f"@{filename}"]
+    # try to delete a nonexistent plot
+    with pytest.raises(CliExit) as e:
+        cli("-p", plot_name, "-w", "config/caption", f"@{filename}")
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run_cli()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-    out, err = capsys.readouterr()
+    assert e.value.code == 1
+    out, err = e.value.args
     assert out == (f'The supplied input file "{filename}" does not exist.' " Please review your options\n")
 
 
-out_stdin = ""
+def test_plot_input_from_stdin(cli, requests_mock, fs):
 
-
-def test_plot_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
-
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     content = "this is the stdin content"
-
-    global out_stdin
-    out_stdin = ""
-
-    # assert in_caption != out_caption
+    out_fc = ""
 
     requests_mock.register_uri(
         "put",
@@ -587,7 +462,7 @@ def test_plot_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
     )
 
     def set_caption(value, request, context):
-        global out_fc
+        nonlocal out_fc
         out_fc = value
         context.status_code = 200
         return
@@ -598,41 +473,25 @@ def test_plot_input_from_stdin(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, content),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-w", "config/caption"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    monkeypatch.setattr("sys.stdin", io.StringIO(content))
-    run_cli()
+    # write caption from stdin
+    cli("-p", plot_name, "-w", "config/caption", stdin=content)
 
     assert content == out_fc
 
 
-def test_plot_input_from_stdin_fail(requests_mock, fs, capsys, monkeypatch):
+def test_plot_input_from_stdin_fail(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     content = "this is the stdin content"
-
-    global out_stdin
-    out_stdin = ""
-
-    # assert in_caption != out_caption
 
     requests_mock.register_uri(
         "put",
         f"{api_root}vis/plots/{plot_name}",
         status_code=201,
     )
+
     out_fc = ""
 
     def set_caption(value, request, context):
@@ -647,39 +506,25 @@ def test_plot_input_from_stdin_fail(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, content),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-w", "config/caption"]
+    # write caption, but without any data
+    with pytest.raises(CliExit) as e:
+        cli("-p", plot_name, "-w", "config/caption")
 
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run_cli()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 1
-
-    out, err = capsys.readouterr()
+    assert e.value.code == 1
+    out, err = e.value.args
     assert out == ('No data found on stdin, "-w /config/caption" requires data ' "to be supplied on stdin\n")
-
     assert content != out_fc
 
 
 out_plot_type = ""
 
 
-def test_plot_types(requests_mock, fs, capsys, monkeypatch):
+def test_plot_types(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     in_type = "sbar"
-    global out_plot_type
     out_plot_type = ""
 
     requests_mock.register_uri(
@@ -689,7 +534,7 @@ def test_plot_types(requests_mock, fs, capsys, monkeypatch):
     )
 
     def set_caption(value, request, context):
-        global out_plot_type
+        nonlocal out_plot_type
         out_plot_type = value
         context.status_code = 200
         return
@@ -700,28 +545,17 @@ def test_plot_types(requests_mock, fs, capsys, monkeypatch):
         text=partial(set_caption, in_type),
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-t", in_type]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
+    # set type
+    cli("-p", plot_name, "-t", in_type)
 
     assert in_type == out_plot_type
 
 
-def test_plot_x(requests_mock, fs, capsys, monkeypatch):
+def test_plot_x(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     plot_ansi = "one\ntwo\nthree\n"
 
     requests_mock.register_uri(
@@ -736,29 +570,17 @@ def test_plot_x(requests_mock, fs, capsys, monkeypatch):
         text=plot_ansi,
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-x"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    # display plot output
+    out, err = cli("-p", plot_name, "-x")
 
     assert out == plot_ansi
 
 
-def test_plot_o(requests_mock, fs, capsys, monkeypatch):
+def test_plot_o(cli, requests_mock, fs):
 
-    api_root = "https://api.novem.io/v1/"
-
-    # create a config
     write_config(auth_req)
 
-    # plot name
     plot_name = "test_plot"
-
     plot_ansi = "one\ntwo\nthree\n"
 
     requests_mock.register_uri(
@@ -773,14 +595,7 @@ def test_plot_o(requests_mock, fs, capsys, monkeypatch):
         text=plot_ansi,
     )
 
-    # try to delete a no existant plot
-    params = ["-p", plot_name, "-r", "files/plot.ansi"]
-
-    # launch cli with params
-    sys.argv = ["novem"] + params
-
-    # run cli
-    run_cli()
-    out, err = capsys.readouterr()
+    # display plot output
+    out, err = cli("-p", plot_name, "-r", "files/plot.ansi")
 
     assert out == plot_ansi
