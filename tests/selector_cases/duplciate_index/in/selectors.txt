@@ -1,0 +1,2 @@
+S(df.loc[:, "Holding"], "holding, all rows", r=df)
+S(df.loc["DZK", "Holding"], "holding, DZK only", r=df)

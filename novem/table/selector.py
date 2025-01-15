@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set, Union
 
 try:
     import numpy as np  # type: ignore
@@ -16,6 +16,46 @@ class NovemSelectorException(NovemException):
         message = f"Invalid selector format {message}."
 
         super().__init__(message)
+
+
+def handle_position(position: Union[slice, Any, int], used_positions: Set[int]) -> List[int]:
+    """
+    Handle different types of position results from get_loc()
+
+    Args:
+        position: Result from get_loc() - can be int, slice, or boolean array
+        used_positions: Set of already used positions to avoid duplicates
+
+    Returns:
+        List of integer positions
+    """
+    if isinstance(position, slice):
+        # Convert slice to list of positions
+        start = position.start if position.start is not None else 0
+        stop = position.stop if position.stop is not None else float("inf")
+        step = position.step if position.step is not None else 1
+        positions = list(range(start, stop, step))
+        # Only take first position that hasn't been used
+        for pos in positions:
+            if pos not in used_positions:
+                used_positions.add(pos)
+                return [pos]
+        return []
+    elif isinstance(position, np.ndarray):  # type: ignore
+        # Handle boolean mask or integer array
+        if position.dtype == bool:
+            position = np.flatnonzero(position)
+        position = [pos for pos in position if pos not in used_positions]
+        if position:
+            used_positions.add(position[0])
+            return [position[0]]
+        return []
+    else:
+        # Handle integer position
+        if position not in used_positions:
+            used_positions.add(position)
+            return [position]
+        return []
 
 
 def enhance_positions(positions: List[int], ior: int) -> List[int]:
@@ -143,33 +183,17 @@ class Selector(object):
         # duplicate values outside of filter
 
         # Find the row and column positions in the original dataframe
-        row_positions = []
-        used_positions = set()
+        row_positions: List[int] = []
+        used_positions: Set[int] = set()
         for row_label in row_indices:
             position = frame.index.get_loc(row_label)
-            if isinstance(position, np.ndarray):
-                position = np.flatnonzero(position)
-                position = [pos for pos in position if pos not in used_positions]
-                used_positions.update(position[:1])
-                row_positions.append(position[0])
-            else:
-                if position not in used_positions:
-                    used_positions.add(position)
-                    row_positions.append(position)
+            row_positions.extend(handle_position(position, used_positions))
 
-        col_positions = []
-        used_col_positions = set()
+        col_positions: List[int] = []
+        used_col_positions: Set[int] = set()
         for col_label in col_indices:
             position = frame.columns.get_loc(col_label)
-            if isinstance(position, np.ndarray):
-                position = np.flatnonzero(position)
-                position = [pos for pos in position if pos not in used_col_positions]
-                used_col_positions.update(position[:1])
-                col_positions.append(position[0])
-            else:
-                if position not in used_col_positions:
-                    used_col_positions.add(position)
-                    col_positions.append(position)
+            col_positions.extend(handle_position(position, used_col_positions))
 
         # convert to novem 0 based index and drop negative offset results
         height = len(frame)
