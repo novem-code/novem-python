@@ -233,6 +233,12 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
             # cand = max([ucl(x[k]) for x in values])
         except ValueError:
             cand = 0
+        except KeyError:
+            if "fmt" in o:
+                fs = strip_ansi(o["fmt"]("", cl))
+                cand = ucl(fs)
+            else:
+                cand = 0
 
         wm[k] = max([cand, len(o["header"])])
 
@@ -277,8 +283,13 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
         for o in order:
             w = f':<{wm[o["key"]]}'
             fmt = "{0" + w + "}"
-            vs = wm[o["key"]]
-            ov = p[o["key"]]
+            try:
+                vs = wm[o["key"]]
+                ov = p[o["key"]]
+            except KeyError:
+                vs = 0
+                ov = ""
+
             if ov is None:
                 ov = ""
 
