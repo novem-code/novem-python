@@ -146,6 +146,9 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
         if p["name"] == "public":
             p["summary"] = "Shared with the entire world"
             p["type"] = "special"
+        if p["name"] == "chat":
+            p["summary"] = "Shared with Minerva (our ai agent)"
+            p["type"] = "minerva"
         if re.match("^@.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given user group"
             p["type"] = "user group"
@@ -154,6 +157,12 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
             p["type"] = "org group"
 
         plist.append(p)
+
+    def summary_fmt(summary: str, cl: cl) -> str:
+        if not summary:
+            return ""
+
+        return summary.replace("\n", "")
 
     ppo: List[Dict[str, Any]] = [
         {
@@ -178,7 +187,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
         {
             "key": "summary",
             "header": "Summary",
-            "fmt": lambda x: x.replace("\n", ""),
+            "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
         },
