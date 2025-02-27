@@ -162,7 +162,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
             p["summary"] = "Shared with the entire world"
             p["type"] = "special"
         if p["name"] == "chat":
-            p["summary"] = "Shared with Minerva (our ai agent)"
+            p["summary"] = "Shared with Minerva (the novem AI agent)"
             p["type"] = "minerva"
         if re.match("^@.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given user group"
