@@ -2,7 +2,7 @@ import datetime
 import email.utils as eut
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from novem.exceptions import Novem404
 
@@ -80,6 +80,20 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         return
 
+    def share_fmt(share: str, cl: cl) -> str:
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDFGC}" if "c" in sl else "-"  # chat claim
+        ug = f"{cl.OKGREEN}@{cl.ENDFGC}" if "@" in sl else "-"  # user group
+        og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def summary_fmt(summary: Optional[str], cl: cl) -> str:
+        if not summary:
+            return ""
+
+        return summary.replace("\n", "")
+
     ppo: List[Dict[str, Any]] = [
         {
             "key": "id",
@@ -87,17 +101,18 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             "type": "text",
             "overflow": "keep",
         },
-        # {
-        #    "key": "id",
-        #    "header": "ID",
-        #    "type": "text",
-        #    "overflow": "keep",
-        # },
         {
             "key": "type",
             "header": "Type",
             "type": "text",
             "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
             "overflow": "keep",
         },
         {
@@ -121,7 +136,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
         {
             "key": "summary",
             "header": "Summary",
-            "fmt": lambda x: x.replace("\n", ""),
+            "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
         },
@@ -146,14 +161,26 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
         if p["name"] == "public":
             p["summary"] = "Shared with the entire world"
             p["type"] = "special"
-        if re.match("^@.+~.+$", p["name"]):
+        elif p["name"] == "chat":
+            p["summary"] = "Shared with Minerva (the novem AI agent)"
+            p["type"] = "minerva"
+        elif re.match("^@.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given user group"
             p["type"] = "user group"
-        if re.match("^\\+.+~.+$", p["name"]):
+        elif re.match("^\\+.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given organisation group"
             p["type"] = "org group"
+        else:
+            p["summary"] = "Custom claim"
+            p["type"] = "claim"
 
         plist.append(p)
+
+    def summary_fmt(summary: str, cl: cl) -> str:
+        if not summary:
+            return ""
+
+        return summary.replace("\n", "")
 
     ppo: List[Dict[str, Any]] = [
         {
@@ -178,7 +205,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
         {
             "key": "summary",
             "header": "Summary",
-            "fmt": lambda x: x.replace("\n", ""),
+            "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
         },

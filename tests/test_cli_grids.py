@@ -86,6 +86,7 @@ def test_grid_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/XVBzV",
             "name": "Covid19 cases by US State",
+            "shared": ["public"],
             "type": "us map",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -98,6 +99,7 @@ def test_grid_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/Kwjdv",
             "name": "Covid19 cases by US State",
+            "shared": ["public", "chat"],
             "type": "line chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -110,6 +112,7 @@ def test_grid_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/7N2Wv",
             "name": "Covid19 cases by US State",
+            "shared": ["public", "chat", "@user~group"],
             "type": "area chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -121,6 +124,7 @@ def test_grid_list(cli, requests_mock, fs):
             "shortname": "QVgEN",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/QVgEN",
+            "shared": ["public", "chat", "@user~group", "+org~group"],
             "name": "Letter frequency in the English language",
             "type": "bar chart",
             "summary": "Analysis of entries in the Concise Oxford dictionary"
@@ -134,6 +138,7 @@ def test_grid_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/qNGgN",
             "name": "Top 5 us states by population and age",
+            "shared": ["public", "chat", "@user~group", "+org~group"],
             "type": "grouped bar chart",
             "summary": "Historical unemployment rate in the Nordic countries."
             " Data from IMFs World Economic Oulook published in October 2021"
@@ -144,6 +149,7 @@ def test_grid_list(cli, requests_mock, fs):
             "shortname": "2v1rV",
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/2v1rV",
+            "shared": ["public", "chat", "@user~group", "+org~group"],
             "name": "Historical Unemployment rates in the Nordic" " countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
@@ -176,6 +182,20 @@ def test_grid_list(cli, requests_mock, fs):
     # try to list all grids with a nice list format
     out, err = cli("-g")
 
+    def share_fmt(share, cl):
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDC}" if "c" in sl else "-"  # chat claim
+        ug = "@" if "@" in sl else "-"  # user group
+        og = "+" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def summary_fmt(summary, cl):
+        if not summary:
+            return ""
+
+        return summary.replace("\n", "")
+
     # construct our pretty print list
     ppo = [
         {
@@ -184,15 +204,16 @@ def test_grid_list(cli, requests_mock, fs):
             "type": "text",
             "overflow": "keep",
         },
-        # {
-        #    "key": "id",
-        #    "header": "ID",
-        #    "type": "text",
-        #    "overflow": "keep",
-        # },
         {
             "key": "type",
             "header": "Type",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "shared",
+            "header": "Shared",
+            "fmt": share_fmt,
             "type": "text",
             "overflow": "keep",
         },
@@ -217,7 +238,7 @@ def test_grid_list(cli, requests_mock, fs):
         {
             "key": "summary",
             "header": "Summary",
-            "fmt": lambda x: x.replace("\n", ""),
+            "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
         },

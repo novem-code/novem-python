@@ -2,6 +2,7 @@ import configparser
 import io
 import os
 import platform
+import re
 import select
 import sys
 import unicodedata
@@ -17,6 +18,14 @@ NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 
 
+# find ansi escape sequences in string
+ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+
+def strip_ansi(text: str) -> str:
+    return ansi_escape.sub("", text)
+
+
 class cl:
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -25,6 +34,7 @@ class cl:
     WARNING = "\033[93m"
     FAIL = "\033[91m"
     ENDC = "\033[0m"
+    ENDFGC = "\033[39m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
     FGGRAY = "\033[38;5;246m"
@@ -40,6 +50,7 @@ def disable_colors() -> None:
     c.WARNING = ""
     c.FAIL = ""
     c.ENDC = ""
+    c.ENDFGC = ""
     c.BOLD = ""
     c.UNDERLINE = ""
     c.FGGRAY = ""
@@ -212,9 +223,25 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
     for o in order:
         k = o["key"]
         try:
-            cand = max([ucl(x[k]) for x in values])
+            cs = []
+            for x in values:
+                if "fmt" in o:
+                    fs = strip_ansi(o["fmt"](x[k], cl))
+                    c = ucl(fs)
+                else:
+                    c = ucl(x[k])
+                cs.append(c)
+
+            cand = max(cs)
+            # cand = max([ucl(x[k]) for x in values])
         except ValueError:
             cand = 0
+        except KeyError:
+            if "fmt" in o:
+                fs = strip_ansi(o["fmt"]("", cl))
+                cand = ucl(fs)
+            else:
+                cand = 0
 
         wm[k] = max([cand, len(o["header"])])
 
@@ -259,8 +286,13 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
         for o in order:
             w = f':<{wm[o["key"]]}'
             fmt = "{0" + w + "}"
-            vs = wm[o["key"]]
-            ov = p[o["key"]]
+            try:
+                vs = wm[o["key"]]
+                ov = p[o["key"]]
+            except KeyError:
+                vs = 0
+                ov = ""
+
             if ov is None:
                 ov = ""
 
@@ -270,7 +302,7 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
                 val = ov[0:vs]
 
             if "fmt" in o:
-                val = o["fmt"](val)
+                val = o["fmt"](val, cl)
 
             val = fmt.format(val)
 
