@@ -18,8 +18,11 @@ NOVEM_PATH = "novem"
 NOVEM_NAME = "novem.conf"
 
 
+# find ansi escape sequences in string
+ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+
 def strip_ansi(text: str) -> str:
-    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
     return ansi_escape.sub("", text)
 
 

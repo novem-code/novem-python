@@ -2,7 +2,7 @@ import datetime
 import email.utils as eut
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from novem.exceptions import Novem404
 
@@ -88,7 +88,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
         og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
         return f"{pub} {chat} {ug} {og}"
 
-    def summary_fmt(summary: str, cl: cl) -> str:
+    def summary_fmt(summary: Optional[str], cl: cl) -> str:
         if not summary:
             return ""
 
@@ -161,15 +161,18 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
         if p["name"] == "public":
             p["summary"] = "Shared with the entire world"
             p["type"] = "special"
-        if p["name"] == "chat":
+        elif p["name"] == "chat":
             p["summary"] = "Shared with Minerva (the novem AI agent)"
             p["type"] = "minerva"
-        if re.match("^@.+~.+$", p["name"]):
+        elif re.match("^@.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given user group"
             p["type"] = "user group"
-        if re.match("^\\+.+~.+$", p["name"]):
+        elif re.match("^\\+.+~.+$", p["name"]):
             p["summary"] = "Shared with all members of the given organisation group"
             p["type"] = "org group"
+        else:
+            p["summary"] = "Custom claim"
+            p["type"] = "claim"
 
         plist.append(p)
 
