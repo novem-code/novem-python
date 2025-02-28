@@ -262,7 +262,8 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
         # allocate truncate width
         nks = [x for x in order if x["overflow"] != "keep"]
         for o in nks:
-            wm[o["key"]] = int(rem / len(nks))
+            # do not shrink columns down below 5 characters wide
+            wm[o["key"]] = max(5, int(rem / len(nks)))
 
     # construct output string
     los = f"{cl.BOLD}"
