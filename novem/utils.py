@@ -208,7 +208,10 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
         col = 120
 
     col = col - 2
+    return pretty_format_inner(values, order, col)
 
+
+def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]], col: int) -> str:
     # padding width
     pw = 2
 
