@@ -77,6 +77,18 @@ def test_plot(requests_mock):
         text=partial(del_share, "+novem_demo~novem_test"),
     )
 
+    requests_mock.register_uri(
+        "delete",
+        f"{api_root}vis/plots/{plot_id}/shared/+novem_demo~novem_demo",
+        text=partial(del_share, "+novem_demo~novem_test"),
+    )
+
+    requests_mock.register_uri(
+        "delete",
+        f"{api_root}vis/plots/{plot_id}/shared/public",
+        text=partial(del_share, "public"),
+    )
+
     # create a novem api object
     n = Plot(plot_id, type=plot_type, config_path=config_file)  # config location
 
@@ -91,3 +103,5 @@ def test_plot(requests_mock):
 
     n.shared -= "+novem_demo~novem_test"
     # print(n.shared.get())
+
+    n.shared = ""
