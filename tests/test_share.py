@@ -104,4 +104,8 @@ def test_plot(requests_mock):
     n.shared -= "+novem_demo~novem_test"
     # print(n.shared.get())
 
+    share_string = str(n.shared)
+
+    assert share_string == "\n".join(n.shared.get())
+
     n.shared = ""
