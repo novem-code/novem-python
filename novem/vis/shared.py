@@ -46,10 +46,12 @@ class NovemShare(object):
         rms = set(es) - set(shares)
         adds = set(shares) - set(es)
 
-        for r in rms:
+        # Delete non-empty items
+        for r in filter(None, rms):
             self.api.api_delete(f"/shared/{r}")
 
-        for a in adds:
+        # Add non-empty items
+        for a in filter(None, adds):
             self.api.api_create(f"/shared/{a}")
 
     def __iadd__(self, share: str) -> List[str]:
