@@ -71,3 +71,14 @@ class NovemShare(object):
         ns = set(es) - set([share])
 
         return list(ns)
+
+    def __str__(self) -> str:
+        """
+        Return a string representation of shares
+        """
+        es = self.get()
+
+        if es:
+            return "\n".join(es)
+        else:
+            return ""
