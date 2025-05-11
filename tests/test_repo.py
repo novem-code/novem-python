@@ -437,8 +437,7 @@ def test_repo_with_config_type(requests_mock):
         text="",
     )
 
-    # Looking at the Repo class, it accepts a config parameter but NovemRepoConfig
-    # doesn't have a set() method. Instead, the type can be set directly.
+    # Test setting type directly
     r = Repo(repo_id, config_path=config_file, type=repo_type)
 
     # Register a GET endpoint to check the type was set
@@ -450,3 +449,66 @@ def test_repo_with_config_type(requests_mock):
 
     # Verify the type was set
     assert r.type == repo_type
+
+
+def test_repo_with_config_dict(requests_mock):
+    """Test the new dictionary-based config setting functionality"""
+    repo_id = "test_repo"
+    repo_type = "job"
+    config_dict = {
+        "type": repo_type
+    }
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    api_root = config["general"]["api_root"]
+
+    # Repository creation endpoint
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}repos/{repo_id}",
+        text="",
+    )
+
+    # Custom config endpoints
+    requests_mock.register_uri(
+        "post",
+        f"{api_root}repos/{repo_id}/config/type",
+        text="",
+    )
+
+    # Create repository instance with config dictionary
+    r = Repo(repo_id, config_path=config_file, config=config_dict)
+
+    # Register a GET endpoint to check the type was set via the config dictionary
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}repos/{repo_id}/config/type",
+        text=repo_type,
+    )
+
+    # Verify the type was set through the config dictionary
+    assert r.type == repo_type
+
+    # Test directly using the set method
+    new_type = "pipeline"
+    requests_mock.register_uri(
+        "post",
+        f"{api_root}repos/{repo_id}/config/type",
+        text="",
+    )
+
+    r.config.set({"type": new_type})
+
+    # Update mock for the new type
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}repos/{repo_id}/config/type",
+        text=new_type,
+    )
+
+    # Verify the new type was set through the config.set method
+    assert r.type == new_type

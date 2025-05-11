@@ -12,6 +12,17 @@ class NovemRepoConfig:
           """Initialize the Repo object"""
           self.api: "NovemRepoAPI" = api
 
+    def set(self, profile: Dict[str, Any]) -> None:
+        """
+        Set config options
+        """
+
+        props = [x for x in dir(self) if x in ["type"]]
+
+        for k in props:
+            v = profile[k]
+            setattr(self, k, v)
+
     @property
     def type(self) -> str:
         return self.api.api_read("/config/type").strip()
