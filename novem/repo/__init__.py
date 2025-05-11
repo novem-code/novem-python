@@ -3,8 +3,7 @@ from typing import Any, Optional
 from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
-
-#from ..shared import NovemShare
+from ..shared import NovemShare
 from .config import NovemRepoConfig
 
 """
@@ -13,8 +12,8 @@ from .config import NovemRepoConfig
 
 
 class NovemRepoAPI(NovemAPI):
-    #config: Optional[NovemRepoConfig]
-    #shared: Optional[NovemShare]
+    config: Optional[NovemRepoConfig]
+    shared: Optional[NovemShare]
     id: str
 
     _debug: bool = False
@@ -30,10 +29,10 @@ class NovemRepoAPI(NovemAPI):
             self.api_create("")
 
         self.config = NovemRepoConfig(self)
-        #self.shared = NovemShare(self)
+        self.shared = NovemShare(self, f"repos/{self.id}")
 
-        #if "shared" in kwargs:
-        #    self.shared.set(kwargs["shared"])
+        if "shared" in kwargs:
+            self.shared.set(kwargs["shared"])
 
         if "config" in kwargs:
             self.config.set(kwargs["config"])
@@ -47,7 +46,7 @@ class NovemRepoAPI(NovemAPI):
 
         # get a list of valid properties
         props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared","config"]
+            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "config"]
         ]
 
         for k, v in kwargs.items():
@@ -58,10 +57,10 @@ class NovemRepoAPI(NovemAPI):
             setattr(self, k, v)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "roles" and self.roles:
-            self.roles.set(value)
-        if name == "profile" and self.profile:
-            self.profile.set(value)
+        if name == "config" and self.config:
+            self.config.set(value)
+        if name == "shared" and self.shared:
+            self.shared.set(value)
         else:
             super().__setattr__(name, value)
 
@@ -212,17 +211,17 @@ class NovemRepoAPI(NovemAPI):
         return self
 
     def ref(self, ref: str) -> str:
-      """
-      Return a fully qualified path to given ref
+        """
+        Return a fully qualified path to given ref
 
-      Grab our userid from whoami
-      Grab our id
+        Grab our userid from whoami
+        Grab our id
 
-      So input of "tag:v0.0.2" give "@user/repo:tag:v0.0.2"
-      """
-      user = self.read('whoami')
+        So input of "tag:v0.0.2" give "@user/repo:tag:v0.0.2"
+        """
+        user = self.read("whoami")
 
-      return f"@{user}/{self.id}:{ref}"
+        return f"@{user}/{self.id}:{ref}"
 
     @property
     def log(self) -> None:

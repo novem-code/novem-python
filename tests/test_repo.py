@@ -1,15 +1,13 @@
 import configparser
-import json
-import os
-import re
-from functools import partial
-from contextlib import redirect_stdout
 import io
+import os
+from contextlib import redirect_stdout
+from functools import partial
 from unittest.mock import patch
 
 from novem import Repo
-from novem.utils import API_ROOT
 from novem.exceptions import Novem403, Novem404
+from novem.utils import API_ROOT
 
 
 def test_repo_ref(requests_mock):
@@ -44,17 +42,14 @@ def test_repo_ref(requests_mock):
     )
 
     r = Repo(repo_id, config_path=config_file)
-    assert r.ref('prod') == f'@{repo_user}/{repo_id}:prod'
-    assert r.ref('dev') == f'@{repo_user}/{repo_id}:dev'
-    assert r.ref('tag:v0.0.1') == f'@{repo_user}/{repo_id}:tag:v0.0.1'
+    assert r.ref("prod") == f"@{repo_user}/{repo_id}:prod"
+    assert r.ref("dev") == f"@{repo_user}/{repo_id}:dev"
+    assert r.ref("tag:v0.0.1") == f"@{repo_user}/{repo_id}:tag:v0.0.1"
 
 
 def test_repo_type(requests_mock):
     repo_id = "test_repo"
-    repo_user = "test_user"
-    repo_name = "long test name"
-    repo_description = "long test description"
-    repo_type = 'job'
+    repo_type = "job"
 
     base = os.path.dirname(os.path.abspath(__file__))
     config_file = f"{base}/test.conf"
@@ -455,9 +450,7 @@ def test_repo_with_config_dict(requests_mock):
     """Test the new dictionary-based config setting functionality"""
     repo_id = "test_repo"
     repo_type = "job"
-    config_dict = {
-        "type": repo_type
-    }
+    config_dict = {"type": repo_type}
 
     base = os.path.dirname(os.path.abspath(__file__))
     config_file = f"{base}/test.conf"

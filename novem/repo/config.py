@@ -1,7 +1,8 @@
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Union
+from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     from novem.repo import NovemRepoAPI
+
 
 class NovemRepoConfig:
     """
@@ -9,10 +10,10 @@ class NovemRepoConfig:
     """
 
     def __init__(self, api: "NovemRepoAPI") -> None:
-          """Initialize the Repo object"""
-          self.api: "NovemRepoAPI" = api
+        """Initialize the Repo object"""
+        self.api: "NovemRepoAPI" = api
 
-    def set(self, profile: Dict[str, Any]) -> None:
+    def set(self, config: Dict[str, Any]) -> None:
         """
         Set config options
         """
@@ -20,7 +21,7 @@ class NovemRepoConfig:
         props = [x for x in dir(self) if x in ["type"]]
 
         for k in props:
-            v = profile[k]
+            v = config[k]
             setattr(self, k, v)
 
     @property
