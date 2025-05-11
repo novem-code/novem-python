@@ -1,5 +1,4 @@
-import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from novem.exceptions import Novem403, Novem404
 
@@ -9,17 +8,11 @@ from .roles import NovemRoles
 
 
 class NovemGroupAPI(NovemAPI):
-    """
-    Novem group api, provides utility for the sub types
-    """
-
     roles: Optional[NovemRoles] = None
     profile: Optional[NovemGroupProfile] = None
-
     id: str
 
     _type: str = "NA"
-    _vispath: Optional[str] = None
     _debug: bool = False
 
     # path for admin functionality /v1/admin
@@ -57,7 +50,6 @@ class NovemGroupAPI(NovemAPI):
         super()._parse_kwargs(**kwargs)
 
         # get a list of valid properties
-        # exclude data as it needs to be run lastj
         props = [
             x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "roles", "profile"]
         ]
@@ -77,49 +69,6 @@ class NovemGroupAPI(NovemAPI):
         else:
             super().__setattr__(name, value)
 
-    def api_dump(self, outpath: str) -> None:
-        """
-        Iterate over current id and dump output to supplied path
-        """
-
-        qpath = f"{self._api_root}vis/{self._vispath}/{self.id}/"
-
-        # create util function
-        def rec_tree(path: str) -> None:
-            qp = f"{qpath}{path}"
-            fp = f"{outpath}{path}"
-            # print(f"QP: {qp}")
-            req = self._session.get(qp)
-
-            if not req.ok:
-                return None
-
-            headers = req.headers
-            try:
-                tp = headers["X-NS-Type"]
-            except KeyError:
-                tp = "file"
-
-            # if i am a file, write to disc
-            if tp == "file":
-                with open(fp, "w") as f:
-                    f.write(req.text)
-                print(f"Writing file:    {fp}")
-                return None
-
-            # if I am a folder, make a folder and recurse
-            os.makedirs(fp, exist_ok=True)
-            print(f"Creating folder: {fp}")
-
-            nodes: List[Dict[str, str]] = req.json()
-
-            # Recurse relevant structure
-            for r in [x for x in nodes if x["type"] not in ["system_file", "system_dir"]]:
-                rec_tree(f'{path}/{r["name"]}')
-
-        # start recurison
-        rec_tree("")
-
     def api_read(self, relpath: str) -> str:
         """
         Read the api value located at realtive path
@@ -127,15 +76,12 @@ class NovemGroupAPI(NovemAPI):
 
         qpath = f"{self._api_root}{self._admin_path}/{self.id}{relpath}"
 
-        # We can read information from other users, but not perform any
-        # other actions so only the GET method supports the custom user
-        # pathing
         if self._debug:
             print(f"GET: {qpath}")
 
         r = self._session.get(qpath)
 
-        # TODO: verify result and raise exception if not ok
+        # verify result and raise exception if not ok
         if r.status_code == 404:
             raise Novem404(qpath)
 
@@ -143,26 +89,6 @@ class NovemGroupAPI(NovemAPI):
             raise Novem403
 
         return r.content.decode("utf-8")
-
-    def api_read_bytes(self, relpath: str) -> bytes:
-        qpath = f"{self._api_root}{self._admin_path}/{self.id}{relpath}"
-        # We can read information from other users, but not perform any
-        # other actions so only the GET method supports the custom user
-        # pathing
-
-        if self._debug:
-            print(f"GET: {qpath}")
-
-        r = self._session.get(qpath)
-
-        # TODO: verify result and raise exception if not ok
-        if r.status_code == 404:
-            raise Novem404(qpath)
-
-        if r.status_code == 403:
-            raise Novem403
-
-        return r.content
 
     def api_delete(self, relpath: str) -> None:
         """
@@ -270,15 +196,6 @@ class NovemGroupAPI(NovemAPI):
             for k, v in r.headers.items():
                 print(f"   {k}: {v}")
             print("should raise a general error")
-
-    @property
-    def log(self) -> None:
-        """
-        print the current novem logs for the given vis
-        """
-        print(self.api_read("/log"))
-
-        return None
 
     @property
     def permissions(self) -> str:
