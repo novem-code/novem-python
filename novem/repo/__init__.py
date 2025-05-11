@@ -221,7 +221,7 @@ class NovemRepoAPI(NovemAPI):
         """
         user = self.read("whoami")
 
-        return f"@{user}/{self.id}:{ref}"
+        return f"/{user}/{self.id}:{ref}"
 
     @property
     def log(self) -> None:

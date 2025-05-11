@@ -217,11 +217,11 @@ class NovemJobAPI(NovemAPI):
         Grab our userid from whoami
         Grab our id
 
-        So input of "tag:v0.0.2" give "@user/job:tag:v0.0.2"
+        So input of "tag:v0.0.2" give "/<user>/<job>:tag:v0.0.2"
         """
         user = self.read("whoami")
 
-        return f"@{user}/{self.id}:{ref}"
+        return f"/{user}/{self.id}:{ref}"
 
     @property
     def log(self) -> None:

@@ -42,9 +42,9 @@ def test_repo_ref(requests_mock):
     )
 
     r = Repo(repo_id, config_path=config_file)
-    assert r.ref("prod") == f"@{repo_user}/{repo_id}:prod"
-    assert r.ref("dev") == f"@{repo_user}/{repo_id}:dev"
-    assert r.ref("tag:v0.0.1") == f"@{repo_user}/{repo_id}:tag:v0.0.1"
+    assert r.ref("prod") == f"/{repo_user}/{repo_id}:prod"
+    assert r.ref("dev") == f"/{repo_user}/{repo_id}:dev"
+    assert r.ref("tag:v0.0.1") == f"/{repo_user}/{repo_id}:tag:v0.0.1"
 
 
 def test_repo_type(requests_mock):
