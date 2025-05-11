@@ -105,7 +105,9 @@ class NovemRoles(object):
 
         props = [x for x in dir(self) if x in ["founders", "members", "admins", "superusers"]]
 
-        for k in props:
+        for k in profile:
+            if k not in props:
+                continue
             v = profile[k]
             setattr(self, k, v)
 
