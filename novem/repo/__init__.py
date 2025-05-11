@@ -57,9 +57,9 @@ class NovemRepoAPI(NovemAPI):
             setattr(self, k, v)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "config" and self.config:
+        if name == "config" and hasattr(self, "config") and self.config:
             self.config.set(value)
-        if name == "shared" and self.shared:
+        elif name == "shared" and hasattr(self, "shared") and self.shared:
             self.shared.set(value)
         else:
             super().__setattr__(name, value)
