@@ -18,7 +18,7 @@ class NovemJobConfig:
         Set config options
         """
 
-        props = [x for x in dir(self) if x in ["type"]]
+        props = [x for x in dir(self) if x in ["type", "extract", "render"]]
 
         for k in config.keys():
             if k not in props:
