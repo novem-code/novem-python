@@ -165,7 +165,7 @@ def get_current_config(
         migrate_config_04_to_05(config_path, config, co)
 
     # override profile
-    profile = kwargs.get("profile") or profile
+    profile = kwargs.get("config_profile") or profile
 
     # get our config
     try:

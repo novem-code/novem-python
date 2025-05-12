@@ -5,14 +5,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
+from ..shared import NovemShare
 from ..utils import cl
 from ..utils import colors as clrs
 from .files import NovemFiles
-from .shared import NovemShare
 
 
 class NovemVisAPI(NovemAPI):
-    shared: Optional[NovemShare] = None
+    shared: NovemShare
     files: Optional[NovemFiles] = None
 
     _vispath: Optional[str] = None
@@ -37,11 +37,11 @@ class NovemVisAPI(NovemAPI):
         if "qpr" in kwargs and kwargs["qpr"]:
             self._qpr = kwargs["qpr"].replace(",", "&")
 
-        self.shared = NovemShare(self)
+        self.shared = NovemShare(self, f"vis/{self._vispath}/{self.id}")
         self.files = NovemFiles(self)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "shared" and self.shared:
+        if name == "shared" and hasattr(self, "shared") and not isinstance(value, NovemShare):
             self.shared.set(value)
         else:
             super().__setattr__(name, value)

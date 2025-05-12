@@ -57,6 +57,8 @@ def do_update_config(
 
 
 def refresh_config(args: Dict[str, Any]) -> None:
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
     (hasconf, curconf) = get_current_config(**args)
 
     if not hasconf:

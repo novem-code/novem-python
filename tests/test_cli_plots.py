@@ -327,8 +327,8 @@ def test_plot_share_add(cli, requests_mock, fs):
 
     def get_share(request, context):
         if len(shares) == 0:
-            context.status_code = 404
-            return
+            context.status_code = 200
+            return "[]"
 
         context.status_code = 200
         return json.dumps([{"name": x} for x in shares])

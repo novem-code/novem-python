@@ -103,7 +103,9 @@ class Plot(NovemVisAPI):
 
         # get a list of valid properties
         # exclude data as it needs to be run last
-        props = [x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write"]]
+        props = [
+            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "create"]
+        ]
 
         do_data = False
         for k, v in kwargs.items():
