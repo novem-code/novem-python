@@ -45,7 +45,7 @@ class VisBase:
                 subject=args["subject"],
                 qpr=args["qpr"],
                 debug=args["debug"],
-                profile=args["profile"],
+                config_profile=args["profile"],
                 is_cli=True,
             )
 
@@ -58,7 +58,7 @@ class VisBase:
                 config_path=args["config_path"],
                 qpr=args["qpr"],
                 debug=args["debug"],
-                profile=args["profile"],
+                config_profile=args["profile"],
                 is_cli=True,
             )
         elif self.type == "grid":
@@ -70,7 +70,7 @@ class VisBase:
                 config_path=args["config_path"],
                 qpr=args["qpr"],
                 debug=args["debug"],
-                profile=args["profile"],
+                config_profile=args["profile"],
                 is_cli=True,
             )
         else:

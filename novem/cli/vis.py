@@ -16,6 +16,9 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
     pfx = type[0].lower()
 
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
     novem = NovemAPI(**args, is_cli=True)
     # see if list flag is set
 
