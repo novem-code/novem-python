@@ -20,7 +20,9 @@ class NovemJobConfig:
 
         props = [x for x in dir(self) if x in ["type"]]
 
-        for k in props:
+        for k in config.keys():
+            if k not in props:
+                continue
             v = config[k]
             setattr(self, k, v)
 
