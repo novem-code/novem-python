@@ -98,12 +98,8 @@ class NovemShare:
             share: A string or an object with get_share_string() method
         """
         share_value = get_share_value(share)
-        print("--")
-        print(share_value)
         if share_value and share_value not in self.get():
             path = f"{self.share_path}/shared/{share_value}"
-            print(self.api)
-            print(self.api.create)
             self.api.create(path)
         return self
 
