@@ -46,7 +46,9 @@ class NovemRepoAPI(NovemAPI):
 
         # get a list of valid properties
         props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "config"]
+            x
+            for x in dir(self)
+            if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "config", "create"]
         ]
 
         for k, v in kwargs.items():
