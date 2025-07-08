@@ -118,10 +118,9 @@ or set the NOVEM_TOKEN environment variable.\
             self._api_root = kwargs["api_root"]
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
-
-        r = self._session.post(
+        r = requests.post(
             f"{self._api_root}token",
-            auth=None,
+            headers={"User-Agent": self._session.headers["User-Agent"]},
             json=params,
         )
 
@@ -130,9 +129,7 @@ or set the NOVEM_TOKEN environment variable.\
             if r.status_code == 401:
                 raise Novem401(resp["message"])
 
-        res = r.json()
-
-        return res
+        return r.json()
 
     def delete(self, path: str) -> bool:
 
