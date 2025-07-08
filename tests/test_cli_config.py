@@ -1,4 +1,3 @@
-import base64
 import configparser
 import json
 import re
@@ -413,7 +412,8 @@ token = token2
 
     def mk_response(r, context):
         nonlocal request
-        request = (r.hostname, r.path, base64.decodebytes(r.headers["Authorization"].partition(" ")[2].encode()))
+        token = r.headers.get("Authorization", "")[len("Bearer ") :]
+        request = (r.hostname, r.path, token)
         return "[]"
 
     matcher = re.compile(r"https://(\d+)/u/(.+)/p/")
@@ -424,10 +424,10 @@ token = token2
         f.write(conf)
 
     cli("--conf", "conf", "-p")
-    assert request == ("1", "/u/user1/p/", b":token1")
+    assert request == ("1", "/u/user1/p/", "token1")
 
     cli("--conf", "conf", "--profile", "user1", "-p")
-    assert request == ("1", "/u/user1/p/", b":token1")
+    assert request == ("1", "/u/user1/p/", "token1")
 
     cli("--conf", "conf", "--profile", "user2", "-p")
-    assert request == ("2", "/u/user2/p/", b":token2")
+    assert request == ("2", "/u/user2/p/", "token2")
