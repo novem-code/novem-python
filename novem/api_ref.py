@@ -85,14 +85,14 @@ class NovemAPI(object):
         if config.get("token", None):
             assert config["token"]
             self.token = config["token"]
-            self._session.auth = ("", self.token)
+            self._session.headers["Authorization"] = f"Bearer {self.token}"
             if env_token is not None and not did_token_warning:
                 did_token_warning = True
                 print("WARN: Both NOVEM_TOKEN and config file token are set. Using config file token.", file=sys.stderr)
 
         elif env_token is not None:
             self.token = env_token
-            self._session.auth = ("", self.token)
+            self._session.headers["Authorization"] = f"Bearer {self.token}"
 
         elif not config_status:
             print(
