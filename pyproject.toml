@@ -7,6 +7,7 @@ homepage = "https://novem.io"
 repository = "https://github.com/novem-code/novem-python"
 readme = "README.md"
 license = "MIT"
+package-mode = true
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
