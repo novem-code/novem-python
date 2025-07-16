@@ -10,7 +10,7 @@ license = "MIT"
 package-mode = true
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
+python = "^3.9"
 requests = "^2.26.0"
 pyreadline3 = "^3.4.1"
 colorama = "^0.4.6"
