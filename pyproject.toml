@@ -11,12 +11,12 @@ package-mode = true
 
 [tool.poetry.dependencies]
 python = "^3.9"
-requests = "^2.26.0"
-pyreadline3 = "^3.4.1"
+requests = "^2.32.4"
+pyreadline3 = "^3.5.4"
 colorama = "^0.4.6"
-urllib3 = "^1.26.15"
-typing-extensions = "^4.9.0"
-packaging = "^24.1"
+urllib3 = "^2.5.0"
+typing-extensions = "^4.14.1"
+packaging = "^25.0"
 
 [tool.poetry.scripts]
 novem = 'novem.cli:run_cli'
