@@ -312,7 +312,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     plot.add_argument(
-        "-t",
+        "--type",
         dest="type",
         action="store",
         required=False,

@@ -567,7 +567,7 @@ def test_plot_types(cli, requests_mock, fs):
     )
 
     # set type
-    cli("-p", plot_name, "-t", in_type)
+    cli("-p", plot_name, "--type", in_type)
 
     assert in_type == out_plot_type
 
