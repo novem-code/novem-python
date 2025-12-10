@@ -25,7 +25,7 @@ class NovemGQL:
     """GraphQL client for novem CLI operations."""
 
     def __init__(self, **kwargs: Any) -> None:
-        config_status, config = get_current_config(**kwargs)
+        _, config = get_current_config(**kwargs)
         self._config = config
         self._session = requests.Session()
         self._debug = kwargs.get("debug", False)
@@ -81,7 +81,6 @@ query ListVis($author: String, $limit: Int, $offset: Int) {
       id
       name
       type
-      parent { id name type }
     }
   }
 }
@@ -101,7 +100,6 @@ query ListGrids($author: String, $limit: Int, $offset: Int) {
       id
       name
       type
-      parent { id name type }
     }
   }
 }
@@ -121,7 +119,6 @@ query ListMails($author: String, $limit: Int, $offset: Int) {
       id
       name
       type
-      parent { id name type }
     }
   }
 }
