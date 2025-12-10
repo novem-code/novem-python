@@ -8,6 +8,7 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
+from .gql import NovemGQL, list_grids_gql, list_mails_gql, list_plots_gql
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -19,31 +20,23 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     if "profile" in args:
         args["config_profile"] = args["profile"]
 
-    novem = NovemAPI(**args, is_cli=True)
-    # see if list flag is set
-
     (config_status, config) = get_current_config(**args)
 
-    plist = []
+    plist: List[Dict[str, Any]] = []
 
     usr = config["username"]
     if "for_user" in args and args["for_user"]:
         usr = args["for_user"]
 
-    path = f"u/{usr}/{pfx}/"
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
 
-    if "group" in args:
-        # we're listing vis for a group
-        query = ""
+    if "group" in args and args["group"]:
+        # Group listing not yet supported via GraphQL, fall back to REST
+        novem = NovemAPI(**args, is_cli=True)
         group = args["group"]
-        org = ""
-        fu = ""
-
-        if "for_user" in args and args["for_user"]:
-            fu = args["for_user"]
-
-        if "org" in args:
-            org = args["org"]
+        org = args.get("org", "")
+        fu = args.get("for_user", "")
 
         if group[0] in ["@", "+"]:
             query = group
@@ -56,11 +49,18 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         if query:
             path = f"o/{query}/{pfx}/"
-
-    try:
-        plist = json.loads(novem.read(path))
-    except Novem404:
-        plist = []
+            try:
+                plist = json.loads(novem.read(path))
+            except Novem404:
+                plist = []
+    else:
+        # Use GraphQL for user's own visualizations
+        if pfx == "p":
+            plist = list_plots_gql(gql, author=usr)
+        elif pfx == "g":
+            plist = list_grids_gql(gql, author=usr)
+        elif pfx == "m":
+            plist = list_mails_gql(gql, author=usr)
 
     if "filter" in args and args["filter"]:
         fv = args["filter"]

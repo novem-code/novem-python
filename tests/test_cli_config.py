@@ -1,7 +1,5 @@
-import base64
 import configparser
 import json
-import re
 
 import pytest
 
@@ -400,34 +398,37 @@ version = 0.5.0
 
 [profile:user1]
 username = user1
-api_root = https://1
+api_root = https://api1.test/v1
 token = token1
 
 [profile:user2]
 username = user2
-api_root = https://2
+api_root = https://api2.test/v1
 token = token2
 """
 
-    request = None
+    captured_token = None
 
-    def mk_response(r, context):
-        nonlocal request
-        request = (r.hostname, r.path, base64.decodebytes(r.headers["Authorization"].partition(" ")[2].encode()))
-        return "[]"
+    def mk_gql_response(r, context):
+        nonlocal captured_token
+        auth_header = r.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            captured_token = auth_header[7:]  # Remove "Bearer " prefix
+        return json.dumps({"data": {"plots": []}})
 
-    matcher = re.compile(r"https://(\d+)/u/(.+)/p/")
-    requests_mock.register_uri("GET", matcher, text=mk_response)
+    # Mock both GQL endpoints for the two profiles
+    requests_mock.register_uri("POST", "https://api1.test/gql", text=mk_gql_response)
+    requests_mock.register_uri("POST", "https://api2.test/gql", text=mk_gql_response)
 
     # write config file #1
     with open("conf", "w") as f:
         f.write(conf)
 
     cli("--conf", "conf", "-p")
-    assert request == ("1", "/u/user1/p/", b":token1")
+    assert captured_token == "token1"
 
     cli("--conf", "conf", "--profile", "user1", "-p")
-    assert request == ("1", "/u/user1/p/", b":token1")
+    assert captured_token == "token1"
 
     cli("--conf", "conf", "--profile", "user2", "-p")
-    assert request == ("2", "/u/user2/p/", b":token2")
+    assert captured_token == "token2"
