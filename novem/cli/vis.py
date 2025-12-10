@@ -163,14 +163,15 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
         nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
         p["created"] = nd.strftime("%Y-%m-%d %H:%M")
 
-    ppl = pretty_format(plist, ppo)
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
 
     print(ppl)
 
     return
 
 
-def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
+def share_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> None:
 
     # modify our plist
     plist = []
@@ -234,7 +235,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
             nd = datetime.datetime(*pds[:6])
             p["created_on"] = nd.strftime("%Y-%m-%d %H:%M")
 
-    ppl = pretty_format(plist, ppo)
+    ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
 
 
@@ -259,6 +260,7 @@ def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
         for p in plist:
             print(p["name"])
     else:
-        share_pretty_print(plist)
+        striped: bool = config.get("cli_striped", False)
+        share_pretty_print(plist, striped=striped)
 
     return
