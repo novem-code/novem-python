@@ -75,7 +75,7 @@ query ListVis($author: String, $limit: Int, $offset: Int) {
     type
     summary
     url
-    created
+    updated
     public
     shared {
       id
@@ -99,7 +99,7 @@ query ListGrids($author: String, $limit: Int, $offset: Int) {
     type
     summary
     url
-    created
+    updated
     public
     shared {
       id
@@ -123,7 +123,7 @@ query ListMails($author: String, $limit: Int, $offset: Int) {
     type
     summary
     url
-    created
+    updated
     public
     shared {
       id
@@ -190,7 +190,7 @@ def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             "type": item.get("type", ""),
             "summary": item.get("summary"),
             "uri": item.get("url", ""),
-            "created": item.get("created", ""),
+            "updated": item.get("updated", ""),
             "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
             "fav": _get_fav_marker(item.get("tags", [])),
         }

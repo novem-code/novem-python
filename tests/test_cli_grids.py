@@ -40,7 +40,7 @@ def test_grid_list(cli, requests_mock, fs):
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
             "url": "https://novem.no/g/XVBzV",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [],
             "tags": [],
@@ -54,7 +54,7 @@ def test_grid_list(cli, requests_mock, fs):
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
             "url": "https://novem.no/g/Kwjdv",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [],
             "tags": [],
@@ -68,7 +68,7 @@ def test_grid_list(cli, requests_mock, fs):
             " Times, calculations by Novem. Data last updated 23 November "
             "2021",
             "url": "https://novem.no/g/7N2Wv",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [
                 {
@@ -89,7 +89,7 @@ def test_grid_list(cli, requests_mock, fs):
             " taken from Pavel Micka's website, which cites Robert Lewand's"
             " Cryptological Mathematics.",
             "url": "https://novem.no/g/QVgEN",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [
                 {
@@ -115,7 +115,7 @@ def test_grid_list(cli, requests_mock, fs):
             " Data from IMFs World Economic Oulook published in October 2021"
             " Chart last updated as of 25 January 2022",
             "url": "https://novem.no/g/qNGgN",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [
                 {
@@ -141,7 +141,7 @@ def test_grid_list(cli, requests_mock, fs):
             "countries. Data from IMFs World Economic Oulook published in"
             " October 2021 Chart last updated as of 25 January 2022",
             "url": "https://novem.no/g/2v1rV",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [
                 {
@@ -162,10 +162,23 @@ def test_grid_list(cli, requests_mock, fs):
     ]
 
     # Expected REST format after transformation (for assertion)
+    # Order: favorites first, then non-favorites (same timestamp so original order preserved)
     user_grid_list = [
         {
+            "id": "state_pop",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "uri": "https://novem.no/g/qNGgN",
+            "name": "Top 5 us states by population and age",
+            "shared": ["public", "@", "+"],
+            "fav": "*",
+            "type": "grouped bar chart",
+            "summary": "Historical unemployment rate in the Nordic countries."
+            " Data from IMFs World Economic Oulook published in October 2021"
+            " Chart last updated as of 25 January 2022",
+        },
+        {
             "id": "covid_us_state_breakdown",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/XVBzV",
             "name": "Covid19 cases by US State",
             "shared": ["public"],
@@ -178,7 +191,7 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "covid_us_trend",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/Kwjdv",
             "name": "Covid19 cases by US State",
             "shared": ["public"],
@@ -191,7 +204,7 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "covid_us_trend_region",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/7N2Wv",
             "name": "Covid19 cases by US State",
             "shared": ["public", "@"],
@@ -204,7 +217,7 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "en_letter_frequency",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/QVgEN",
             "shared": ["public", "@", "+"],
             "fav": "",
@@ -216,20 +229,8 @@ def test_grid_list(cli, requests_mock, fs):
             " Cryptological Mathematics.",
         },
         {
-            "id": "state_pop",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/qNGgN",
-            "name": "Top 5 us states by population and age",
-            "shared": ["public", "@", "+"],
-            "fav": "*",
-            "type": "grouped bar chart",
-            "summary": "Historical unemployment rate in the Nordic countries."
-            " Data from IMFs World Economic Oulook published in October 2021"
-            " Chart last updated as of 25 January 2022",
-        },
-        {
             "id": "unemployment_noridc",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/2v1rV",
             "shared": ["public", "@", "+"],
             "fav": "",
@@ -252,8 +253,17 @@ def test_grid_list(cli, requests_mock, fs):
     # try to list all grids with -l flag (simple list)
     out, err = cli("-g", "-l")
 
-    # grab names (sorted by id)
-    expected = "\n".join(sorted([x["id"] for x in gql_grid_list])) + "\n"
+    # Expected order: favorites first, then non-favorites (by created desc, but all same date so original order)
+    # state_pop has fav="*", rest have fav=""
+    expected_order = [
+        "state_pop",
+        "covid_us_state_breakdown",
+        "covid_us_trend",
+        "covid_us_trend_region",
+        "en_letter_frequency",
+        "unemployment_noridc",
+    ]
+    expected = "\n".join(expected_order) + "\n"
     assert out == expected
 
     # try to list all grids with a nice list format
@@ -321,8 +331,8 @@ def test_grid_list(cli, requests_mock, fs):
             "overflow": "keep",
         },
         {
-            "key": "created",
-            "header": "Created",
+            "key": "updated",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },
@@ -336,8 +346,8 @@ def test_grid_list(cli, requests_mock, fs):
     ]
     plist = user_grid_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])  # type: ignore
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])  # type: ignore
+        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
 
     expected = pretty_format(plist, ppo) + "\n"
 

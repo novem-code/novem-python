@@ -73,7 +73,17 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         plist = [x for x in plist if (flt.match(x["id"]) or flt.match(x["name"]) or flt.match(x["type"]))]
 
-    plist = sorted(plist, key=lambda x: x["id"])
+    # Sort by favorites first (fav="*" before fav=""), then by updated date (newest first)
+    # Parse date string for proper sorting (format: "Thu, 17 Mar 2022 12:19:02 UTC")
+    def parse_date(date_str: str) -> datetime.datetime:
+        parsed = eut.parsedate(date_str)
+        if parsed:
+            return datetime.datetime(*parsed[:6])
+        return datetime.datetime.min
+
+    plist = sorted(plist, key=lambda x: (x.get("fav", "") != "*", parse_date(x["updated"])), reverse=True)
+    # Re-sort to get favs at top (stable sort preserves updated order within each group)
+    plist = sorted(plist, key=lambda x: x.get("fav", "") != "*")
 
     if args["list"]:
 
@@ -145,8 +155,8 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             "overflow": "keep",
         },
         {
-            "key": "created",
-            "header": "Created",
+            "key": "updated",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },
@@ -160,8 +170,8 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     ]
 
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])
+        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
