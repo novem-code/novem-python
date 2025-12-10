@@ -273,15 +273,19 @@ def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]
     for o in order:
         w = f':<{wm[o["key"]]}'
         fmt = "{0" + w + "}"
-        los += fmt.format(o["header"]) + " " * pw
+        col_pad = "" if o.get("no_padding") else " " * pw
+        los += fmt.format(o["header"]) + col_pad
 
     los += f"{cl.ENDC}\n"
     # sep
     for o in order:
         w = f':<{wm[o["key"]]}'
         fmt = "{0" + w + "}"
-        # los += fmt.format("┄" * wm[o["key"]]) + " " * pw
-        los += fmt.format("╌" * wm[o["key"]]) + " " * pw
+        col_pad = "" if o.get("no_padding") else " " * pw
+        if o.get("no_border"):
+            los += fmt.format(" " * wm[o["key"]]) + col_pad
+        else:
+            los += fmt.format("╌" * wm[o["key"]]) + col_pad
 
     los += "\n"
 
@@ -317,6 +321,8 @@ def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]
                     val = f'{o["clr"]}{val}{cl.ENDC}'
 
             if o == order[-1]:
+                pad = ""
+            elif o.get("no_padding"):
                 pad = ""
             else:
                 pad = " " * pw

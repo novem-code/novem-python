@@ -45,6 +45,7 @@ def test_plot_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [],
+            "tags": [],
         },
         {
             "id": "covid_us_trend",
@@ -58,6 +59,7 @@ def test_plot_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "public": True,
             "shared": [],
+            "tags": [],
         },
         {
             "id": "covid_us_trend_region",
@@ -78,6 +80,7 @@ def test_plot_list(cli, requests_mock, fs):
                     "parent": {"id": "user", "name": "user", "type": "user"},
                 }
             ],
+            "tags": [],
         },
         {
             "id": "en_letter_frequency",
@@ -104,6 +107,7 @@ def test_plot_list(cli, requests_mock, fs):
                     "parent": {"id": "org", "name": "org", "type": "org"},
                 },
             ],
+            "tags": [],
         },
         {
             "id": "state_pop",
@@ -129,6 +133,7 @@ def test_plot_list(cli, requests_mock, fs):
                     "parent": {"id": "org", "name": "org", "type": "org"},
                 },
             ],
+            "tags": [{"id": "fav", "name": "Favorite", "type": "system"}],
         },
         {
             "id": "unemployment_noridc",
@@ -154,6 +159,7 @@ def test_plot_list(cli, requests_mock, fs):
                     "parent": {"id": "org", "name": "org", "type": "org"},
                 },
             ],
+            "tags": [],
         },
     ]
 
@@ -165,6 +171,7 @@ def test_plot_list(cli, requests_mock, fs):
             "uri": "https://novem.no/p/XVBzV",
             "name": "Covid19 cases by US State",
             "shared": ["public"],
+            "fav": "",
             "type": "us map",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -177,6 +184,7 @@ def test_plot_list(cli, requests_mock, fs):
             "uri": "https://novem.no/p/Kwjdv",
             "name": "Covid19 cases by US State",
             "shared": ["public"],
+            "fav": "",
             "type": "line chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -189,6 +197,7 @@ def test_plot_list(cli, requests_mock, fs):
             "uri": "https://novem.no/p/7N2Wv",
             "name": "Covid19 cases by US State",
             "shared": ["public", "@"],
+            "fav": "",
             "type": "area chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -200,6 +209,7 @@ def test_plot_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/QVgEN",
             "shared": ["public", "@", "+"],
+            "fav": "",
             "name": "Letter frequency in the English language",
             "type": "bar chart",
             "summary": "Analysis of entries in the Concise Oxford dictionary"
@@ -213,6 +223,7 @@ def test_plot_list(cli, requests_mock, fs):
             "uri": "https://novem.no/p/qNGgN",
             "name": "Top 5 us states by population and age",
             "shared": ["public", "@", "+"],
+            "fav": "*",
             "type": "grouped bar chart",
             "summary": "Historical unemployment rate in the Nordic countries."
             " Data from IMFs World Economic Oulook published in October 2021"
@@ -223,6 +234,7 @@ def test_plot_list(cli, requests_mock, fs):
             "created": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/p/2v1rV",
             "shared": ["public", "@", "+"],
+            "fav": "",
             "name": "Historical Unemployment rates in the Nordic" " countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
@@ -263,8 +275,22 @@ def test_plot_list(cli, requests_mock, fs):
 
         return summary.replace("\n", "")
 
+    def fav_fmt(fav, cl):
+        if fav == "*":
+            return f" {cl.OKBLUE}*{cl.ENDC} "
+        return "   "
+
     # construct our pretty print list
     ppo = [
+        {
+            "key": "fav",
+            "header": "   ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
         {
             "key": "id",
             "header": "Plot ID",

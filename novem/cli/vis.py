@@ -97,7 +97,21 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         return summary.replace("\n", "")
 
+    def fav_fmt(fav: str, cl: cl) -> str:
+        if fav == "*":
+            return f" {cl.OKBLUE}*{cl.ENDFGC} "
+        return "   "
+
     ppo: List[Dict[str, Any]] = [
+        {
+            "key": "fav",
+            "header": "   ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
         {
             "key": "id",
             "header": f"{type} ID",

@@ -82,6 +82,11 @@ query ListVis($author: String, $limit: Int, $offset: Int) {
       name
       type
     }
+    tags {
+      id
+      name
+      type
+    }
   }
 }
 """
@@ -101,6 +106,11 @@ query ListGrids($author: String, $limit: Int, $offset: Int) {
       name
       type
     }
+    tags {
+      id
+      name
+      type
+    }
   }
 }
 """
@@ -116,6 +126,11 @@ query ListMails($author: String, $limit: Int, $offset: Int) {
     created
     public
     shared {
+      id
+      name
+      type
+    }
+    tags {
       id
       name
       type
@@ -153,6 +168,11 @@ def _transform_shared(public: bool, shared: List[Dict[str, Any]]) -> List[str]:
     return result
 
 
+def _get_fav_marker(tags: List[Dict[str, Any]]) -> str:
+    """Return '*' if the item has a 'fav' tag, empty string otherwise."""
+    return "*" if any(tag.get("id") == "fav" for tag in tags) else ""
+
+
 def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Transform GraphQL visualization response to match REST format.
@@ -160,6 +180,7 @@ def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     Transforms:
     - url -> uri
     - public + shared -> shared (list of strings)
+    - tags -> is_fav (bool)
     """
     result = []
     for item in items:
@@ -171,6 +192,7 @@ def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             "uri": item.get("url", ""),
             "created": item.get("created", ""),
             "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
+            "fav": _get_fav_marker(item.get("tags", [])),
         }
         result.append(transformed)
     return result
