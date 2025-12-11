@@ -26,6 +26,7 @@ from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
 from .setup import setup
+from .vis import list_jobs
 
 sys.tracebacklimit = 0
 
@@ -298,6 +299,7 @@ def print_short(parser: Any) -> None:
     print("  novem -p              list your plots")
     print("  novem -g              list your grids")
     print("  novem -m              list your mails")
+    print("  novem -j              list your jobs")
 
 
 def run_cli_wrapped() -> None:
@@ -413,6 +415,10 @@ novem --init --profile {args["profile"]}\
         mail(args)
     elif args and args["grid"] != "":
         grid(args)
+    elif args and args["job"] != "":
+        # Job listing only (no individual job operations yet)
+        if args["job"] is None:
+            list_jobs(args)
     elif args and args["invite"] != "":
         invite(args)
     elif args and ("group" in args or "org" in args):

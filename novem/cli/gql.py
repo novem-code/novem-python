@@ -139,6 +139,36 @@ query ListMails($author: String, $limit: Int, $offset: Int) {
 }
 """
 
+LIST_JOBS_QUERY = """
+query ListJobs($author: String, $limit: Int, $offset: Int) {
+  jobs(author: $author, limit: $limit, offset: $offset) {
+    id
+    name
+    type
+    summary
+    url
+    updated
+    public
+    shared {
+      id
+      name
+      type
+    }
+    tags {
+      id
+      name
+      type
+    }
+    last_run_status
+    run_count
+    job_steps
+    current_step
+    schedule
+    triggers
+  }
+}
+"""
+
 
 def _transform_shared(public: bool, shared: List[Dict[str, Any]]) -> List[str]:
     """
@@ -237,3 +267,44 @@ def list_mails_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[
     data = gql._query(LIST_MAILS_QUERY, variables)
     mails = data.get("mails", [])
     return _transform_vis_response(mails)
+
+
+def _transform_jobs_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Transform GraphQL jobs response for job listing.
+
+    Includes job-specific fields: last_run_status, run_count, job_steps, current_step, schedule, triggers.
+    """
+    result = []
+    for item in items:
+        transformed = {
+            "id": item.get("id", ""),
+            "name": item.get("name", "") or "",
+            "type": item.get("type", ""),
+            "summary": item.get("summary"),
+            "uri": item.get("url", ""),
+            "updated": item.get("updated", ""),
+            "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
+            "fav": _get_markers(item.get("tags", [])),
+            "last_run_status": item.get("last_run_status", ""),
+            "run_count": item.get("run_count", 0),
+            "job_steps": item.get("job_steps", 0),
+            "current_step": item.get("current_step"),
+            "schedule": item.get("schedule", ""),
+            "triggers": item.get("triggers", []),
+        }
+        result.append(transformed)
+    return result
+
+
+def list_jobs_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """List jobs via GraphQL, returning REST-compatible format."""
+    variables: Dict[str, Any] = {}
+    if author:
+        variables["author"] = author
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_JOBS_QUERY, variables)
+    jobs = data.get("jobs", [])
+    return _transform_jobs_response(jobs)
