@@ -283,16 +283,16 @@ def test_grid_list(cli, requests_mock, fs):
 
         return summary.replace("\n", "")
 
-    def fav_fmt(fav, cl):
-        if fav == "*":
-            return f" {cl.OKBLUE}*{cl.ENDC} "
-        return "   "
+    def fav_fmt(markers, cl):
+        fav_str = f"{cl.WARNING}*{cl.ENDC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
 
     # construct our pretty print list
     ppo = [
         {
             "key": "fav",
-            "header": "   ",
+            "header": "    ",
             "type": "text",
             "fmt": fav_fmt,
             "overflow": "keep",

@@ -168,9 +168,11 @@ def _transform_shared(public: bool, shared: List[Dict[str, Any]]) -> List[str]:
     return result
 
 
-def _get_fav_marker(tags: List[Dict[str, Any]]) -> str:
-    """Return '*' if the item has a 'fav' tag, empty string otherwise."""
-    return "*" if any(tag.get("id") == "fav" for tag in tags) else ""
+def _get_markers(tags: List[Dict[str, Any]]) -> str:
+    """Return combined fav/like marker string: '*', '+', '*+', or ''."""
+    fav = "*" if any(tag.get("id") == "fav" for tag in tags) else ""
+    like = "+" if any(tag.get("id") == "like" for tag in tags) else ""
+    return fav + like
 
 
 def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -192,7 +194,7 @@ def _transform_vis_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
             "uri": item.get("url", ""),
             "updated": item.get("updated", ""),
             "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
-            "fav": _get_fav_marker(item.get("tags", [])),
+            "fav": _get_markers(item.get("tags", [])),
         }
         result.append(transformed)
     return result

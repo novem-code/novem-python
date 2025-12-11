@@ -66,7 +66,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     # Apply filters (handles both legacy and new column-based filtering)
     plist = apply_filters(plist, args.get("filter"))
 
-    # Sort by favorites first (fav="*" before fav=""), then by updated date (newest first)
+    # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
     # Parse date string for proper sorting (format: "Thu, 17 Mar 2022 12:19:02 UTC")
     def parse_date(date_str: str) -> datetime.datetime:
         parsed = eut.parsedate(date_str)
@@ -74,9 +74,15 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             return datetime.datetime(*parsed[:6])
         return datetime.datetime.min
 
-    plist = sorted(plist, key=lambda x: (x.get("fav", "") != "*", parse_date(x["updated"])), reverse=True)
-    # Re-sort to get favs at top (stable sort preserves updated order within each group)
-    plist = sorted(plist, key=lambda x: x.get("fav", "") != "*")
+    def sort_tier(markers: str) -> int:
+        """Return sort tier: 0=fav, 1=like only, 2=rest."""
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
+
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x["updated"]).timestamp()))
 
     if args["list"]:
 
@@ -100,15 +106,15 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         return summary.replace("\n", "")
 
-    def fav_fmt(fav: str, cl: cl) -> str:
-        if fav == "*":
-            return f" {cl.OKBLUE}*{cl.ENDFGC} "
-        return "   "
+    def fav_fmt(markers: str, cl: cl) -> str:
+        fav_str = f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
 
     ppo: List[Dict[str, Any]] = [
         {
             "key": "fav",
-            "header": "   ",
+            "header": "    ",
             "type": "text",
             "fmt": fav_fmt,
             "overflow": "keep",
