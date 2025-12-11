@@ -196,8 +196,10 @@ def get_current_config(
     if config.has_section("app:cli"):
         cli_config = config["app:cli"]
         co["cli_striped"] = cli_config.getboolean("striped", fallback=False)
+        co["cli_prompt_lines"] = cli_config.getint("prompt_lines", fallback=1)
     else:
         co["cli_striped"] = False
+        co["cli_prompt_lines"] = 1
 
     return (True, co)
 
@@ -440,6 +442,10 @@ def ensure_cli_defaults(path: str, config: configparser.ConfigParser) -> bool:
 
     if "striped" not in config["app:cli"]:
         config["app:cli"]["striped"] = "false"
+        modified = True
+
+    if "prompt_lines" not in config["app:cli"]:
+        config["app:cli"]["prompt_lines"] = "1"
         modified = True
 
     if modified:
