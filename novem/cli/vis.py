@@ -422,6 +422,12 @@ def list_jobs(args: Dict[str, Any]) -> None:
             "overflow": "keep",
         },
         {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "truncate",
+        },
+        {
             "key": "last_run_status",
             "header": "Status",
             "type": "text",
@@ -462,6 +468,12 @@ def list_jobs(args: Dict[str, Any]) -> None:
             "type": "text",
             "overflow": "keep",
             "align": "right",
+        },
+        {
+            "key": "summary",
+            "header": "Summary",
+            "type": "text",
+            "overflow": "truncate",
         },
     ]
 
