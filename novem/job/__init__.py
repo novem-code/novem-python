@@ -277,6 +277,33 @@ class NovemJobAPI(NovemAPI):
     def shortname(self) -> str:
         return self.api_read("/shortname").strip()
 
+    def run(self) -> None:
+        """
+        Trigger a job run by posting empty JSON to /data
+        """
+        path = f"{self._api_root}jobs/{self.id}/data"
+
+        if self._debug:
+            print(f"POST: {path}")
+
+        r = self._session.post(
+            path,
+            headers={"Content-type": "application/json; charset=utf-8"},
+            data="{}",
+        )
+
+        if not r.ok:
+            # Try to parse error message from JSON response
+            try:
+                error_data = r.json()
+                if "error" in error_data:
+                    print(f"Error: {error_data['error']}")
+                else:
+                    print(f"Error: {r.text}")
+            except Exception:
+                print(f"Error: {r.text}")
+            sys.exit(1)
+
     def api_dump(self, outpath: str) -> None:
         """
         Iterate over current job and dump output to supplied path

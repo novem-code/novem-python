@@ -298,6 +298,11 @@ def job(args: Dict[str, Any]) -> None:
         is_cli=True,
     )
 
+    # -R (run): trigger job execution
+    if args.get("run_job"):
+        j.run()
+        return
+
     # --dump: dump entire API tree to file
     if "dump" in args and args["dump"]:
         path = args["dump"]

@@ -422,6 +422,13 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="select job to operate on, no parameter will list all your jobs",
     )
 
+    job.add_argument(
+        "-R",
+        dest="run_job",
+        action="store_true",
+        help="run the job",
+    )
+
     invite = parser.add_argument_group("invite")
 
     invite.add_argument(
