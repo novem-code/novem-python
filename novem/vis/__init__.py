@@ -67,10 +67,7 @@ class NovemVisAPI(NovemAPI):
                 return None
 
             headers = req.headers
-            try:
-                tp = headers["X-NS-Type"]
-            except KeyError:
-                tp = "file"
+            tp = headers.get("X-NVM-Type", headers.get("X-NS-Type", "file"))
 
             # if i am a file, write to disc
             if tp == "file":
@@ -128,11 +125,7 @@ class NovemVisAPI(NovemAPI):
                 return ([], "")
 
             headers = req.headers
-
-            try:
-                tp = headers["X-NS-Type"]
-            except KeyError:
-                tp = "file"
+            tp = headers.get("X-NVM-Type", headers.get("X-NS-Type", "file"))
 
             if tp == "file":
                 print("The tree display is only available for `dir` paths")
@@ -142,10 +135,7 @@ class NovemVisAPI(NovemAPI):
 
             hdp = []
             if level == 0:
-                try:
-                    hdp = headers["X-NS-Permissions"].split(", ")
-                except KeyError:
-                    hdp = []
+                hdp = headers.get("X-NVM-Permissions", headers.get("X-NS-Permissions", "")).split(", ")
 
             pfx = ""
             for il in last:
