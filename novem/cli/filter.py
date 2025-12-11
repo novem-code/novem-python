@@ -33,6 +33,7 @@ HEADER_TO_KEY: Dict[str, str] = {
     "plot id": "id",
     "grid id": "id",
     "mail id": "id",
+    "job id": "id",
     # Common headers
     "type": "type",
     "shared": "shared",
@@ -44,6 +45,13 @@ HEADER_TO_KEY: Dict[str, str] = {
     "fav": "fav",
     # Direct key access
     "id": "id",
+    # Job-specific headers
+    "status": "last_run_status",
+    "trigger": "triggers",
+    "triggers": "triggers",
+    "schedule": "schedule",
+    "steps": "job_steps",
+    "runs": "run_count",
 }
 
 
@@ -99,15 +107,32 @@ def get_shared_display_value(shared: List[str]) -> str:
     return f"{pub} {chat} {ug} {og}"
 
 
+def get_triggers_display_value(triggers: List[str]) -> str:
+    """
+    Convert the triggers list to display format for filtering.
+
+    Example: ["mail", "api"] -> "M - A -"
+    """
+    tset = set(t.lower() for t in triggers) if triggers else set()
+    mail = "M" if "mail" in tset else "-"
+    sched = "S" if "schedule" in tset else "-"
+    api = "A" if "api" in tset else "-"
+    commit = "C" if "commit" in tset else "-"
+    return f"{mail} {sched} {api} {commit}"
+
+
 def get_filter_value(item: Dict[str, Any], column: str) -> str:
     """
     Get the filterable value for a column from an item.
-    Handles special columns like 'shared'.
+    Handles special columns like 'shared' and 'triggers'.
     """
     value = item.get(column, "")
 
     if column == "shared" and isinstance(value, list):
         return get_shared_display_value(value)
+
+    if column == "triggers" and isinstance(value, list):
+        return get_triggers_display_value(value)
 
     if value is None:
         return ""
@@ -151,10 +176,57 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
             og = "+" if "+" in pattern_upper else "-"
             expected = f"{pub} {chat} {ug} {og}"
             return value == expected
+        # Special handling for triggers column: check exact flag combination
+        if filter_obj.column == "triggers":
+            # For triggers, exact match means "exactly these flags and no others"
+            # e.g., trigger=S matches "- S - -" (only schedule)
+            # e.g., trigger=MSA matches "M S A -" (mail + schedule + api, no commit)
+            pattern_upper = filter_obj.pattern.upper()
+            # Build expected display value from pattern
+            mail = "M" if "M" in pattern_upper else "-"
+            sched = "S" if "S" in pattern_upper else "-"
+            api = "A" if "A" in pattern_upper else "-"
+            commit = "C" if "C" in pattern_upper else "-"
+            expected = f"{mail} {sched} {api} {commit}"
+            return value == expected
         # Case-insensitive exact match for other columns
         return value.lower() == filter_obj.pattern.lower()
 
     elif filter_obj.mode == FilterMode.REGEX:
+        # Special handling for shared column: check if flags are present (subset match)
+        if filter_obj.column == "shared":
+            # For shared regex, check if all specified flags are present
+            # e.g., shared~P matches any with public (could have others)
+            # e.g., shared~P@ matches any with public AND user group
+            pattern_upper = filter_obj.pattern.upper()
+            if all(c in "PC@+" for c in pattern_upper):
+                # Pattern is just flags, do subset match
+                if "P" in pattern_upper and "P" not in value:
+                    return False
+                if "C" in pattern_upper and "C" not in value:
+                    return False
+                if "@" in pattern_upper and "@" not in value:
+                    return False
+                if "+" in pattern_upper and value.count("+") == 0:
+                    return False
+                return True
+        # Special handling for triggers column: check if flags are present (subset match)
+        if filter_obj.column == "triggers":
+            # For triggers regex, check if all specified flags are present
+            # e.g., trigger~M matches any with mail (could have others)
+            # e.g., trigger~SA matches any with schedule AND api
+            pattern_upper = filter_obj.pattern.upper()
+            if all(c in "MSAC" for c in pattern_upper):
+                # Pattern is just flags, do subset match
+                if "M" in pattern_upper and "M" not in value:
+                    return False
+                if "S" in pattern_upper and "S" not in value:
+                    return False
+                if "A" in pattern_upper and "A" not in value:
+                    return False
+                if "C" in pattern_upper and "C" not in value:
+                    return False
+                return True
         # Case-insensitive regex match
         try:
             regex = re.compile(filter_obj.pattern, re.I)
