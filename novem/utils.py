@@ -163,6 +163,7 @@ def get_current_config(
 
     else:
         migrate_config_04_to_05(config_path, config, co)
+        ensure_cli_defaults(config_path, config)
 
     # override profile
     profile = kwargs.get("config_profile") or profile
@@ -190,10 +191,20 @@ def get_current_config(
         co["token"] = kwargs["token"]
 
     co["profile"] = profile
+
+    # Read app:cli settings
+    if config.has_section("app:cli"):
+        cli_config = config["app:cli"]
+        co["cli_striped"] = cli_config.getboolean("striped", fallback=False)
+        co["cli_prompt_lines"] = cli_config.getint("prompt_lines", fallback=1)
+    else:
+        co["cli_striped"] = False
+        co["cli_prompt_lines"] = 1
+
     return (True, co)
 
 
-def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> str:
+def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]], striped: bool = False) -> str:
     """
     Constructs a pretty print table of the values in values
     in the order of List
@@ -208,10 +219,12 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]]) -> 
         col = 120
 
     col = col - 2
-    return pretty_format_inner(values, order, col)
+    return pretty_format_inner(values, order, col, striped=striped)
 
 
-def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]], col: int) -> str:
+def pretty_format_inner(
+    values: List[Dict[str, str]], order: List[Dict[str, Any]], col: int, striped: bool = False
+) -> str:
     # padding width
     pw = 2
 
@@ -273,15 +286,19 @@ def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]
     for o in order:
         w = f':<{wm[o["key"]]}'
         fmt = "{0" + w + "}"
-        los += fmt.format(o["header"]) + " " * pw
+        col_pad = "" if o.get("no_padding") else " " * pw
+        los += fmt.format(o["header"]) + col_pad
 
     los += f"{cl.ENDC}\n"
     # sep
     for o in order:
         w = f':<{wm[o["key"]]}'
         fmt = "{0" + w + "}"
-        # los += fmt.format("┄" * wm[o["key"]]) + " " * pw
-        los += fmt.format("╌" * wm[o["key"]]) + " " * pw
+        col_pad = "" if o.get("no_padding") else " " * pw
+        if o.get("no_border"):
+            los += fmt.format(" " * wm[o["key"]]) + col_pad
+        else:
+            los += fmt.format("╌" * wm[o["key"]]) + col_pad
 
     los += "\n"
 
@@ -311,17 +328,19 @@ def pretty_format_inner(values: List[Dict[str, str]], order: List[Dict[str, Any]
             val = fmt.format(val)
 
             if "clr" in o:
-                if i % 2 == 0:
+                if striped and i % 2 == 0:
                     val = f'{o["clr"]}{val}{cl.ENDC}{cl.BGGRAY}'
                 else:
                     val = f'{o["clr"]}{val}{cl.ENDC}'
 
             if o == order[-1]:
                 pad = ""
+            elif o.get("no_padding"):
+                pad = ""
             else:
                 pad = " " * pw
 
-            if i % 2 == 0:
+            if striped and i % 2 == 0:
                 los += f"{cl.BGGRAY}" + val + pad + f"{cl.ENDC}"
             else:
                 los += val + pad
@@ -411,3 +430,26 @@ def migrate_config_04_to_05(path: str, config: configparser.ConfigParser, co: Co
 
     print("Migrating to 0.5 complete. API url updated from api.novem.no to api.novem.io")
     return True
+
+
+def ensure_cli_defaults(path: str, config: configparser.ConfigParser) -> bool:
+    """Ensure default CLI settings exist in config."""
+    modified = False
+
+    if not config.has_section("app:cli"):
+        config.add_section("app:cli")
+        modified = True
+
+    if "striped" not in config["app:cli"]:
+        config["app:cli"]["striped"] = "false"
+        modified = True
+
+    if "prompt_lines" not in config["app:cli"]:
+        config["app:cli"]["prompt_lines"] = "1"
+        modified = True
+
+    if modified:
+        with open(path, "w") as configfile:
+            config.write(configfile)
+
+    return modified

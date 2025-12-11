@@ -399,7 +399,11 @@ novem --init --profile {args["profile"]}\
         if "qpr" in args and args["qpr"]:
             qpr = f"{args['qpr']},"
 
-        qpr = f"{qpr}cols={sz.columns},rows={sz.lines-1}"
+        # Get prompt_lines from config (default 1)
+        _, config = get_current_config(**args)
+        prompt_lines = config.get("cli_prompt_lines", 1)
+
+        qpr = f"{qpr}cols={sz.columns},rows={sz.lines - prompt_lines}"
         args["qpr"] = qpr
 
     # operate on plot

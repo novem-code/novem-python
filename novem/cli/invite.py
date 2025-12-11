@@ -107,7 +107,7 @@ def list_invites(args: Dict[str, Any], novem: NovemAPI) -> None:
         },
         {
             "key": "created",
-            "header": "Created",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },

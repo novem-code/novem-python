@@ -8,6 +8,8 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
+from .filter import apply_filters
+from .gql import NovemGQL, list_grids_gql, list_mails_gql, list_plots_gql
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -19,31 +21,23 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     if "profile" in args:
         args["config_profile"] = args["profile"]
 
-    novem = NovemAPI(**args, is_cli=True)
-    # see if list flag is set
-
     (config_status, config) = get_current_config(**args)
 
-    plist = []
+    plist: List[Dict[str, Any]] = []
 
     usr = config["username"]
     if "for_user" in args and args["for_user"]:
         usr = args["for_user"]
 
-    path = f"u/{usr}/{pfx}/"
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
 
-    if "group" in args:
-        # we're listing vis for a group
-        query = ""
+    if "group" in args and args["group"]:
+        # Group listing not yet supported via GraphQL, fall back to REST
+        novem = NovemAPI(**args, is_cli=True)
         group = args["group"]
-        org = ""
-        fu = ""
-
-        if "for_user" in args and args["for_user"]:
-            fu = args["for_user"]
-
-        if "org" in args:
-            org = args["org"]
+        org = args.get("org", "")
+        fu = args.get("for_user", "")
 
         if group[0] in ["@", "+"]:
             query = group
@@ -56,24 +50,39 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         if query:
             path = f"o/{query}/{pfx}/"
+            try:
+                plist = json.loads(novem.read(path))
+            except Novem404:
+                plist = []
+    else:
+        # Use GraphQL for user's own visualizations
+        if pfx == "p":
+            plist = list_plots_gql(gql, author=usr)
+        elif pfx == "g":
+            plist = list_grids_gql(gql, author=usr)
+        elif pfx == "m":
+            plist = list_mails_gql(gql, author=usr)
 
-    try:
-        plist = json.loads(novem.read(path))
-    except Novem404:
-        plist = []
+    # Apply filters (handles both legacy and new column-based filtering)
+    plist = apply_filters(plist, args.get("filter"))
 
-    if "filter" in args and args["filter"]:
-        fv = args["filter"]
-        if fv[0] != "^":
-            fv = f".*{fv}"
-        if fv[-1] != "$":
-            fv = f"{fv}.*"
+    # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
+    # Parse date string for proper sorting (format: "Thu, 17 Mar 2022 12:19:02 UTC")
+    def parse_date(date_str: str) -> datetime.datetime:
+        parsed = eut.parsedate(date_str)
+        if parsed:
+            return datetime.datetime(*parsed[:6])
+        return datetime.datetime.min
 
-        flt = re.compile(fv, re.I)
+    def sort_tier(markers: str) -> int:
+        """Return sort tier: 0=fav, 1=like only, 2=rest."""
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
 
-        plist = [x for x in plist if (flt.match(x["id"]) or flt.match(x["name"]) or flt.match(x["type"]))]
-
-    plist = sorted(plist, key=lambda x: x["id"])
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x["updated"]).timestamp()))
 
     if args["list"]:
 
@@ -97,7 +106,21 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
 
         return summary.replace("\n", "")
 
+    def fav_fmt(markers: str, cl: cl) -> str:
+        fav_str = f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
+
     ppo: List[Dict[str, Any]] = [
+        {
+            "key": "fav",
+            "header": "    ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
         {
             "key": "id",
             "header": f"{type} ID",
@@ -131,8 +154,8 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             "overflow": "keep",
         },
         {
-            "key": "created",
-            "header": "Created",
+            "key": "updated",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },
@@ -146,17 +169,18 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     ]
 
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])
+        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
 
-    ppl = pretty_format(plist, ppo)
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
 
     print(ppl)
 
     return
 
 
-def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
+def share_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> None:
 
     # modify our plist
     plist = []
@@ -220,7 +244,7 @@ def share_pretty_print(iplist: List[Dict[str, str]]) -> None:
             nd = datetime.datetime(*pds[:6])
             p["created_on"] = nd.strftime("%Y-%m-%d %H:%M")
 
-    ppl = pretty_format(plist, ppo)
+    ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
 
 
@@ -245,6 +269,7 @@ def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
         for p in plist:
             print(p["name"])
     else:
-        share_pretty_print(plist)
+        striped: bool = config.get("cli_striped", False)
+        share_pretty_print(plist, striped=striped)
 
     return

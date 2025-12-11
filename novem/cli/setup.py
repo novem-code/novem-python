@@ -43,6 +43,15 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     parser.add_argument(
+        "--gql",
+        dest="gql_debug",
+        action="store_true",
+        required=False,
+        default=False,
+        help="Show GraphQL query and response",
+    )
+
+    parser.add_argument(
         "--dump",
         metavar=("OUT_PATH"),
         dest="dump",
@@ -187,11 +196,12 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
 
     vis.add_argument(
         "-f",
-        metavar=("REGEX"),
+        metavar="FILTER",
         required=False,
         dest="filter",
-        action="store",
-        help="filter visualisations by rgex",
+        action="append",
+        help="filter visualisations. Syntax: column=value (exact) or column~regex. "
+        "Multiple -f flags use AND logic. Without column, matches id/name/type.",
     )
 
     # support multiple inputs

@@ -99,7 +99,7 @@ def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
         # },
         {
             "key": "created",
-            "header": "Created",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },
@@ -234,7 +234,7 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
         },
         {
             "key": "created",
-            "header": "Created",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },

@@ -1,9 +1,9 @@
 import datetime
 import email.utils as eut
-import json
 from functools import partial
 
-from novem.utils import pretty_format
+from novem.cli.gql import _get_gql_endpoint
+from novem.utils import API_ROOT, pretty_format
 
 from .utils import write_config
 
@@ -16,6 +16,7 @@ auth_req = {
 }
 
 api_root = "https://api.novem.io/v1/"
+gql_endpoint = _get_gql_endpoint(API_ROOT)
 
 
 # Auth endpoint for our token
@@ -28,65 +29,160 @@ def test_grid_list(cli, requests_mock, fs):
 
     write_config(auth_req)
 
-    grid_list = [
+    # GraphQL format for grids (what the API returns)
+    gql_grid_list = [
         {
-            "name": "covid_us_state_breakdown",
-            "shortname": "XVBzV",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/XVBzV",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "covid_us_state_breakdown",
+            "name": "Covid19 cases by US State",
+            "type": "us map",
+            "summary": "This chart shows current average daily cases per"
+            " capita broken down by US state. Raw data from the New York"
+            " Times, calculations by Novem. Data last updated 23 November "
+            "2021",
+            "url": "https://novem.no/g/XVBzV",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [],
+            "tags": [],
         },
         {
-            "name": "covid_us_trend",
-            "shortname": "Kwjdv",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/Kwjdv",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "covid_us_trend",
+            "name": "Covid19 cases by US State",
+            "type": "line chart",
+            "summary": "This chart shows current average daily cases per"
+            " capita broken down by US state. Raw data from the New York"
+            " Times, calculations by Novem. Data last updated 23 November "
+            "2021",
+            "url": "https://novem.no/g/Kwjdv",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [],
+            "tags": [],
         },
         {
-            "name": "covid_us_trend_region",
-            "shortname": "7N2Wv",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/7N2Wv",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "covid_us_trend_region",
+            "name": "Covid19 cases by US State",
+            "type": "area chart",
+            "summary": "This chart shows current average daily cases per"
+            " capita broken down by US state. Raw data from the New York"
+            " Times, calculations by Novem. Data last updated 23 November "
+            "2021",
+            "url": "https://novem.no/g/7N2Wv",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "user_group",
+                    "parent": {"id": "user", "name": "user", "type": "user"},
+                }
+            ],
+            "tags": [],
         },
         {
-            "name": "en_letter_frequency",
-            "shortname": "QVgEN",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/QVgEN",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "en_letter_frequency",
+            "name": "Letter frequency in the English language",
+            "type": "bar chart",
+            "summary": "Analysis of entries in the Concise Oxford dictionary"
+            " as published by the compilers. The chart above represents data"
+            " taken from Pavel Micka's website, which cites Robert Lewand's"
+            " Cryptological Mathematics.",
+            "url": "https://novem.no/g/QVgEN",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "user_group",
+                    "parent": {"id": "user", "name": "user", "type": "user"},
+                },
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "org_group",
+                    "parent": {"id": "org", "name": "org", "type": "org"},
+                },
+            ],
+            "tags": [],
         },
         {
-            "name": "state_pop",
-            "shortname": "qNGgN",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/qNGgN",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "state_pop",
+            "name": "Top 5 us states by population and age",
+            "type": "grouped bar chart",
+            "summary": "Historical unemployment rate in the Nordic countries."
+            " Data from IMFs World Economic Oulook published in October 2021"
+            " Chart last updated as of 25 January 2022",
+            "url": "https://novem.no/g/qNGgN",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "user_group",
+                    "parent": {"id": "user", "name": "user", "type": "user"},
+                },
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "org_group",
+                    "parent": {"id": "org", "name": "org", "type": "org"},
+                },
+            ],
+            "tags": [{"id": "fav", "name": "Favorite", "type": "system"}],
         },
         {
-            "name": "unemployment_noridc",
-            "shortname": "2v1rV",
-            "created_on": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/2v1rV",
-            "last_modified": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "type": "dir",
+            "id": "unemployment_noridc",
+            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "type": "stacked bar chart",
+            "summary": "Historical unemployment rate in the Nordic "
+            "countries. Data from IMFs World Economic Oulook published in"
+            " October 2021 Chart last updated as of 25 January 2022",
+            "url": "https://novem.no/g/2v1rV",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "public": True,
+            "shared": [
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "user_group",
+                    "parent": {"id": "user", "name": "user", "type": "user"},
+                },
+                {
+                    "id": "group",
+                    "name": "group",
+                    "type": "org_group",
+                    "parent": {"id": "org", "name": "org", "type": "org"},
+                },
+            ],
+            "tags": [],
         },
     ]
 
+    # Expected REST format after transformation (for assertion)
+    # Order: favorites first, then non-favorites (same timestamp so original order preserved)
     user_grid_list = [
         {
+            "id": "state_pop",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "uri": "https://novem.no/g/qNGgN",
+            "name": "Top 5 us states by population and age",
+            "shared": ["public", "@", "+"],
+            "fav": "*",
+            "type": "grouped bar chart",
+            "summary": "Historical unemployment rate in the Nordic countries."
+            " Data from IMFs World Economic Oulook published in October 2021"
+            " Chart last updated as of 25 January 2022",
+        },
+        {
             "id": "covid_us_state_breakdown",
-            "shortname": "XVBzV",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/XVBzV",
             "name": "Covid19 cases by US State",
             "shared": ["public"],
+            "fav": "",
             "type": "us map",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -95,11 +191,11 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "covid_us_trend",
-            "shortname": "Kwjdv",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/Kwjdv",
             "name": "Covid19 cases by US State",
-            "shared": ["public", "chat"],
+            "shared": ["public"],
+            "fav": "",
             "type": "line chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -108,11 +204,11 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "covid_us_trend_region",
-            "shortname": "7N2Wv",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/7N2Wv",
             "name": "Covid19 cases by US State",
-            "shared": ["public", "chat", "@user~group"],
+            "shared": ["public", "@"],
+            "fav": "",
             "type": "area chart",
             "summary": "This chart shows current average daily cases per"
             " capita broken down by US state. Raw data from the New York"
@@ -121,10 +217,10 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "en_letter_frequency",
-            "shortname": "QVgEN",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/QVgEN",
-            "shared": ["public", "chat", "@user~group", "+org~group"],
+            "shared": ["public", "@", "+"],
+            "fav": "",
             "name": "Letter frequency in the English language",
             "type": "bar chart",
             "summary": "Analysis of entries in the Concise Oxford dictionary"
@@ -133,23 +229,11 @@ def test_grid_list(cli, requests_mock, fs):
             " Cryptological Mathematics.",
         },
         {
-            "id": "state_pop",
-            "shortname": "qNGgN",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
-            "uri": "https://novem.no/g/qNGgN",
-            "name": "Top 5 us states by population and age",
-            "shared": ["public", "chat", "@user~group", "+org~group"],
-            "type": "grouped bar chart",
-            "summary": "Historical unemployment rate in the Nordic countries."
-            " Data from IMFs World Economic Oulook published in October 2021"
-            " Chart last updated as of 25 January 2022",
-        },
-        {
             "id": "unemployment_noridc",
-            "shortname": "2v1rV",
-            "created": "Thu, 17 Mar 2022 12:19:02 UTC",
+            "updated": "Thu, 17 Mar 2022 12:19:02 UTC",
             "uri": "https://novem.no/g/2v1rV",
-            "shared": ["public", "chat", "@user~group", "+org~group"],
+            "shared": ["public", "@", "+"],
+            "fav": "",
             "name": "Historical Unemployment rates in the Nordic" " countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
@@ -158,25 +242,28 @@ def test_grid_list(cli, requests_mock, fs):
         },
     ]
 
+    # Mock GraphQL endpoint
     requests_mock.register_uri(
-        "get",
-        f"{api_root}vis/grids/",
-        text=json.dumps(grid_list),
+        "post",
+        gql_endpoint,
+        json={"data": {"grids": gql_grid_list}},
         status_code=200,
     )
 
-    requests_mock.register_uri(
-        "get",
-        f"{api_root}u/demouser/g/",
-        text=json.dumps(user_grid_list),
-        status_code=200,
-    )
-
-    # try to list all grids
+    # try to list all grids with -l flag (simple list)
     out, err = cli("-g", "-l")
 
-    # grab names
-    expected = "\n".join([x["name"] for x in grid_list]) + "\n"
+    # Expected order: favorites first, then non-favorites (by created desc, but all same date so original order)
+    # state_pop has fav="*", rest have fav=""
+    expected_order = [
+        "state_pop",
+        "covid_us_state_breakdown",
+        "covid_us_trend",
+        "covid_us_trend_region",
+        "en_letter_frequency",
+        "unemployment_noridc",
+    ]
+    expected = "\n".join(expected_order) + "\n"
     assert out == expected
 
     # try to list all grids with a nice list format
@@ -196,8 +283,22 @@ def test_grid_list(cli, requests_mock, fs):
 
         return summary.replace("\n", "")
 
+    def fav_fmt(markers, cl):
+        fav_str = f"{cl.WARNING}*{cl.ENDC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
+
     # construct our pretty print list
     ppo = [
+        {
+            "key": "fav",
+            "header": "    ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
         {
             "key": "id",
             "header": "Grid ID",
@@ -230,8 +331,8 @@ def test_grid_list(cli, requests_mock, fs):
             "overflow": "keep",
         },
         {
-            "key": "created",
-            "header": "Created",
+            "key": "updated",
+            "header": "Updated",
             "type": "date",
             "overflow": "keep",
         },
@@ -245,8 +346,8 @@ def test_grid_list(cli, requests_mock, fs):
     ]
     plist = user_grid_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])  # type: ignore
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])  # type: ignore
+        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
 
     expected = pretty_format(plist, ppo) + "\n"
 

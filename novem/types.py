@@ -10,5 +10,7 @@ Config = TypedDict(
         "api_root": str,
         "ignore_ssl_warn": bool,
         "profile": NotRequired[str],
+        "cli_striped": NotRequired[bool],
+        "cli_prompt_lines": NotRequired[int],
     },
 )
