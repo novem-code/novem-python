@@ -410,6 +410,18 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="send a test e-mail to your registered address",
     )
 
+    job = parser.add_argument_group("job")
+
+    job.add_argument(
+        "-j",
+        dest="job",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select job to operate on, no parameter will list all your jobs",
+    )
+
     invite = parser.add_argument_group("invite")
 
     invite.add_argument(
