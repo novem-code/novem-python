@@ -275,6 +275,30 @@ def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
     return
 
 
+def list_job_shares(job_name: str, args: Dict[str, str]) -> None:
+
+    novem = NovemAPI(**args, is_cli=True)
+
+    (config_status, config) = get_current_config(**args)
+
+    plist = []
+
+    try:
+        plist = json.loads(novem.read(f"jobs/{job_name}/shared"))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        share_pretty_print(plist, striped=striped)
+
+    return
+
+
 def list_jobs(args: Dict[str, Any]) -> None:
     """List jobs with custom formatting."""
     colors()

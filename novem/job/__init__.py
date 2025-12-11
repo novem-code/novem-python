@@ -1,9 +1,13 @@
-from typing import Any, Optional
+import os
+import sys
+from typing import Any, Dict, List, Optional, Tuple
 
 from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
 from ..shared import NovemShare
+from ..utils import cl
+from ..utils import colors as clrs
 from .config import NovemJobConfig
 
 """
@@ -272,6 +276,154 @@ class NovemJobAPI(NovemAPI):
     @property
     def shortname(self) -> str:
         return self.api_read("/shortname").strip()
+
+    def api_dump(self, outpath: str) -> None:
+        """
+        Iterate over current job and dump output to supplied path
+        """
+
+        # Base path without trailing slash
+        qpath = f"{self._api_root}jobs/{self.id}"
+
+        # create util function
+        def rec_tree(path: str) -> None:
+            qp = f"{qpath}{path}"
+            fp = f"{outpath}{path}"
+            req = self._session.get(qp)
+
+            if not req.ok:
+                return None
+
+            headers = req.headers
+            tp = headers.get("X-NVM-Type", headers.get("X-NS-Type", "file"))
+
+            # if i am a file, write to disc
+            if tp == "file":
+                with open(fp, "w") as f:
+                    f.write(req.text)
+                print(f"Writing file:    {fp}")
+                return None
+
+            # if I am a folder, make a folder and recurse
+            os.makedirs(fp, exist_ok=True)
+            print(f"Creating folder: {fp}")
+
+            nodes: List[Dict[str, str]] = req.json()
+
+            # Recurse relevant structure
+            for r in [x for x in nodes if x["type"] not in ["system_file", "system_dir"]]:
+                rec_tree(f'{path}/{r["name"]}')
+
+        # start recursion
+        rec_tree("/")
+
+    def api_tree(self, colors: bool = False, relpath: str = "/") -> str:
+        """
+        Iterate over the current job and print a "pretty" ascii tree
+        """
+        if relpath[0] != "/":
+            relpath = f"/{relpath}"
+
+        clrs()
+
+        # Base path without trailing slash - we'll add paths in rec_tree
+        qpath = f"{self._api_root}jobs/{self.id}"
+
+        # some display options
+        c = "├"
+        b = "└"
+        v = "│"
+        h = "─"
+
+        # create util function
+        def rec_tree(path: str, level: int = 0, last: List[bool] = [False]) -> Tuple[List[str], str]:
+            qp = f"{qpath}{path}"
+            req = self._session.get(qp)
+
+            if not req.ok:
+                if level == 0:
+                    # Top level failure - show error to user
+                    if req.status_code == 404:
+                        print(f"Job '{self.id}' not found")
+                    else:
+                        print(f"Failed to fetch job tree: {req.status_code}")
+                    sys.exit(1)
+                return ([], "")
+
+            headers = req.headers
+            tp = headers.get("X-NVM-Type", headers.get("X-NS-Type", "file"))
+
+            if tp == "file":
+                print("The tree display is only available for `dir` paths")
+                sys.exit(-1)
+
+            nodes: List[Dict[str, str]] = req.json()
+
+            hdp: List[str] = []
+            if level == 0:
+                hdp = headers.get("X-NVM-Permissions", headers.get("X-NS-Permissions", "")).split(", ")
+
+            pfx = ""
+            for il in last:
+                if il:
+                    pfx += "    "
+                else:
+                    pfx += f"{v}   "
+
+            # drop system stuff
+            nodes = [x for x in nodes if x["type"] not in ["system_file", "system_dir"]]
+
+            resp = ""
+            # convert element into a tree structure
+            nodes = sorted(nodes, key=lambda k: (k["type"], k["name"]))
+            for r in nodes:
+                rd = "r" if "r" in r["permissions"] else "-"
+                w = "w" if "w" in r["permissions"] else "-"
+                d = "d" if "d" in r["permissions"] else "-"
+                if colors:
+                    a = f"{cl.FGGRAY}[{rd}{w}{d}]{cl.ENDC}"
+                else:
+                    a = f"[{rd}{w}{d}]"
+
+                if r["name"] == nodes[-1]["name"]:
+                    mc = last + [True]
+                    co = f"{b}"
+                else:
+                    mc = last + [False]
+                    co = f"{c}"
+
+                if r["type"] == "dir":
+                    if colors:
+                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}" f'{r["name"]}/{cl.ENDC}\n'
+                    else:
+                        resp += f'{pfx}{co}{h}{h} {a} {r["name"]}/\n'
+
+                    resp += rec_tree(f'{path}/{r["name"]}', level + 1, mc)[1]
+                else:
+                    resp += f'{pfx}{co}{h}{h} {a} {r["name"]}\n'
+
+            # order by dir, files, alphabetically
+            return (hdp, resp)
+
+        hdp, tr = rec_tree(relpath, 0, [True])
+
+        sf = f"{self.id}{relpath}"
+        if sf[-1] != "/":
+            sf = f"{sf}/"
+
+        if colors:
+            sf = f"{cl.OKBLUE}{sf}{cl.ENDC}"
+
+        rd = "r" if "r" in hdp else "-"
+        w = "w" if "w" in hdp else "-"
+        d = "d" if "d" in hdp else "-"
+        if colors:
+            a = f"{cl.FGGRAY}[{rd}{w}{d}]{cl.ENDC}"
+        else:
+            a = f"[{rd}{w}{d}]"
+        tr = f"{a} {sf}\n{tr}"
+
+        return tr[:-1]  # strip trailing newline
 
 
 class Job(NovemJobAPI):
