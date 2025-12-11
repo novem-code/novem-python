@@ -383,3 +383,408 @@ def test_tags_empty_and_none_handling():
     api_calls.clear()
     tags += ""
     assert len(api_calls) == 0
+
+
+def test_grid_tags_integration(requests_mock):
+    """Test the grid tags functionality with mocked HTTP endpoints"""
+    from novem import Grid
+
+    grid_id = "test_grid"
+    valid_tags = []
+
+    # Load test configuration
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    api_root = config["general"]["api_root"]
+
+    def put_tag(val, request, context):
+        valid_tags.append(val)
+        return ""
+
+    def del_tag(val, request, context):
+        if val in valid_tags:
+            valid_tags.remove(val)
+        return ""
+
+    def get_tags(request, context):
+        return json.dumps([{"name": v} for v in valid_tags])
+
+    # Mock grid creation endpoint
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}vis/grids/{grid_id}",
+        text="",
+    )
+
+    # Tags endpoints
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}vis/grids/{grid_id}/tags",
+        text=get_tags,
+    )
+
+    # Mock PUT/DELETE for valid tags
+    for tag in ["fav", "like", "ignore", "wip", "archived"]:
+        requests_mock.register_uri(
+            "put",
+            f"{api_root}vis/grids/{grid_id}/tags/{tag}",
+            text=partial(put_tag, tag),
+        )
+        requests_mock.register_uri(
+            "delete",
+            f"{api_root}vis/grids/{grid_id}/tags/{tag}",
+            text=partial(del_tag, tag),
+        )
+
+    # Create a Grid instance
+    g = Grid(grid_id, config_path=config_file)
+
+    # Tag as favorite
+    g.tags = "fav"
+    assert valid_tags == ["fav"]
+
+    # Set multiple tags
+    g.tags = ["fav", "wip"]
+    assert sorted(valid_tags) == sorted(["fav", "wip"])
+
+    # Incrementally add another tag
+    g.tags += "like"
+    assert sorted(valid_tags) == sorted(["fav", "wip", "like"])
+
+    # Incrementally remove a tag
+    g.tags -= "wip"
+    assert sorted(valid_tags) == sorted(["fav", "like"])
+
+    # Test contains
+    assert "fav" in g.tags
+    assert "wip" not in g.tags
+
+    # Clear tags
+    g.tags = ""
+    assert valid_tags == []
+
+
+def test_mail_tags_integration(requests_mock):
+    """Test the mail tags functionality with mocked HTTP endpoints"""
+    from novem import Mail
+
+    mail_id = "test_mail"
+    valid_tags = []
+
+    # Load test configuration
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    api_root = config["general"]["api_root"]
+
+    def put_tag(val, request, context):
+        valid_tags.append(val)
+        return ""
+
+    def del_tag(val, request, context):
+        if val in valid_tags:
+            valid_tags.remove(val)
+        return ""
+
+    def get_tags(request, context):
+        return json.dumps([{"name": v} for v in valid_tags])
+
+    # Mock mail creation endpoint
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}vis/mails/{mail_id}",
+        text="",
+    )
+
+    # Tags endpoints
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}vis/mails/{mail_id}/tags",
+        text=get_tags,
+    )
+
+    # Mock PUT/DELETE for valid tags
+    for tag in ["fav", "like", "ignore", "wip", "archived"]:
+        requests_mock.register_uri(
+            "put",
+            f"{api_root}vis/mails/{mail_id}/tags/{tag}",
+            text=partial(put_tag, tag),
+        )
+        requests_mock.register_uri(
+            "delete",
+            f"{api_root}vis/mails/{mail_id}/tags/{tag}",
+            text=partial(del_tag, tag),
+        )
+
+    # Create a Mail instance
+    m = Mail(mail_id, config_path=config_file)
+
+    # Tag as favorite
+    m.tags = "fav"
+    assert valid_tags == ["fav"]
+
+    # Set multiple tags
+    m.tags = ["fav", "archived"]
+    assert sorted(valid_tags) == sorted(["fav", "archived"])
+
+    # Incrementally add another tag
+    m.tags += "wip"
+    assert sorted(valid_tags) == sorted(["fav", "archived", "wip"])
+
+    # Incrementally remove a tag
+    m.tags -= "archived"
+    assert sorted(valid_tags) == sorted(["fav", "wip"])
+
+    # Test contains
+    assert "fav" in m.tags
+    assert "archived" not in m.tags
+
+    # Clear tags
+    m.tags = ""
+    assert valid_tags == []
+
+
+def test_job_tags_integration(requests_mock):
+    """Test the job tags functionality with mocked HTTP endpoints"""
+    from novem import Job
+
+    job_id = "test_job"
+    valid_tags = []
+
+    # Load test configuration
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    api_root = config["general"]["api_root"]
+
+    def put_tag(val, request, context):
+        valid_tags.append(val)
+        return ""
+
+    def del_tag(val, request, context):
+        if val in valid_tags:
+            valid_tags.remove(val)
+        return ""
+
+    def get_tags(request, context):
+        return json.dumps([{"name": v} for v in valid_tags])
+
+    # Mock job creation endpoint
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}jobs/{job_id}",
+        text="",
+    )
+
+    # Tags endpoints
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}jobs/{job_id}/tags",
+        text=get_tags,
+    )
+
+    # Mock PUT/DELETE for valid tags
+    for tag in ["fav", "like", "ignore", "wip", "archived", "+project_x"]:
+        requests_mock.register_uri(
+            "put",
+            f"{api_root}jobs/{job_id}/tags/{tag}",
+            text=partial(put_tag, tag),
+        )
+        requests_mock.register_uri(
+            "delete",
+            f"{api_root}jobs/{job_id}/tags/{tag}",
+            text=partial(del_tag, tag),
+        )
+
+    # Create a Job instance
+    j = Job(job_id, config_path=config_file)
+
+    # Tag as favorite
+    j.tags = "fav"
+    assert valid_tags == ["fav"]
+
+    # Set multiple tags including user tag
+    j.tags = ["fav", "wip", "+project_x"]
+    assert sorted(valid_tags) == sorted(["fav", "wip", "+project_x"])
+
+    # Incrementally add another tag
+    j.tags += "like"
+    assert sorted(valid_tags) == sorted(["fav", "wip", "+project_x", "like"])
+
+    # Incrementally remove a tag
+    j.tags -= "wip"
+    assert sorted(valid_tags) == sorted(["fav", "+project_x", "like"])
+
+    # Test contains
+    assert "fav" in j.tags
+    assert "+project_x" in j.tags
+    assert "wip" not in j.tags
+
+    # Test string representation
+    tag_string = str(j.tags)
+    assert sorted(tag_string.split("\n")) == sorted(valid_tags)
+
+    # Test len
+    assert len(j.tags) == 3
+
+    # Clear tags
+    j.tags = ""
+    assert valid_tags == []
+
+
+def test_tags_duplicate_handling():
+    """Test that adding duplicate tags doesn't create duplicates"""
+    api = MagicMock()
+    tag_path = "test/path"
+    tag_data = []
+    api_calls = []
+
+    def mock_read(path):
+        return json.dumps([{"name": t} for t in tag_data])
+
+    def mock_create(path):
+        tag = path.split("/")[-1]
+        api_calls.append(("create", tag))
+        if tag not in tag_data:
+            tag_data.append(tag)
+        return ""
+
+    def mock_delete(path):
+        tag = path.split("/")[-1]
+        api_calls.append(("delete", tag))
+        if tag in tag_data:
+            tag_data.remove(tag)
+        return ""
+
+    api.read = mock_read
+    api.create = mock_create
+    api.delete = mock_delete
+
+    tags = NovemTags(api, tag_path)
+
+    # Add a tag
+    tags.set("fav")
+    assert tag_data == ["fav"]
+
+    # Try to add the same tag again via +=
+    api_calls.clear()
+    tags += "fav"
+    # Should not make any API call since tag already exists
+    assert len([c for c in api_calls if c[0] == "create"]) == 0
+    assert tag_data == ["fav"]
+
+
+def test_tags_remove_nonexistent():
+    """Test that removing a non-existent tag doesn't cause errors"""
+    api = MagicMock()
+    tag_path = "test/path"
+    tag_data = ["fav"]
+    api_calls = []
+
+    def mock_read(path):
+        return json.dumps([{"name": t} for t in tag_data])
+
+    def mock_create(path):
+        tag = path.split("/")[-1]
+        api_calls.append(("create", tag))
+        if tag not in tag_data:
+            tag_data.append(tag)
+        return ""
+
+    def mock_delete(path):
+        tag = path.split("/")[-1]
+        api_calls.append(("delete", tag))
+        if tag in tag_data:
+            tag_data.remove(tag)
+        return ""
+
+    api.read = mock_read
+    api.create = mock_create
+    api.delete = mock_delete
+
+    tags = NovemTags(api, tag_path)
+
+    # Try to remove a tag that doesn't exist
+    api_calls.clear()
+    tags -= "wip"
+    # Should not make any API call since tag doesn't exist
+    assert len([c for c in api_calls if c[0] == "delete"]) == 0
+    assert tag_data == ["fav"]
+
+
+def test_tags_equality_edge_cases():
+    """Test equality comparison edge cases"""
+    api = MagicMock()
+    tag_path = "test/path"
+
+    def mock_read(path):
+        return json.dumps([{"name": "fav"}, {"name": "wip"}])
+
+    api.read = mock_read
+    api.create = MagicMock()
+    api.delete = MagicMock()
+
+    tags = NovemTags(api, tag_path)
+
+    # Comparison with list works
+    assert tags == ["fav", "wip"]
+    assert tags == ["wip", "fav"]  # Order doesn't matter
+
+    # Comparison with non-list returns False (Python falls back from NotImplemented)
+    assert (tags == "fav") is False
+    assert (tags == 123) is False
+    assert (tags == {"fav", "wip"}) is False
+
+    # Comparison with list containing non-strings returns False
+    assert (tags == ["fav", 123]) is False
+
+
+def test_tags_indexing_and_slicing():
+    """Test indexing and slicing functionality"""
+    api = MagicMock()
+    tag_path = "test/path"
+
+    def mock_read(path):
+        return json.dumps([{"name": "archived"}, {"name": "fav"}, {"name": "wip"}])
+
+    api.read = mock_read
+    api.create = MagicMock()
+    api.delete = MagicMock()
+
+    tags = NovemTags(api, tag_path)
+
+    # Tags are sorted, so order is: archived, fav, wip
+    assert tags[0] == "archived"
+    assert tags[1] == "fav"
+    assert tags[2] == "wip"
+
+    # Slicing
+    assert tags[0:2] == ["archived", "fav"]
+    assert tags[1:] == ["fav", "wip"]
+    assert tags[:2] == ["archived", "fav"]
+
+    # Negative indexing
+    assert tags[-1] == "wip"
+
+
+def test_tags_str_empty():
+    """Test string representation when no tags exist"""
+    api = MagicMock()
+    tag_path = "test/path"
+
+    def mock_read(path):
+        return json.dumps([])
+
+    api.read = mock_read
+    api.create = MagicMock()
+    api.delete = MagicMock()
+
+    tags = NovemTags(api, tag_path)
+
+    assert str(tags) == ""
+    assert len(tags) == 0
+    assert list(tags) == []

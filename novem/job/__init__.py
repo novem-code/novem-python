@@ -6,6 +6,7 @@ from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
 from ..shared import NovemShare
+from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
 from .config import NovemJobConfig
@@ -18,6 +19,7 @@ from .config import NovemJobConfig
 class NovemJobAPI(NovemAPI):
     config: Optional[NovemJobConfig]
     shared: Optional[NovemShare]
+    tags: Optional[NovemTags]
     id: str
 
     _debug: bool = False
@@ -34,6 +36,7 @@ class NovemJobAPI(NovemAPI):
 
         self.config = NovemJobConfig(self)
         self.shared = NovemShare(self, f"jobs/{self.id}")
+        self.tags = NovemTags(self, f"jobs/{self.id}")
 
         if "shared" in kwargs:
             self.shared.set(kwargs["shared"])
@@ -63,8 +66,15 @@ class NovemJobAPI(NovemAPI):
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "config" and hasattr(self, "config") and self.config:
             self.config.set(value)
-        elif name == "shared" and hasattr(self, "shared") and self.shared:
+        elif (
+            name == "shared"
+            and hasattr(self, "shared")
+            and self.shared is not None
+            and not isinstance(value, NovemShare)
+        ):
             self.shared.set(value)
+        elif name == "tags" and hasattr(self, "tags") and self.tags is not None and not isinstance(value, NovemTags):
+            self.tags.set(value)
         else:
             super().__setattr__(name, value)
 
