@@ -196,11 +196,12 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
 
     vis.add_argument(
         "-f",
-        metavar=("REGEX"),
+        metavar="FILTER",
         required=False,
         dest="filter",
-        action="store",
-        help="filter visualisations by rgex",
+        action="append",
+        help="filter visualisations. Syntax: column=value (exact) or column~regex. "
+        "Multiple -f flags use AND logic. Without column, matches id/name/type.",
     )
 
     # support multiple inputs

@@ -8,6 +8,7 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
+from .filter import apply_filters
 from .gql import NovemGQL, list_grids_gql, list_mails_gql, list_plots_gql
 
 
@@ -62,16 +63,8 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
         elif pfx == "m":
             plist = list_mails_gql(gql, author=usr)
 
-    if "filter" in args and args["filter"]:
-        fv = args["filter"]
-        if fv[0] != "^":
-            fv = f".*{fv}"
-        if fv[-1] != "$":
-            fv = f"{fv}.*"
-
-        flt = re.compile(fv, re.I)
-
-        plist = [x for x in plist if (flt.match(x["id"]) or flt.match(x["name"]) or flt.match(x["type"]))]
+    # Apply filters (handles both legacy and new column-based filtering)
+    plist = apply_filters(plist, args.get("filter"))
 
     # Sort by favorites first (fav="*" before fav=""), then by updated date (newest first)
     # Parse date string for proper sorting (format: "Thu, 17 Mar 2022 12:19:02 UTC")
