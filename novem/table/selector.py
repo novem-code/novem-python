@@ -206,6 +206,10 @@ class Selector(object):
         col_positions = enhance_positions(col_positions, cor)
         col_positions = [x for x in col_positions if x >= 0 and x <= width]
 
+        # Return empty string if there are no valid rows/columns and no explicit override (Issue #55)
+        if (not row_positions and not self.i) or (not col_positions and not self.c):
+            return ""
+
         # Create a comma-separated list of row and column positions
         row_str = ",".join(map(str, row_positions))
         col_str = ",".join(map(str, col_positions))

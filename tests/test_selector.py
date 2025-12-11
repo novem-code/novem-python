@@ -149,3 +149,45 @@ def test_2d_selector():
     df = df.transpose()
     format = S(df.iloc[:, :], ",.1%", r=df).get_selector_string()
     assert format == "1,2,3 1,2,3,4"
+
+
+def test_empty_selector():
+    """
+    Test that a selector with no valid rows returns an empty string.
+    Issue #55: able-utils: the novem selector should return "" (empty string)
+    if the selector has no rows
+    """
+    data = {
+        "A": [1, 2, 3],
+        "B": [4, 5, 6],
+        "C": [7, 8, 9],
+    }
+    df = pd.DataFrame(data)
+
+    # Filter that produces no rows
+    empty_df = df[df["A"] > 10]
+    assert len(empty_df) == 0  # Sanity check
+
+    # Selector should return empty string when no valid rows
+    sel = S(empty_df, "test", r=df)
+    result = sel.get_selector_string()
+    assert result == ""
+
+    # Should also return empty string when c is set but no rows
+    sel_with_c = S(empty_df, "test", r=df, c=":")
+    assert sel_with_c.get_selector_string() == ""
+
+    # But should honor explicit i override
+    sel_with_i = S(empty_df, "test", r=df, i=":")
+    result_with_i = sel_with_i.get_selector_string()
+    assert result_with_i == ": 1,2,3"
+
+    # Same logic applies to columns - empty columns without c override returns ""
+    empty_cols_df = df.loc[:, []]  # No columns
+    sel_empty_cols = S(empty_cols_df, "test", r=df)
+    assert sel_empty_cols.get_selector_string() == ""
+
+    # But should honor explicit c override
+    sel_with_c_override = S(empty_cols_df, "test", r=df, c=":")
+    result_with_c = sel_with_c_override.get_selector_string()
+    assert result_with_c == "1,2,3 :"
