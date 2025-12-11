@@ -16,8 +16,18 @@ did_token_warning = False
 def get_ua(is_cli: bool) -> Dict[str, str]:
     name = "NovemCli" if is_cli else "NovemLib"
     py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+    # Include pandas version if available
+    pandas_part = ""
+    try:
+        import pandas as pd
+
+        pandas_part = f" Pandas/{pd.__version__}"
+    except ImportError:
+        pass
+
     return {
-        "User-Agent": f"{name}/{__version__} Python/{py_version}",
+        "User-Agent": f"{name}/{__version__} Python/{py_version}{pandas_part}",
     }
 
 
