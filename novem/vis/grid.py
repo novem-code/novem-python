@@ -58,7 +58,9 @@ class Grid(NovemVisAPI):
 
         # get a list of valid properties
         # exclude mapping and layout as they needs to be run last
-        props = [x for x in dir(self) if x[0] != "_" and x not in ["layout", "mapping", "read", "delete", "write"]]
+        props = [
+            x for x in dir(self) if x[0] != "_" and x not in ["layout", "mapping", "read", "delete", "write", "create"]
+        ]
 
         do_layout = False
         do_mapping = False

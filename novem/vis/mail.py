@@ -72,7 +72,9 @@ class Mail(NovemVisAPI):
 
         # get a list of valid properties
         # exclude content as it needs to be run last
-        props = [x for x in dir(self) if x[0] != "_" and x not in ["content", "read", "delete", "write", "status"]]
+        props = [
+            x for x in dir(self) if x[0] != "_" and x not in ["content", "read", "delete", "write", "status", "create"]
+        ]
 
         do_content = False
         do_status = False

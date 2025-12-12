@@ -13,6 +13,13 @@ class Share(Enum):
     LIST = 3
 
 
+class Tag(Enum):
+    NOT_GIVEN = 0
+    CREATE = 1
+    DELETE = 2
+    LIST = 3
+
+
 def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
     return ap.RawDescriptionHelpFormatter(prog, width=width)
 
@@ -185,6 +192,17 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         default="",
         nargs="?",
         help="select a share group to operate on, no parameter will list all current shares",
+    )
+
+    vis.add_argument(
+        "-t",
+        dest="tag",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select a tag to operate on (fav, like, ignore, wip, archived, or +usertag), "
+        "no parameter will list all current tags",
     )
 
     vis.add_argument(
@@ -522,12 +540,31 @@ No parameter will list all organisations groups of which you are a member""",
     elif share is None:
         args["share"] = (Share.LIST, None)
     elif args["create"]:
-        args["create"] = None
+        args["create"] = False
         args["share"] = (Share.CREATE, share)
     elif args["delete"]:
-        args["delete"] = None
+        args["delete"] = False
         args["share"] = (Share.DELETE, share)
     else:
         args["share"] = None
+
+    # fix up the --tag option (supports comma-separated tags like -t fav,+demo,+test)
+    tag = args.pop("tag")
+    if tag == "":
+        args["tag"] = (Tag.NOT_GIVEN, None)
+    elif tag is None:
+        args["tag"] = (Tag.LIST, None)
+    elif args["create"]:
+        args["create"] = False
+        # Split by comma to support multiple tags
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        args["tag"] = (Tag.CREATE, tags)
+    elif args["delete"]:
+        args["delete"] = False
+        # Split by comma to support multiple tags
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        args["tag"] = (Tag.DELETE, tags)
+    else:
+        args["tag"] = None
 
     return (parser, args)

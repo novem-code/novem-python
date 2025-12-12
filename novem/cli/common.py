@@ -5,8 +5,8 @@ from typing import Any, Dict, Literal, Optional
 from novem import Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
-from novem.cli.setup import Share
-from novem.cli.vis import list_job_shares, list_jobs, list_vis, list_vis_shares
+from novem.cli.setup import Share, Tag
+from novem.cli.vis import list_job_shares, list_job_tags, list_jobs, list_vis, list_vis_shares, list_vis_tags
 from novem.utils import data_on_stdin
 from novem.vis import NovemVisAPI
 
@@ -215,6 +215,23 @@ class VisBase:
             list_vis_shares(name, args, self.title)
             return
 
+        # check if we are changing any tags (supports multiple comma-separated tags)
+        tag_op, tag_targets = args["tag"]
+        if tag_op is Tag.CREATE:
+            # add tags to the vis
+            for tag_target in tag_targets:
+                vis.tags += tag_target  # type: ignore
+
+        if tag_op is Tag.DELETE:
+            # remove tags from the vis
+            for tag_target in tag_targets:
+                vis.tags -= tag_target  # type: ignore
+
+        if tag_op is Tag.LIST:
+            # check if we should print our tags, we will not provide other outputs
+            list_vis_tags(name, args, self.title)
+            return
+
         # E-mail needs sending/testing
         if isinstance(vis, Mail):
             mail: Mail = vis
@@ -386,6 +403,20 @@ def job(args: Dict[str, Any]) -> None:
 
     if share_op is Share.LIST:
         list_job_shares(name, args)
+        return
+
+    # -t (tag): manage tags (supports multiple comma-separated tags)
+    tag_op, tag_targets = args["tag"]
+    if tag_op is Tag.CREATE:
+        for tag_target in tag_targets:
+            j.tags += tag_target  # type: ignore
+
+    if tag_op is Tag.DELETE:
+        for tag_target in tag_targets:
+            j.tags -= tag_target  # type: ignore
+
+    if tag_op is Tag.LIST:
+        list_job_tags(name, args)
         return
 
     # -r (read output)

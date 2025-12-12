@@ -6,6 +6,7 @@ from novem.exceptions import Novem403, Novem404
 
 from ..api_ref import NovemAPI
 from ..shared import NovemShare
+from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
 from .files import NovemFiles
@@ -13,6 +14,7 @@ from .files import NovemFiles
 
 class NovemVisAPI(NovemAPI):
     shared: NovemShare
+    tags: NovemTags
     files: Optional[NovemFiles] = None
 
     _vispath: Optional[str] = None
@@ -38,11 +40,14 @@ class NovemVisAPI(NovemAPI):
             self._qpr = kwargs["qpr"].replace(",", "&")
 
         self.shared = NovemShare(self, f"vis/{self._vispath}/{self.id}")
+        self.tags = NovemTags(self, f"vis/{self._vispath}/{self.id}")
         self.files = NovemFiles(self)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "shared" and hasattr(self, "shared") and not isinstance(value, NovemShare):
             self.shared.set(value)
+        elif name == "tags" and hasattr(self, "tags") and not isinstance(value, NovemTags):
+            self.tags.set(value)
         else:
             super().__setattr__(name, value)
 

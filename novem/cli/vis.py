@@ -299,6 +299,132 @@ def list_job_shares(job_name: str, args: Dict[str, str]) -> None:
     return
 
 
+def tag_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> None:
+    """Pretty print tags list."""
+
+    plist = []
+    for p in iplist:
+        tag_name = p["name"]
+        if tag_name == "fav":
+            p["summary"] = "Marked as favorite"
+            p["type"] = "system"
+        elif tag_name == "like":
+            p["summary"] = "Marked as liked"
+            p["type"] = "system"
+        elif tag_name == "ignore":
+            p["summary"] = "Marked as ignored"
+            p["type"] = "system"
+        elif tag_name == "wip":
+            p["summary"] = "Work in progress"
+            p["type"] = "system"
+        elif tag_name == "archived":
+            p["summary"] = "Archived"
+            p["type"] = "system"
+        elif tag_name.startswith("+"):
+            p["summary"] = "User-defined tag"
+            p["type"] = "user"
+        else:
+            p["summary"] = "Custom tag"
+            p["type"] = "custom"
+
+        plist.append(p)
+
+    def summary_fmt(summary: str, cl: cl) -> str:
+        if not summary:
+            return ""
+        return summary.replace("\n", "")
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "name",
+            "header": "Tag Name",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "type",
+            "header": "Type",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "created_on",
+            "header": "Added on",
+            "type": "date",
+            "overflow": "keep",
+        },
+        {
+            "key": "summary",
+            "header": "Summary",
+            "fmt": summary_fmt,
+            "type": "text",
+            "overflow": "truncate",
+        },
+    ]
+
+    for p in plist:
+        pds = eut.parsedate(p.get("created_on", ""))
+        if pds:
+            nd = datetime.datetime(*pds[:6])
+            p["created_on"] = nd.strftime("%Y-%m-%d %H:%M")
+
+    ppl = pretty_format(plist, ppo, striped=striped)
+    print(ppl)
+
+
+def list_vis_tags(vis_name: str, args: Dict[str, str], type: str) -> None:
+    """List tags for a visualization."""
+
+    novem = NovemAPI(**args, is_cli=True)
+
+    pth = type.lower()
+
+    (config_status, config) = get_current_config(**args)
+
+    plist = []
+
+    try:
+        plist = json.loads(novem.read(f"vis/{pth}s/{vis_name}/tags"))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        tag_pretty_print(plist, striped=striped)
+
+    return
+
+
+def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
+    """List tags for a job."""
+
+    novem = NovemAPI(**args, is_cli=True)
+
+    (config_status, config) = get_current_config(**args)
+
+    plist = []
+
+    try:
+        plist = json.loads(novem.read(f"jobs/{job_name}/tags"))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        tag_pretty_print(plist, striped=striped)
+
+    return
+
+
 def list_jobs(args: Dict[str, Any]) -> None:
     """List jobs with custom formatting."""
     colors()
