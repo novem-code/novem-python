@@ -2,11 +2,11 @@ import os
 import sys
 from typing import Any, Dict, Literal, Optional
 
-from novem import Grid, Mail, Plot
+from novem import Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
 from novem.cli.setup import Share
-from novem.cli.vis import list_vis, list_vis_shares
+from novem.cli.vis import list_job_shares, list_jobs, list_vis, list_vis_shares
 from novem.utils import data_on_stdin
 from novem.vis import NovemVisAPI
 
@@ -260,3 +260,136 @@ def grid(args: Dict[str, Any]) -> None:
 def plot(args: Dict[str, Any]) -> None:
     plot = VisBase("plot")
     plot(args)
+
+
+def job(args: Dict[str, Any]) -> None:
+    name = args["job"]
+
+    # List all jobs
+    if name is None:
+        list_jobs(args)
+        return
+
+    # Delete job
+    if args["delete"]:
+        novem = NovemAPI(**args, is_cli=True)
+        try:
+            novem.delete(f"jobs/{name}")
+            return
+        except Novem404:
+            print(f"Job {name} did not exist")
+            sys.exit(1)
+
+    # Create Job object
+    ignore_ssl = False
+    if "ignore_ssl" in args:
+        ignore_ssl = args["ignore_ssl"]
+
+    create = args["create"]
+
+    j = Job(
+        name,
+        ignore_ssl=ignore_ssl,
+        create=create,
+        config_path=args["config_path"],
+        qpr=args.get("qpr"),
+        debug=args.get("debug"),
+        config_profile=args["profile"],
+        is_cli=True,
+    )
+
+    # -R (run): trigger job execution
+    if args.get("run_job"):
+        j.run()
+        return
+
+    # --dump: dump entire API tree to file
+    if "dump" in args and args["dump"]:
+        path = args["dump"]
+        print(f'Dumping api tree structure to "{path}"')
+        j.api_dump(outpath=path)
+        return
+
+    # --tree: print API tree structure
+    if "tree" in args and args["tree"] != -1:
+        path = args["tree"]
+        if not path:
+            path = "/"
+        ts = j.api_tree(colors=True, relpath=path)
+        print(ts)
+        return
+
+    # -e (edit): edit a path in the editor
+    if "edit" in args and args["edit"]:
+        path = args["edit"]
+
+        # fetch target
+        ctnt = j.api_read(f"/{path}")
+
+        # get new content
+        nctnt = edit(contents=ctnt, use_tty=True)
+
+        if ctnt != nctnt:
+            # update content
+            j.api_write(f"/{path}", nctnt)
+
+    else:
+        # --type
+        ptype = args["type"]
+        if ptype:
+            j.type = ptype
+
+        found_stdin = False
+        stdin_data = data_on_stdin()
+        stdin_has_data = bool(stdin_data)
+
+        # check if we have any explicit inputs [-w's]
+        if args["input"] and len(args["input"]):
+            for i in args["input"]:
+                path = f"/{i[0]}"
+
+                if len(i) == 1:
+                    if stdin_has_data and not found_stdin:
+                        assert stdin_data
+                        ctnt = stdin_data
+
+                        j.api_write(path, ctnt)
+                        found_stdin = True
+                    elif found_stdin:
+                        print("stdin can only be sent to a single destination per invocation")
+                        sys.exit(1)
+                    else:
+                        print(f'No data found on stdin, "-w {path}" requires data to be supplied on stdin')
+                        sys.exit(1)
+
+                elif len(i) == 2 and i[1][0] == "@":
+                    fn = os.path.expanduser(i[1][1:])
+                    try:
+                        with open(fn, "r") as f:
+                            ctnt = f.read()
+                            j.api_write(path, ctnt)
+                    except FileNotFoundError:
+                        print(f'The supplied input file "{fn}" does not exist. Please review your options')
+                        sys.exit(1)
+
+                else:
+                    ctnt = i[1]
+                    j.api_write(path, ctnt)
+
+    # -s (share): manage shares
+    share_op, share_target = args["share"]
+    if share_op is Share.CREATE:
+        j.shared += share_target  # type: ignore
+
+    if share_op is Share.DELETE:
+        j.shared -= share_target  # type: ignore
+
+    if share_op is Share.LIST:
+        list_job_shares(name, args)
+        return
+
+    # -r (read output)
+    out = args["out"]
+    if out:
+        outp = j.api_read(f"/{out}")
+        print(outp, end="")

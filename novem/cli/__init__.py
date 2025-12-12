@@ -21,12 +21,11 @@ else:
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
-from .common import grid, mail, plot
+from .common import grid, job, mail, plot
 from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
 from .setup import setup
-from .vis import list_jobs
 
 sys.tracebacklimit = 0
 
@@ -416,9 +415,7 @@ novem --init --profile {args["profile"]}\
     elif args and args["grid"] != "":
         grid(args)
     elif args and args["job"] != "":
-        # Job listing only (no individual job operations yet)
-        if args["job"] is None:
-            list_jobs(args)
+        job(args)
     elif args and args["invite"] != "":
         invite(args)
     elif args and ("group" in args or "org" in args):
