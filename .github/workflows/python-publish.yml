@@ -104,7 +104,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
 
     - name: Send release notification to Discord
-      if: success()
+      if: success() && github.repository_owner == 'novem-code'
       env:
         RELEASE_NAME: ${{ github.event.release.name }}
         RELEASE_TAG: ${{ github.event.release.tag_name }}

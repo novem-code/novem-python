@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   notify:
+    if: github.repository_owner == 'novem-code'
     uses: novem-code/github-actions/.github/workflows/discord_pr.yml@main
     with:
       pr_title: ${{ github.event.pull_request.title }}

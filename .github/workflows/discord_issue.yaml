@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   notify:
+    if: github.repository_owner == 'novem-code'
     runs-on: ubuntu-latest
     steps:
       - name: Send issue notification to Discord
