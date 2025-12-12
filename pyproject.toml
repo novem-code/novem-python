@@ -23,7 +23,7 @@ novem = 'novem.cli:run_cli'
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
-isort = "^5.13.2"
+isort = ">=5.13.2,<7.0.0"
 mypy = "^1.11.2"
 pre-commit = ">=2.16,<5.0"
 pydantic = "^2.8.2"
