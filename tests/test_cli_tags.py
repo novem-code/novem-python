@@ -346,3 +346,90 @@ def test_job_tag_delete(cli, requests_mock, fs):
     assert "wip" not in out
     assert "fav" in out
     assert "+project" in out
+
+
+def test_plot_multiple_tags_add(cli, requests_mock, fs):
+    """Test adding multiple comma-separated tags via -t fav,+demo,+test -C"""
+
+    write_config(auth_req)
+
+    plot_name = "test_plot"
+    tags = []
+
+    def add_tag(value, request, context):
+        if value not in tags:
+            tags.append(value)
+        context.status_code = 201
+        return
+
+    def get_tags(request, context):
+        context.status_code = 200
+        return json.dumps([{"name": x} for x in tags])
+
+    requests_mock.register_uri("get", f"{api_root}vis/plots/{plot_name}/tags", text=get_tags)
+
+    for tag in ["fav", "+demo", "+test", "wip"]:
+        requests_mock.register_uri(
+            "put",
+            f"{api_root}vis/plots/{plot_name}/tags/{tag}",
+            text=partial(add_tag, tag),
+        )
+
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}vis/plots/{plot_name}",
+        status_code=201,
+    )
+
+    # add multiple tags at once
+    cli("-p", plot_name, "-t", "fav,+demo,+test", "-C")
+    out, err = cli("-p", plot_name, "-t", "-l")
+
+    assert "fav" in out
+    assert "+demo" in out
+    assert "+test" in out
+    assert len(tags) == 3
+
+
+def test_job_multiple_tags_delete(cli, requests_mock, fs):
+    """Test deleting multiple comma-separated tags via -t fav,wip -D"""
+
+    write_config(auth_req)
+
+    job_name = "test_job"
+    tags = ["fav", "wip", "+project", "like"]
+
+    def del_tag(value, request, context):
+        if value in tags:
+            tags.remove(value)
+        context.status_code = 200
+        return
+
+    def get_tags(request, context):
+        context.status_code = 200
+        return json.dumps([{"name": x} for x in tags])
+
+    requests_mock.register_uri("get", f"{api_root}jobs/{job_name}/tags", text=get_tags)
+
+    for tag in ["fav", "wip"]:
+        requests_mock.register_uri(
+            "delete",
+            f"{api_root}jobs/{job_name}/tags/{tag}",
+            text=partial(del_tag, tag),
+        )
+
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}jobs/{job_name}",
+        status_code=201,
+    )
+
+    # delete multiple tags at once
+    cli("-j", job_name, "-t", "fav,wip", "-D")
+    out, err = cli("-j", job_name, "-t", "-l")
+
+    assert "fav" not in out
+    assert "wip" not in out
+    assert "+project" in out
+    assert "like" in out
+    assert len(tags) == 2

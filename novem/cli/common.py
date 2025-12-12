@@ -215,15 +215,17 @@ class VisBase:
             list_vis_shares(name, args, self.title)
             return
 
-        # check if we are changing any tags
-        tag_op, tag_target = args["tag"]
+        # check if we are changing any tags (supports multiple comma-separated tags)
+        tag_op, tag_targets = args["tag"]
         if tag_op is Tag.CREATE:
-            # add a tag to the vis
-            vis.tags += tag_target  # type: ignore
+            # add tags to the vis
+            for tag_target in tag_targets:
+                vis.tags += tag_target  # type: ignore
 
         if tag_op is Tag.DELETE:
-            # remove a tag from the vis
-            vis.tags -= tag_target  # type: ignore
+            # remove tags from the vis
+            for tag_target in tag_targets:
+                vis.tags -= tag_target  # type: ignore
 
         if tag_op is Tag.LIST:
             # check if we should print our tags, we will not provide other outputs
@@ -403,13 +405,15 @@ def job(args: Dict[str, Any]) -> None:
         list_job_shares(name, args)
         return
 
-    # -t (tag): manage tags
-    tag_op, tag_target = args["tag"]
+    # -t (tag): manage tags (supports multiple comma-separated tags)
+    tag_op, tag_targets = args["tag"]
     if tag_op is Tag.CREATE:
-        j.tags += tag_target  # type: ignore
+        for tag_target in tag_targets:
+            j.tags += tag_target  # type: ignore
 
     if tag_op is Tag.DELETE:
-        j.tags -= tag_target  # type: ignore
+        for tag_target in tag_targets:
+            j.tags -= tag_target  # type: ignore
 
     if tag_op is Tag.LIST:
         list_job_tags(name, args)

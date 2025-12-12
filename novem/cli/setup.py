@@ -548,7 +548,7 @@ No parameter will list all organisations groups of which you are a member""",
     else:
         args["share"] = None
 
-    # fix up the --tag option
+    # fix up the --tag option (supports comma-separated tags like -t fav,+demo,+test)
     tag = args.pop("tag")
     if tag == "":
         args["tag"] = (Tag.NOT_GIVEN, None)
@@ -556,10 +556,14 @@ No parameter will list all organisations groups of which you are a member""",
         args["tag"] = (Tag.LIST, None)
     elif args["create"]:
         args["create"] = False
-        args["tag"] = (Tag.CREATE, tag)
+        # Split by comma to support multiple tags
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        args["tag"] = (Tag.CREATE, tags)
     elif args["delete"]:
         args["delete"] = False
-        args["tag"] = (Tag.DELETE, tag)
+        # Split by comma to support multiple tags
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        args["tag"] = (Tag.DELETE, tags)
     else:
         args["tag"] = None
 
