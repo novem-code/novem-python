@@ -4,8 +4,13 @@ on:
     types:
      - opened
      - closed
+
+permissions:
+  issues: read
+
 jobs:
   notify:
+    if: github.repository_owner == 'novem-code'
     runs-on: ubuntu-latest
     steps:
       - name: Send issue notification to Discord
@@ -33,7 +38,7 @@ jobs:
             --arg url "$ISSUE_URL" \
             --arg icon "<:devissue:1275356587946545172>" \
             --arg action "$ACTION_TEXT" \
-            '{content: "\($icon) \($repo) > [Issue #\($number): \($title)](\($url)) \($action)"}')
+            '{content: "\($icon) \($repo) > [Issue #\($number): \($title)](<\($url)>) \($action)"}')
           # Send the notification to Discord
           curl -H "Content-Type: application/json" \
             -X POST \

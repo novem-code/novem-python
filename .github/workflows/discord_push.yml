@@ -5,9 +5,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   notify_push:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Merge pull request')
+    if: github.repository_owner == 'novem-code' && github.ref == 'refs/heads/main' && github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'Merge pull request')
     uses: novem-code/github-actions/.github/workflows/discord_push.yml@v1
     with:
       branch_name: 'main'
