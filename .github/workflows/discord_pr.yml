@@ -7,6 +7,9 @@ on:
      # - synchronize
      - closed
 
+permissions:
+  pull-requests: read
+
 jobs:
   notify:
     uses: novem-code/github-actions/.github/workflows/discord_pr.yml@main
