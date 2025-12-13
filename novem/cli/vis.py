@@ -2,14 +2,14 @@ import datetime
 import email.utils as eut
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
 from .filter import apply_filters
-from .gql import NovemGQL, list_grids_gql, list_jobs_gql, list_mails_gql, list_plots_gql
+from .gql import NovemGQL, list_grids_gql, list_jobs_gql, list_mails_gql, list_plots_gql, list_users_gql
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -145,7 +145,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             "key": "name",
             "header": "Name",
             "type": "text",
-            "overflow": "truncate",
+            "overflow": "shrink",
         },
         {
             "key": "uri",
@@ -425,6 +425,181 @@ def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
     return
 
 
+def list_users(args: Dict[str, Any]) -> None:
+    """List connected users with custom formatting."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_users_gql(gql)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Get current user's username
+    current_user = config.get("username", "")
+
+    # Sort by relevance: me first > connected > following > follower > groups > orgs > username
+    def user_sort_key(u: Dict[str, Any]) -> Tuple[bool, bool, bool, bool, int, int, str]:
+        is_me = u.get("username", "") == current_user
+        return (
+            not is_me,  # Current user first
+            not u.get("connected", False),  # Connected second (False sorts before True, so negate)
+            not u.get("following", False),  # Following third
+            not u.get("follower", False),  # Followers fourth
+            -(u.get("groups", 0) or 0),  # More shared groups = higher priority
+            -(u.get("orgs", 0) or 0),  # More shared orgs = higher priority
+            u.get("username", "").lower(),  # Alphabetically by username
+        )
+
+    plist = sorted(plist, key=user_sort_key)
+
+    if args["list"]:
+        # print usernames only
+        for p in plist:
+            print(p["username"])
+        return
+
+    def bio_fmt(bio: Optional[str], _cl: Any) -> str:
+        """Format bio, stripping newlines."""
+        if not bio:
+            return ""
+        return bio.replace("\n", " ")
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_orgs = max((len(fmt_num(p.get("orgs", 0))) for p in plist), default=1)
+    max_groups = max((len(fmt_num(p.get("groups", 0))) for p in plist), default=1)
+
+    max_social_conn = max((len(fmt_num(p.get("social_connections", 0))) for p in plist), default=1)
+    max_social_foll = max((len(fmt_num(p.get("social_followers", 0))) for p in plist), default=1)
+    max_social_fing = max((len(fmt_num(p.get("social_following", 0))) for p in plist), default=1)
+
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "_verified",
+            "header": "   ",
+            "type": "text",
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_conn",
+            "header": "Conn.",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_groups",
+            "header": "Groups",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_social",
+            "header": "Social",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "bio",
+            "header": "Biography",
+            "fmt": bio_fmt,
+            "type": "text",
+            "overflow": "truncate",
+        },
+    ]
+
+    # Pre-process formatted columns
+    for p in plist:
+        # Verified star marker
+        p["_verified"] = f" {cl.WARNING}*{cl.ENDFGC} " if p.get("verified") else "   "
+
+        # Connection status: C F F I (connected, follower, following, ignore)
+        connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
+        follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
+        following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
+        ignore = "-"  # Not available in current query
+        p["_conn"] = f"{connected} {follower} {following} {ignore}"
+
+        # Groups: orgs, org_groups, user_groups
+        orgs_str = fmt_num(p.get("orgs", 0))
+        groups_str = fmt_num(p.get("groups", 0))
+        p["_groups"] = f"{orgs_str:>{max_orgs}} {groups_str:>{max_groups}} -"
+
+        # Social: connections, followers, following
+        conn_str = fmt_num(p.get("social_connections", 0))
+        followers_str = fmt_num(p.get("social_followers", 0))
+        following_str = fmt_num(p.get("social_following", 0))
+        p["_social"] = (
+            f"{conn_str:>{max_social_conn}} {followers_str:>{max_social_foll}} {following_str:>{max_social_fing}}"
+        )
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
 def list_jobs(args: Dict[str, Any]) -> None:
     """List jobs with custom formatting."""
     colors()
@@ -551,7 +726,7 @@ def list_jobs(args: Dict[str, Any]) -> None:
             "key": "name",
             "header": "Name",
             "type": "text",
-            "overflow": "truncate",
+            "overflow": "shrink",
         },
         {
             "key": "last_run_status",

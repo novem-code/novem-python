@@ -245,7 +245,8 @@ def pretty_format_inner(
                     fs = strip_ansi(o["fmt"](x[k], cl))
                     c = ucl(fs)
                 else:
-                    c = ucl(x[k])
+                    # Always strip ANSI codes to get visual width
+                    c = ucl(strip_ansi(str(x[k]) if x[k] is not None else ""))
                 cs.append(c)
 
             cand = max(cs)
@@ -262,24 +263,43 @@ def pretty_format_inner(
         wm[k] = max([cand, len(o["header"])])
 
     # let's calculate our actual widths
-    if sum(wm.values()) + (len(order) - 1) * pw > col:
+    total_padding = (len(order) - 1) * pw
+    if sum(wm.values()) + total_padding > col:
         # we need to adjust our sizing
-        ainst = {}
+        # Priority: keep > shrink > truncate
 
-        nts = 0
+        # 1. Reserve space for "keep" columns first
+        keep_total = 0
         for o in order:
-            aos = wm[o["key"]]
-            if o["overflow"] == "keep" and nts + aos < col:
-                ainst[o["key"]] = "keep"
-                nts += aos
+            if o["overflow"] == "keep":
+                keep_total += wm[o["key"]]
 
-        rem = col - nts - ((len(order) - 1) * pw)
+        rem_after_keep = col - keep_total - total_padding
 
-        # allocate truncate width
-        nks = [x for x in order if x["overflow"] != "keep"]
-        for o in nks:
-            # do not shrink columns down below 5 characters wide
-            wm[o["key"]] = max(5, int(rem / len(nks)))
+        # 2. Handle "shrink" columns - use natural width if fits, otherwise reduce
+        shrink_cols = [x for x in order if x["overflow"] == "shrink"]
+        shrink_natural_total = sum(wm[o["key"]] for o in shrink_cols)
+
+        # 3. Handle "truncate" columns - they share remaining space
+        truncate_cols = [x for x in order if x["overflow"] == "truncate"]
+
+        if shrink_natural_total <= rem_after_keep:
+            # Shrink columns fit at natural width
+            rem_after_shrink = rem_after_keep - shrink_natural_total
+            # Truncate columns share the rest
+            if truncate_cols:
+                for o in truncate_cols:
+                    wm[o["key"]] = max(5, int(rem_after_shrink / len(truncate_cols)))
+        else:
+            # Shrink columns need to be reduced
+            # Allocate space proportionally between shrink and truncate
+            all_flexible = shrink_cols + truncate_cols
+            if all_flexible:
+                total_natural = sum(wm[o["key"]] for o in all_flexible)
+                for o in all_flexible:
+                    # Proportional allocation based on natural width
+                    proportion = wm[o["key"]] / total_natural if total_natural > 0 else 1 / len(all_flexible)
+                    wm[o["key"]] = max(5, int(rem_after_keep * proportion))
 
     # construct output string
     los = f"{cl.BOLD}"
@@ -317,10 +337,14 @@ def pretty_format_inner(
             if ov is None:
                 ov = ""
 
-            if len(ov) > vs:
-                val = ov[0 : vs - 3] + "..."
+            # Use visual length (stripped of ANSI codes) to determine truncation
+            ov_visual = strip_ansi(str(ov))
+            if len(ov_visual) > vs:
+                # Truncate based on visual length, keeping ANSI codes intact where possible
+                # For simplicity, strip ANSI first, truncate, then we lose colors on truncated text
+                val = ov_visual[0 : vs - 3] + "..."
             else:
-                val = ov[0:vs]
+                val = ov
 
             if "fmt" in o:
                 val = o["fmt"](val, cl)

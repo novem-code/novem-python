@@ -52,6 +52,15 @@ HEADER_TO_KEY: Dict[str, str] = {
     "schedule": "schedule",
     "steps": "job_steps",
     "runs": "run_count",
+    # User-specific headers
+    "username": "username",
+    "conn": "conn",
+    "conn.": "conn",
+    "connection": "conn",
+    "groups": "groups",
+    "social": "social",
+    "bio": "bio",
+    "biography": "bio",
 }
 
 
@@ -121,10 +130,23 @@ def get_triggers_display_value(triggers: List[str]) -> str:
     return f"{mail} {sched} {api} {commit}"
 
 
+def get_conn_display_value(item: Dict[str, Any]) -> str:
+    """
+    Convert connection fields to display format for filtering.
+
+    Example: connected=True, follower=False, following=True -> "C - F -"
+    """
+    connected = "C" if item.get("connected") else "-"
+    follower = "F" if item.get("follower") else "-"
+    following = "F" if item.get("following") else "-"
+    ignore = "-"  # Not available yet
+    return f"{connected} {follower} {following} {ignore}"
+
+
 def get_filter_value(item: Dict[str, Any], column: str) -> str:
     """
     Get the filterable value for a column from an item.
-    Handles special columns like 'shared' and 'triggers'.
+    Handles special columns like 'shared', 'triggers', and 'conn'.
     """
     value = item.get(column, "")
 
@@ -133,6 +155,9 @@ def get_filter_value(item: Dict[str, Any], column: str) -> str:
 
     if column == "triggers" and isinstance(value, list):
         return get_triggers_display_value(value)
+
+    if column == "conn":
+        return get_conn_display_value(item)
 
     if value is None:
         return ""
@@ -189,6 +214,22 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
             commit = "C" if "C" in pattern_upper else "-"
             expected = f"{mail} {sched} {api} {commit}"
             return value == expected
+        # Special handling for conn column: check exact flag combination
+        if filter_obj.column == "conn":
+            # For conn, exact match means "exactly these flags and no others"
+            # e.g., conn=C matches "C - - -" (only connected)
+            # e.g., conn=CF matches "C F - -" (connected + follower, no following)
+            pattern_upper = filter_obj.pattern.upper()
+            # Build expected display value from pattern
+            # Note: F appears twice (follower and following), use position to distinguish
+            connected = "C" if "C" in pattern_upper else "-"
+            # Count F's: first F = follower, second F = following
+            f_count = pattern_upper.count("F")
+            follower = "F" if f_count >= 1 else "-"
+            following = "F" if f_count >= 2 else "-"
+            ignore = "-"
+            expected = f"{connected} {follower} {following} {ignore}"
+            return value == expected
         # Case-insensitive exact match for other columns
         return value.lower() == filter_obj.pattern.lower()
 
@@ -225,6 +266,20 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
                 if "A" in pattern_upper and "A" not in value:
                     return False
                 if "C" in pattern_upper and "C" not in value:
+                    return False
+                return True
+        # Special handling for conn column: check if flags are present (subset match)
+        if filter_obj.column == "conn":
+            # For conn regex, check if all specified flags are present
+            # e.g., conn~C matches any connected user (could have others)
+            # e.g., conn~CF matches any connected AND follower
+            pattern_upper = filter_obj.pattern.upper()
+            if all(c in "CF" for c in pattern_upper):
+                # Pattern is just flags, do subset match
+                if "C" in pattern_upper and "C" not in value:
+                    return False
+                # F means at least one F (follower or following) is present
+                if "F" in pattern_upper and "F" not in value:
                     return False
                 return True
         # Case-insensitive regex match
