@@ -257,10 +257,11 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         "-u",
         metavar=("USER"),
         dest="for_user",
-        default=ap.SUPPRESS,
+        default="",
         action="store",
         required=False,
-        help="specify user to view shared visualisation from",
+        nargs="?",
+        help="specify user to view shared visualisation from, no parameter will list users you are connected to",
     )
 
     vis.add_argument(

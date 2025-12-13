@@ -245,7 +245,8 @@ def pretty_format_inner(
                     fs = strip_ansi(o["fmt"](x[k], cl))
                     c = ucl(fs)
                 else:
-                    c = ucl(x[k])
+                    # Always strip ANSI codes to get visual width
+                    c = ucl(strip_ansi(str(x[k]) if x[k] is not None else ""))
                 cs.append(c)
 
             cand = max(cs)
@@ -317,10 +318,14 @@ def pretty_format_inner(
             if ov is None:
                 ov = ""
 
-            if len(ov) > vs:
-                val = ov[0 : vs - 3] + "..."
+            # Use visual length (stripped of ANSI codes) to determine truncation
+            ov_visual = strip_ansi(str(ov))
+            if len(ov_visual) > vs:
+                # Truncate based on visual length, keeping ANSI codes intact where possible
+                # For simplicity, strip ANSI first, truncate, then we lose colors on truncated text
+                val = ov_visual[0 : vs - 3] + "..."
             else:
-                val = ov[0:vs]
+                val = ov
 
             if "fmt" in o:
                 val = o["fmt"](val, cl)

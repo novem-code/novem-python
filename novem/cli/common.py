@@ -6,7 +6,15 @@ from novem import Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
 from novem.cli.setup import Share, Tag
-from novem.cli.vis import list_job_shares, list_job_tags, list_jobs, list_vis, list_vis_shares, list_vis_tags
+from novem.cli.vis import (
+    list_job_shares,
+    list_job_tags,
+    list_jobs,
+    list_users,
+    list_vis,
+    list_vis_shares,
+    list_vis_tags,
+)
 from novem.utils import data_on_stdin
 from novem.vis import NovemVisAPI
 
@@ -424,3 +432,17 @@ def job(args: Dict[str, Any]) -> None:
     if out:
         outp = j.api_read(f"/{out}")
         print(outp, end="")
+
+
+def user(args: Dict[str, Any]) -> None:
+    """Handle -u flag: list users if no username specified, otherwise pass through."""
+    username = args.get("for_user")
+
+    # List all connected users if no username specified
+    if username is None:
+        list_users(args)
+        return
+
+    # If a username is specified, return False to indicate pass-through
+    # (the existing logic in __init__.py will handle it)
+    return

@@ -21,7 +21,7 @@ else:
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
-from .common import grid, job, mail, plot
+from .common import grid, job, mail, plot, user
 from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
@@ -299,6 +299,7 @@ def print_short(parser: Any) -> None:
     print("  novem -g              list your grids")
     print("  novem -m              list your mails")
     print("  novem -j              list your jobs")
+    print("  novem -u              list your connections")
 
 
 def run_cli_wrapped() -> None:
@@ -407,8 +408,11 @@ novem --init --profile {args["profile"]}\
         qpr = f"{qpr}cols={sz.columns},rows={sz.lines - prompt_lines}"
         args["qpr"] = qpr
 
+    # operate on user listing (if -u with no argument)
+    if args and args.get("for_user") is None and "for_user" in args:
+        user(args)
     # operate on plot
-    if args and args["plot"] != "":
+    elif args and args["plot"] != "":
         plot(args)
     elif args and args["mail"] != "":
         mail(args)

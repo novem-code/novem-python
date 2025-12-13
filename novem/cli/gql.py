@@ -170,6 +170,48 @@ query ListJobs($author: String, $limit: Int, $offset: Int) {
 """
 
 
+LIST_USERS_QUERY = """
+query ListUsers($limit: Int, $offset: Int) {
+  users(limit: $limit, offset: $offset) {
+    username
+    name
+    type
+    bio
+    relationship {
+      orgs
+      groups
+      follower
+      connected
+      following
+    }
+    social {
+      followers
+      following
+      connections
+    }
+    plots {
+      id
+    }
+    grids {
+      id
+    }
+    mails {
+      id
+    }
+    docs {
+      id
+    }
+    repos {
+      id
+    }
+    jobs {
+      id
+    }
+  }
+}
+"""
+
+
 def _transform_shared(public: bool, shared: List[Dict[str, Any]]) -> List[str]:
     """
     Transform GraphQL shared format to REST format.
@@ -308,3 +350,54 @@ def list_jobs_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[i
     data = gql._query(LIST_JOBS_QUERY, variables)
     jobs = data.get("jobs", [])
     return _transform_jobs_response(jobs)
+
+
+def _transform_users_response(users: List[Dict[str, Any]], me_type: str) -> List[Dict[str, Any]]:
+    """
+    Transform GraphQL users response for user listing.
+
+    Includes user fields: username, name, type, bio, relationship, social, and content counts.
+    """
+    result = []
+    for user in users:
+        relationship = user.get("relationship", {}) or {}
+        social = user.get("social", {}) or {}
+
+        transformed = {
+            "username": user.get("username", ""),
+            "name": user.get("name", "") or "",
+            "type": user.get("type", ""),
+            "bio": user.get("bio", "") or "",
+            # Relationship fields
+            "connected": relationship.get("connected", False),
+            "follower": relationship.get("follower", False),
+            "following": relationship.get("following", False),
+            "orgs": relationship.get("orgs", 0) or 0,
+            "groups": relationship.get("groups", 0) or 0,
+            # Social fields
+            "social_connections": social.get("connections", 0) or 0,
+            "social_followers": social.get("followers", 0) or 0,
+            "social_following": social.get("following", 0) or 0,
+            # Content counts
+            "plots": len(user.get("plots", []) or []),
+            "grids": len(user.get("grids", []) or []),
+            "mails": len(user.get("mails", []) or []),
+            "docs": len(user.get("docs", []) or []),
+            "repos": len(user.get("repos", []) or []),
+            "jobs": len(user.get("jobs", []) or []),
+            # Verified status (VERIFIED or NOVEM type)
+            "verified": user.get("type", "") in ["VERIFIED", "NOVEM", "SYSTEM"],
+        }
+        result.append(transformed)
+    return result
+
+
+def list_users_gql(gql: NovemGQL, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """List all users via GraphQL, returning transformed format."""
+    variables: Dict[str, Any] = {}
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_USERS_QUERY, variables if variables else None)
+    users = data.get("users", [])
+    return _transform_users_response(users, "")
