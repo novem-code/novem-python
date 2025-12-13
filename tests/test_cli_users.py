@@ -530,7 +530,14 @@ class TestUserSorting:
             )
 
         users = [
-            {"username": "following_only", "connected": False, "following": True, "follower": False, "groups": 0, "orgs": 0},
+            {
+                "username": "following_only",
+                "connected": False,
+                "following": True,
+                "follower": False,
+                "groups": 0,
+                "orgs": 0,
+            },
             {"username": "connected", "connected": True, "following": False, "follower": False, "groups": 0, "orgs": 0},
         ]
 
@@ -554,9 +561,30 @@ class TestUserSorting:
             )
 
         users = [
-            {"username": "few_groups", "connected": False, "following": False, "follower": False, "groups": 1, "orgs": 0},
-            {"username": "many_groups", "connected": False, "following": False, "follower": False, "groups": 5, "orgs": 0},
-            {"username": "some_orgs", "connected": False, "following": False, "follower": False, "groups": 5, "orgs": 3},
+            {
+                "username": "few_groups",
+                "connected": False,
+                "following": False,
+                "follower": False,
+                "groups": 1,
+                "orgs": 0,
+            },
+            {
+                "username": "many_groups",
+                "connected": False,
+                "following": False,
+                "follower": False,
+                "groups": 5,
+                "orgs": 0,
+            },
+            {
+                "username": "some_orgs",
+                "connected": False,
+                "following": False,
+                "follower": False,
+                "groups": 5,
+                "orgs": 3,
+            },
         ]
 
         sorted_users = sorted(users, key=user_sort_key)
@@ -570,7 +598,10 @@ class TestUserSorting:
 
         def user_sort_key(u: dict) -> Tuple[bool, bool, bool, bool, int, int, str]:
             return (
-                True, True, True, True,
+                True,
+                True,
+                True,
+                True,
                 -(u.get("groups", 0) or 0),
                 -(u.get("orgs", 0) or 0),
                 u.get("username", "").lower(),

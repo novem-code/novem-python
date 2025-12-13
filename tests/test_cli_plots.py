@@ -324,7 +324,7 @@ def test_plot_list(cli, requests_mock, fs):
             "key": "name",
             "header": "Name",
             "type": "text",
-            "overflow": "truncate",
+            "overflow": "shrink",
         },
         {
             "key": "uri",

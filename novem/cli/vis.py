@@ -145,7 +145,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
             "key": "name",
             "header": "Name",
             "type": "text",
-            "overflow": "truncate",
+            "overflow": "shrink",
         },
         {
             "key": "uri",
@@ -726,7 +726,7 @@ def list_jobs(args: Dict[str, Any]) -> None:
             "key": "name",
             "header": "Name",
             "type": "text",
-            "overflow": "truncate",
+            "overflow": "shrink",
         },
         {
             "key": "last_run_status",
