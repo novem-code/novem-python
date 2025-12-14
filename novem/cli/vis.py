@@ -525,8 +525,14 @@ def list_users(args: Dict[str, Any]) -> None:
             "overflow": "keep",
         },
         {
+            "key": "_public",
+            "header": "P",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
             "key": "_conn",
-            "header": "Conn.",
+            "header": "Relation",
             "type": "text",
             "overflow": "keep",
         },
@@ -584,12 +590,15 @@ def list_users(args: Dict[str, Any]) -> None:
             else:
                 p["_verified"] = "   "
 
+        # Public profile indicator
+        p["_public"] = f"{cl.FAIL}P{cl.ENDFGC}" if p.get("public") else "-"
+
         # Connection status: C F F I (connected, follower, following, ignoring)
         connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
         follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
         following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
         ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
-        p["_conn"] = f"{connected} {follower} {following} {ignoring}"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring} "
 
         # Groups: orgs, org_groups, user_groups
         orgs_str = fmt_num(p.get("orgs", 0))

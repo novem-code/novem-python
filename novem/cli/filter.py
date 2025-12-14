@@ -57,6 +57,10 @@ HEADER_TO_KEY: Dict[str, str] = {
     "conn": "conn",
     "conn.": "conn",
     "connection": "conn",
+    "relation": "relation",
+    "relations": "relation",
+    "p": "public",
+    "public": "public",
     "groups": "groups",
     "social": "social",
     "bio": "bio",
@@ -139,14 +143,23 @@ def get_conn_display_value(item: Dict[str, Any]) -> str:
     connected = "C" if item.get("connected") else "-"
     follower = "F" if item.get("follower") else "-"
     following = "F" if item.get("following") else "-"
-    ignore = "-"  # Not available yet
-    return f"{connected} {follower} {following} {ignore}"
+    ignoring = "I" if item.get("ignoring") else "-"
+    return f"{connected} {follower} {following} {ignoring}"
+
+
+def get_public_display_value(item: Dict[str, Any]) -> str:
+    """
+    Convert public field to display format for filtering.
+
+    Example: public=True -> "P", public=False -> "-"
+    """
+    return "P" if item.get("public") else "-"
 
 
 def get_filter_value(item: Dict[str, Any], column: str) -> str:
     """
     Get the filterable value for a column from an item.
-    Handles special columns like 'shared', 'triggers', and 'conn'.
+    Handles special columns like 'shared', 'triggers', 'conn', 'relation', and 'public'.
     """
     value = item.get(column, "")
 
@@ -158,6 +171,12 @@ def get_filter_value(item: Dict[str, Any], column: str) -> str:
 
     if column == "conn":
         return get_conn_display_value(item)
+
+    if column == "relation":
+        return get_conn_display_value(item)
+
+    if column == "public":
+        return get_public_display_value(item)
 
     if value is None:
         return ""
@@ -214,11 +233,12 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
             commit = "C" if "C" in pattern_upper else "-"
             expected = f"{mail} {sched} {api} {commit}"
             return value == expected
-        # Special handling for conn column: check exact flag combination
-        if filter_obj.column == "conn":
-            # For conn, exact match means "exactly these flags and no others"
+        # Special handling for conn/relation column: check exact flag combination
+        if filter_obj.column in ("conn", "relation"):
+            # For conn/relation, exact match means "exactly these flags and no others"
             # e.g., conn=C matches "C - - -" (only connected)
             # e.g., conn=CF matches "C F - -" (connected + follower, no following)
+            # e.g., relation=I matches "- - - I" (only ignoring)
             pattern_upper = filter_obj.pattern.upper()
             # Build expected display value from pattern
             # Note: F appears twice (follower and following), use position to distinguish
@@ -227,9 +247,18 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
             f_count = pattern_upper.count("F")
             follower = "F" if f_count >= 1 else "-"
             following = "F" if f_count >= 2 else "-"
-            ignore = "-"
-            expected = f"{connected} {follower} {following} {ignore}"
+            ignoring = "I" if "I" in pattern_upper else "-"
+            expected = f"{connected} {follower} {following} {ignoring}"
             return value == expected
+        # Special handling for public column: check exact match
+        if filter_obj.column == "public":
+            # For public, exact match: p=P matches public users, p= or p=- matches non-public
+            pattern_upper = filter_obj.pattern.upper()
+            if pattern_upper == "P":
+                return value == "P"
+            elif pattern_upper in ("", "-"):
+                return value == "-"
+            return value.lower() == filter_obj.pattern.lower()
         # Case-insensitive exact match for other columns
         return value.lower() == filter_obj.pattern.lower()
 
@@ -268,20 +297,30 @@ def matches_filter(item: Dict[str, Any], filter_obj: ColumnFilter) -> bool:
                 if "C" in pattern_upper and "C" not in value:
                     return False
                 return True
-        # Special handling for conn column: check if flags are present (subset match)
-        if filter_obj.column == "conn":
-            # For conn regex, check if all specified flags are present
+        # Special handling for conn/relation column: check if flags are present (subset match)
+        if filter_obj.column in ("conn", "relation"):
+            # For conn/relation regex, check if all specified flags are present
             # e.g., conn~C matches any connected user (could have others)
             # e.g., conn~CF matches any connected AND follower
+            # e.g., relation~I matches any user being ignored
             pattern_upper = filter_obj.pattern.upper()
-            if all(c in "CF" for c in pattern_upper):
+            if all(c in "CFI" for c in pattern_upper):
                 # Pattern is just flags, do subset match
                 if "C" in pattern_upper and "C" not in value:
                     return False
                 # F means at least one F (follower or following) is present
                 if "F" in pattern_upper and "F" not in value:
                     return False
+                if "I" in pattern_upper and "I" not in value:
+                    return False
                 return True
+        # Special handling for public column: check if flag is present
+        if filter_obj.column == "public":
+            # For public regex, p~P matches public users
+            pattern_upper = filter_obj.pattern.upper()
+            if pattern_upper == "P":
+                return "P" in value
+            # Fall through to normal regex matching
         # Case-insensitive regex match
         try:
             regex = re.compile(filter_obj.pattern, re.I)
