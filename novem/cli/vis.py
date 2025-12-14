@@ -559,8 +559,30 @@ def list_users(args: Dict[str, Any]) -> None:
 
     # Pre-process formatted columns
     for p in plist:
-        # Verified star marker
-        p["_verified"] = f" {cl.WARNING}*{cl.ENDFGC} " if p.get("verified") else "   "
+        # Marker: > for current user, * for verified/novem/org users
+        user_type = p.get("type", "").upper()
+        is_me = p.get("username", "") == current_user
+
+        if is_me:
+            # Current user always shows > with color based on type
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}>{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}>{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}>{cl.ENDFGC} "
+            else:
+                p["_verified"] = " > "
+        else:
+            # Other users show symbol based on type: ◆ for novem, * for verified, + for org
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}◆{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}*{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}+{cl.ENDFGC} "
+            else:
+                p["_verified"] = "   "
 
         # Connection status: C F F I (connected, follower, following, ignore)
         connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
