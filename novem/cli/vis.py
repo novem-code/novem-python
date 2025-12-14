@@ -427,8 +427,14 @@ def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
 
     plist = []
 
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/jobs/{job_name}/tags"
+    else:
+        tag_path = f"jobs/{job_name}/tags"
+
     try:
-        plist = json.loads(novem.read(f"jobs/{job_name}/tags"))
+        plist = json.loads(novem.read(tag_path))
     except Novem404:
         plist = []
 
