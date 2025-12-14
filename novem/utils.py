@@ -338,17 +338,9 @@ def pretty_format_inner(
             if ov is None:
                 ov = ""
 
-            # Use visual length (stripped of ANSI codes) to determine truncation
-            ov_visual = strip_ansi(str(ov))
-            if len(ov_visual) > vs:
-                # Truncate based on visual length, keeping ANSI codes intact where possible
-                # For simplicity, strip ANSI first, truncate, then we lose colors on truncated text
-                val = ov_visual[0 : vs - 3] + "..."
-            else:
-                val = ov
-
             if "fmt" in o:
-                val = o["fmt"](val, cl)
+                # Call fmt function on the ORIGINAL value (before any string conversion)
+                val = o["fmt"](ov, cl)
                 # Adjust format width for invisible ANSI characters
                 val_str = str(val)
                 visual_len = len(strip_ansi(val_str))
@@ -357,6 +349,21 @@ def pretty_format_inner(
                 adjusted_width = wm[o["key"]] + invisible_chars
                 w = f":{align}{adjusted_width}"
                 fmt = "{0" + w + "}"
+                # Truncation on formatted value (loses ANSI codes if truncated)
+                if visual_len > vs:
+                    val = strip_ansi(val_str)[0 : vs - 3] + "..."
+                    # Reset width since we stripped ANSI
+                    w = f":{align}{vs}"
+                    fmt = "{0" + w + "}"
+            else:
+                # Use visual length (stripped of ANSI codes) to determine truncation
+                ov_visual = strip_ansi(str(ov))
+                if len(ov_visual) > vs:
+                    # Truncate based on visual length, keeping ANSI codes intact where possible
+                    # For simplicity, strip ANSI first, truncate, then we lose colors on truncated text
+                    val = ov_visual[0 : vs - 3] + "..."
+                else:
+                    val = ov
 
             val = fmt.format(val)
 
