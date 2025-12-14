@@ -26,6 +26,7 @@ from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
 from .setup import setup
+from .vis import list_orgs
 
 sys.tracebacklimit = 0
 
@@ -420,6 +421,9 @@ novem --init --profile {args["profile"]}\
         job(args)
     elif args and args["invite"] != "":
         invite(args)
+    # operate on org listing (if -O with no argument)
+    elif args and args.get("org") is None and "org" in args:
+        list_orgs(args)
     elif args and ("group" in args or "org" in args):
         group(args)
         pass

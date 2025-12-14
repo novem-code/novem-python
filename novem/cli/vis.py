@@ -9,7 +9,7 @@ from novem.exceptions import Novem404
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
 from .filter import apply_filters
-from .gql import NovemGQL, list_grids_gql, list_jobs_gql, list_mails_gql, list_plots_gql, list_users_gql
+from .gql import NovemGQL, list_grids_gql, list_jobs_gql, list_mails_gql, list_orgs_gql, list_plots_gql, list_users_gql
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -831,6 +831,165 @@ def list_jobs(args: Dict[str, Any]) -> None:
     for p in plist:
         p["_steps"] = p["_steps"].rjust(max_steps)
         p["run_count"] = p["run_count"].rjust(max_runs)
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def _format_relative_time(date_str: str) -> str:
+    """Format a date string as relative time (e.g., '2 weeks ago')."""
+    if not date_str:
+        return ""
+    try:
+        parsed = eut.parsedate(date_str)
+        if not parsed:
+            return date_str
+        dt = datetime.datetime(*parsed[:6])
+        now = datetime.datetime.now()
+        delta = now - dt
+
+        if delta.days < 0:
+            return "in the future"
+        elif delta.days == 0:
+            if delta.seconds < 60:
+                return "just now"
+            elif delta.seconds < 3600:
+                mins = delta.seconds // 60
+                return f"{mins} min{'s' if mins != 1 else ''} ago"
+            else:
+                hours = delta.seconds // 3600
+                return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif delta.days == 1:
+            return "yesterday"
+        elif delta.days < 7:
+            return f"{delta.days} days ago"
+        elif delta.days < 14:
+            return "1 week ago"
+        elif delta.days < 30:
+            weeks = delta.days // 7
+            return f"{weeks} weeks ago"
+        elif delta.days < 60:
+            return "1 month ago"
+        elif delta.days < 365:
+            months = delta.days // 30
+            return f"{months} months ago"
+        elif delta.days < 730:
+            return "1 year ago"
+        else:
+            years = delta.days // 365
+            return f"{years} years ago"
+    except Exception:
+        return date_str
+
+
+def list_orgs(args: Dict[str, Any]) -> None:
+    """List organizations with custom formatting."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_orgs_gql(gql)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by role priority, then name
+    role_order = {"founder": 0, "admin": 1, "superuser": 2, "member": 3}
+    plist = sorted(plist, key=lambda x: (role_order.get(x.get("role", "member"), 3), x.get("name", "").lower()))
+
+    if args.get("list"):
+        # print org ids only
+        for p in plist:
+            print(f"+{p['id']}")
+        return
+
+    def state_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format state column: P O S (public, open, subdomain)."""
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if item.get("public") else "-"
+        opn = f"{cl.FAIL}O{cl.ENDFGC}" if item.get("is_open") else "-"
+        sub = f"{cl.WARNING}S{cl.ENDFGC}" if item.get("enable_subdomain") else "-"
+        return f"{pub} {opn} {sub}"
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "_org_id",
+            "header": "Org ID",
+            "type": "text",
+            "clr": cl.OKGREEN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "groups_count",
+            "header": "Grp",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "members_count",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "_state",
+            "header": "State",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_joined",
+            "header": "Joined",
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process columns
+    for p in plist:
+        # Org ID with + prefix
+        p["_org_id"] = f"+{p.get('id', '')}"
+
+        # State column
+        p["_state"] = state_fmt(p, cl)
+
+        # Joined column (relative time)
+        p["_joined"] = _format_relative_time(p.get("created", ""))
+
+        # Convert counts to strings
+        p["groups_count"] = str(p.get("groups_count", 0))
+        p["members_count"] = str(p.get("members_count", 0))
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)

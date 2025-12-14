@@ -325,7 +325,8 @@ def pretty_format_inner(
     i = 0
     for p in values:
         for o in order:
-            w = f':<{wm[o["key"]]}'
+            align = ">" if o.get("align") == "right" else "<"
+            w = f":{align}{wm[o['key']]}"
             fmt = "{0" + w + "}"
             try:
                 vs = wm[o["key"]]
@@ -348,6 +349,14 @@ def pretty_format_inner(
 
             if "fmt" in o:
                 val = o["fmt"](val, cl)
+                # Adjust format width for invisible ANSI characters
+                val_str = str(val)
+                visual_len = len(strip_ansi(val_str))
+                actual_len = len(val_str)
+                invisible_chars = actual_len - visual_len
+                adjusted_width = wm[o["key"]] + invisible_chars
+                w = f":{align}{adjusted_width}"
+                fmt = "{0" + w + "}"
 
             val = fmt.format(val)
 

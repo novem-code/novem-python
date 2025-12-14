@@ -7,7 +7,7 @@ while the core data operations remain REST-based.
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import requests
 
@@ -405,3 +405,117 @@ def list_users_gql(gql: NovemGQL, limit: Optional[int] = None) -> List[Dict[str,
     data = gql._query(LIST_USERS_QUERY, variables if variables else None)
     users = data.get("users", [])
     return _transform_users_response(users, "")
+
+
+LIST_ORGS_QUERY = """
+query ListOrgs {
+  me {
+    founder {
+      id
+      type
+      name
+      public
+      is_open
+      enable_subdomain
+      groups { id }
+      founders { username }
+      admins { username }
+      superusers { username }
+      members { username }
+      created
+    }
+    admin {
+      id
+      type
+      name
+      public
+      is_open
+      enable_subdomain
+      groups { id }
+      founders { username }
+      admins { username }
+      superusers { username }
+      members { username }
+      created
+    }
+    superuser {
+      id
+      type
+      name
+      public
+      is_open
+      enable_subdomain
+      groups { id }
+      founders { username }
+      admins { username }
+      superusers { username }
+      members { username }
+      created
+    }
+    member {
+      id
+      type
+      name
+      public
+      is_open
+      enable_subdomain
+      groups { id }
+      founders { username }
+      admins { username }
+      superusers { username }
+      members { username }
+      created
+    }
+  }
+}
+"""
+
+
+def _transform_orgs_response(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Transform GraphQL org response into flat format for display."""
+    me = data.get("me", {}) or {}
+    result: List[Dict[str, Any]] = []
+    seen_ids: Set[str] = set()
+
+    # Process each role list, highest role first
+    role_priority = ["founder", "admin", "superuser", "member"]
+
+    for role in role_priority:
+        groups = me.get(role, []) or []
+        for group in groups:
+            # Only include orgs (not org_groups or user_groups)
+            if group.get("type") != "org":
+                continue
+            # Skip if already seen (user has multiple roles, use highest)
+            if group.get("id") in seen_ids:
+                continue
+            seen_ids.add(group.get("id"))
+
+            # Sum all member types for total member count
+            members_count = (
+                len(group.get("founders", []) or [])
+                + len(group.get("admins", []) or [])
+                + len(group.get("superusers", []) or [])
+                + len(group.get("members", []) or [])
+            )
+
+            transformed = {
+                "id": group.get("id", ""),
+                "name": group.get("name", "") or "",
+                "role": role,
+                "public": group.get("public") or False,
+                "is_open": group.get("is_open") or False,
+                "enable_subdomain": group.get("enable_subdomain") or False,
+                "groups_count": len(group.get("groups", []) or []),
+                "members_count": members_count,
+                "created": group.get("created", "") or "",
+            }
+            result.append(transformed)
+
+    return result
+
+
+def list_orgs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List user's orgs via GraphQL, returning transformed format."""
+    data = gql._query(LIST_ORGS_QUERY)
+    return _transform_orgs_response(data)
