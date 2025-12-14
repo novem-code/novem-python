@@ -230,7 +230,8 @@ def _transform_shared(public: bool, shared: List[Dict[str, Any]]) -> List[str]:
         result.append("public")
 
     for group in shared:
-        group_type = group.get("type", "")
+        # GraphQL enums may be returned in uppercase, so normalize to lowercase
+        group_type = group.get("type", "").lower()
 
         if group_type == "user_group":
             result.append("@")
@@ -991,3 +992,143 @@ def list_org_group_members_gql(gql: NovemGQL, org_id: str, group_id: str, curren
     variables = {"orgId": org_id}
     data = gql._query(LIST_ORG_GROUP_MEMBERS_QUERY, variables)
     return _transform_org_group_members_response(data, group_id, current_user)
+
+
+LIST_ORG_GROUP_VIS_QUERY = """
+query ListOrgGroupVis($orgId: ID!) {
+  groups(id: $orgId, type: org) {
+    id
+    groups {
+      id
+      plots {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+      grids {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+      mails {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+      docs {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+      repos {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+      jobs {
+        id
+        name
+        type
+        summary
+        url
+        updated
+        public
+        shared { id name type }
+        tags { id name type }
+        author { username }
+      }
+    }
+  }
+}
+"""
+
+
+def _transform_org_group_vis_response(data: Dict[str, Any], group_id: str, vis_type: str) -> List[Dict[str, Any]]:
+    """
+    Transform GraphQL org group vis response for display.
+
+    Returns vis items of the specified type from the specific group,
+    with author/id as the display ID.
+    """
+    groups_list = data.get("groups", []) or []
+    if not groups_list:
+        return []
+
+    org = groups_list[0]
+    org_groups = org.get("groups", []) or []
+
+    # Find the specific group by ID
+    group = None
+    for g in org_groups:
+        if g.get("id") == group_id:
+            group = g
+            break
+
+    if not group:
+        return []
+
+    # Get vis items of the specified type
+    vis_items = group.get(vis_type, []) or []
+
+    # Transform to display format with separate author and id
+    result = []
+    for item in vis_items:
+        author = item.get("author", {}) or {}
+        author_username = author.get("username", "")
+
+        transformed = {
+            "username": author_username,
+            "id": item.get("id", ""),
+            "name": item.get("name", "") or "",
+            "type": item.get("type", ""),
+            "summary": item.get("summary"),
+            "uri": item.get("url", ""),
+            "updated": item.get("updated", ""),
+            "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
+            "fav": _get_markers(item.get("tags", [])),
+        }
+        result.append(transformed)
+
+    return result
+
+
+def list_org_group_vis_gql(gql: NovemGQL, org_id: str, group_id: str, vis_type: str) -> List[Dict[str, Any]]:
+    """List vis shared with an org group, returning REST-compatible format."""
+    variables = {"orgId": org_id}
+    data = gql._query(LIST_ORG_GROUP_VIS_QUERY, variables)
+    return _transform_org_group_vis_response(data, group_id, vis_type)

@@ -15,6 +15,7 @@ from .gql import (
     list_jobs_gql,
     list_mails_gql,
     list_org_group_members_gql,
+    list_org_group_vis_gql,
     list_org_groups_gql,
     list_org_members_gql,
     list_orgs_gql,
@@ -1394,8 +1395,164 @@ def list_org_groups(args: Dict[str, Any]) -> None:
     print(ppl)
 
 
+def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
+    """List visualizations shared with a specific org group."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    group_id = args.get("group", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+    if not group_id:
+        print("Error: No group specified")
+        return
+
+    # Map vis_type to GraphQL field name (plural)
+    vis_type_map = {
+        "Plot": "plots",
+        "Grid": "grids",
+        "Mail": "mails",
+        "Doc": "docs",
+        "Repo": "repos",
+        "Job": "jobs",
+    }
+    gql_vis_type = vis_type_map.get(vis_type, vis_type.lower() + "s")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_group_vis_gql(gql, org_id, group_id, gql_vis_type)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
+    def parse_date(date_str: str) -> datetime.datetime:
+        parsed = eut.parsedate(date_str)
+        if parsed:
+            return datetime.datetime(*parsed[:6])
+        return datetime.datetime.min
+
+    def sort_tier(markers: str) -> int:
+        """Return sort tier: 0=fav, 1=like only, 2=rest."""
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
+
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x.get("updated", "")).timestamp()))
+
+    if args.get("list"):
+        # print to terminal (username/id format for easy use)
+        for p in plist:
+            print(f"{p['username']}/{p['id']}")
+        return
+
+    def share_fmt(share: str, _cl: Any) -> str:
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDFGC}" if "c" in sl else "-"  # chat claim
+        ug = f"{cl.OKGREEN}@{cl.ENDFGC}" if "@" in sl else "-"  # user group
+        og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def summary_fmt(summary: Optional[str], _cl: Any) -> str:
+        if not summary:
+            return ""
+        return summary.replace("\n", "")
+
+    def fav_fmt(markers: str, _cl: Any) -> str:
+        fav_str = f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "fav",
+            "header": "    ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "id",
+            "header": f"{vis_type} ID",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "type",
+            "header": "Type",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "uri",
+            "header": "Url",
+            "type": "url",
+            "overflow": "keep",
+        },
+        {
+            "key": "updated",
+            "header": "Updated",
+            "type": "date",
+            "overflow": "keep",
+        },
+        {
+            "key": "summary",
+            "header": "Summary",
+            "fmt": summary_fmt,
+            "type": "text",
+            "overflow": "truncate",
+        },
+    ]
+
+    for p in plist:
+        if p.get("updated"):
+            parsed = eut.parsedate(p["updated"])
+            if parsed:
+                nd = datetime.datetime(*parsed[:6])
+                p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
 def list_org_group_users(args: Dict[str, Any]) -> None:
     """List members of a specific org group with roles and content shared with that group."""
+    # Called from: novem -O <org> -G <group> -u
     colors()
 
     if "profile" in args:
