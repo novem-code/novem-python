@@ -417,7 +417,15 @@ query ListOrgs {
       public
       is_open
       enable_subdomain
-      groups { id }
+      groups {
+        id
+        plots { id author { username } }
+        grids { id author { username } }
+        mails { id author { username } }
+        docs { id author { username } }
+        repos { id author { username } }
+        jobs { id author { username } }
+      }
       founders { username }
       admins { username }
       superusers { username }
@@ -431,7 +439,15 @@ query ListOrgs {
       public
       is_open
       enable_subdomain
-      groups { id }
+      groups {
+        id
+        plots { id author { username } }
+        grids { id author { username } }
+        mails { id author { username } }
+        docs { id author { username } }
+        repos { id author { username } }
+        jobs { id author { username } }
+      }
       founders { username }
       admins { username }
       superusers { username }
@@ -445,7 +461,15 @@ query ListOrgs {
       public
       is_open
       enable_subdomain
-      groups { id }
+      groups {
+        id
+        plots { id author { username } }
+        grids { id author { username } }
+        mails { id author { username } }
+        docs { id author { username } }
+        repos { id author { username } }
+        jobs { id author { username } }
+      }
       founders { username }
       admins { username }
       superusers { username }
@@ -459,7 +483,15 @@ query ListOrgs {
       public
       is_open
       enable_subdomain
-      groups { id }
+      groups {
+        id
+        plots { id author { username } }
+        grids { id author { username } }
+        mails { id author { username } }
+        docs { id author { username } }
+        repos { id author { username } }
+        jobs { id author { username } }
+      }
       founders { username }
       admins { username }
       superusers { username }
@@ -499,6 +531,21 @@ def _transform_orgs_response(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 + len(group.get("members", []) or [])
             )
 
+            # Count vis across all org groups (deduplicated by author/id)
+            vis_types = ["plots", "grids", "mails", "docs", "repos", "jobs"]
+            vis_counts: Dict[str, Set[str]] = {vt: set() for vt in vis_types}
+
+            org_groups = group.get("groups", []) or []
+            for org_group in org_groups:
+                for vis_type in vis_types:
+                    for vis in org_group.get(vis_type, []) or []:
+                        vis_id = vis.get("id", "")
+                        author = vis.get("author", {}) or {}
+                        author_username = author.get("username", "")
+                        if vis_id and author_username:
+                            # Use author/id as unique key since IDs are user-scoped
+                            vis_counts[vis_type].add(f"{author_username}/{vis_id}")
+
             transformed = {
                 "id": group.get("id", ""),
                 "name": group.get("name", "") or "",
@@ -506,8 +553,14 @@ def _transform_orgs_response(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "public": group.get("public") or False,
                 "is_open": group.get("is_open") or False,
                 "enable_subdomain": group.get("enable_subdomain") or False,
-                "groups_count": len(group.get("groups", []) or []),
+                "groups_count": len(org_groups),
                 "members_count": members_count,
+                "plots": len(vis_counts["plots"]),
+                "grids": len(vis_counts["grids"]),
+                "mails": len(vis_counts["mails"]),
+                "docs": len(vis_counts["docs"]),
+                "repos": len(vis_counts["repos"]),
+                "jobs": len(vis_counts["jobs"]),
                 "created": group.get("created", "") or "",
             }
             result.append(transformed)

@@ -936,6 +936,30 @@ def list_orgs(args: Dict[str, Any]) -> None:
             return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
         return role
 
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
     ppo: List[Dict[str, Any]] = [
         {
             "key": "id",
@@ -978,6 +1002,12 @@ def list_orgs(args: Dict[str, Any]) -> None:
             "overflow": "keep",
         },
         {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
             "key": "_joined",
             "header": "Joined",
             "type": "text",
@@ -992,6 +1022,18 @@ def list_orgs(args: Dict[str, Any]) -> None:
 
         # Joined column (relative time)
         p["_joined"] = _format_relative_time(p.get("created", ""))
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
 
         # Convert counts to strings
         p["groups_count"] = str(p.get("groups_count", 0))
