@@ -14,6 +14,7 @@ from .gql import (
     list_grids_gql,
     list_jobs_gql,
     list_mails_gql,
+    list_org_groups_gql,
     list_org_members_gql,
     list_orgs_gql,
     list_plots_gql,
@@ -1220,6 +1221,171 @@ def list_org_users(args: Dict[str, Any]) -> None:
             f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
             f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
         )
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_groups(args: Dict[str, Any]) -> None:
+    """List groups within an org."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+
+    current_user = config.get("username", "")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_groups_gql(gql, org_id, current_user)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by name
+    plist = sorted(plist, key=lambda x: x.get("name", "").lower())
+
+    if args.get("list"):
+        # print group ids only
+        for p in plist:
+            print(p["id"])
+        return
+
+    def state_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format state column: P O (public, open)."""
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if item.get("public") else "-"
+        opn = f"{cl.FAIL}O{cl.ENDFGC}" if item.get("is_open") else "-"
+        return f"{pub} {opn}"
+
+    def mail_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format mail column: M S D (inbound, spf, dkim)."""
+        inb = f"{cl.OKCYAN}M{cl.ENDFGC}" if item.get("allow_inbound_mail") else "-"
+        spf = f"{cl.OKGREEN}S{cl.ENDFGC}" if item.get("mail_verify_spf") else "-"
+        dkim = f"{cl.OKGREEN}D{cl.ENDFGC}" if item.get("mail_verify_dkim") else "-"
+        return f"{inb} {spf} {dkim}"
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "id",
+            "header": "Group ID",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "members_count",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "_state",
+            "header": "State",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_mail",
+            "header": "Mail",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_joined",
+            "header": "Created",
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process columns
+    for p in plist:
+        # State column
+        p["_state"] = state_fmt(p, cl)
+
+        # Mail column
+        p["_mail"] = mail_fmt(p, cl)
+
+        # Created column (relative time)
+        p["_joined"] = _format_relative_time(p.get("created", ""))
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
+
+        # Convert counts to strings
+        p["members_count"] = str(p.get("members_count", 0))
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)

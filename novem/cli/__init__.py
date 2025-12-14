@@ -26,7 +26,7 @@ from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
 from .setup import setup
-from .vis import list_org_users, list_orgs
+from .vis import list_org_groups, list_org_users, list_orgs
 
 sys.tracebacklimit = 0
 
@@ -410,6 +410,9 @@ novem --init --profile {args["profile"]}\
     # operate on org user listing (if -O <org> -u)
     if args and args.get("org") and "for_user" in args and args.get("for_user") is None:
         list_org_users(args)
+    # operate on org group listing (if -O <org> -G)
+    elif args and args.get("org") and "group" in args and args.get("group") is None:
+        list_org_groups(args)
     # operate on user listing (if -u with no argument)
     elif args and args.get("for_user") is None and "for_user" in args:
         user(args)

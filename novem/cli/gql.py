@@ -727,3 +727,102 @@ def list_org_members_gql(gql: NovemGQL, org_id: str, current_user: str) -> List[
     variables = {"orgId": org_id}
     data = gql._query(LIST_ORG_MEMBERS_QUERY, variables)
     return _transform_org_members_response(data, current_user)
+
+
+LIST_ORG_GROUPS_QUERY = """
+query ListOrgGroups($orgId: ID!) {
+  groups(id: $orgId, type: org) {
+    id
+    groups {
+      id
+      name
+      public
+      is_open
+      allow_inbound_mail
+      mail_verify_spf
+      mail_verify_dkim
+      founders { username }
+      admins { username }
+      superusers { username }
+      members { username }
+      plots { id author { username } }
+      grids { id author { username } }
+      mails { id author { username } }
+      docs { id author { username } }
+      repos { id author { username } }
+      jobs { id author { username } }
+      created
+    }
+  }
+}
+"""
+
+
+def _transform_org_groups_response(data: Dict[str, Any], current_user: str) -> List[Dict[str, Any]]:
+    """Transform GraphQL org groups response for display."""
+    groups_list = data.get("groups", []) or []
+    if not groups_list:
+        return []
+
+    org = groups_list[0]
+    org_groups = org.get("groups", []) or []
+    result: List[Dict[str, Any]] = []
+
+    for group in org_groups:
+        # Sum all member types for total member count
+        members_count = (
+            len(group.get("founders", []) or [])
+            + len(group.get("admins", []) or [])
+            + len(group.get("superusers", []) or [])
+            + len(group.get("members", []) or [])
+        )
+
+        # Determine current user's role in this group
+        role = ""
+        role_fields = [("founder", "founders"), ("admin", "admins"), ("superuser", "superusers"), ("member", "members")]
+        for role_name, field in role_fields:
+            users = group.get(field, []) or []
+            if any(u.get("username") == current_user for u in users):
+                role = role_name
+                break
+
+        # Count vis (deduplicated by author/id)
+        vis_types = ["plots", "grids", "mails", "docs", "repos", "jobs"]
+        vis_counts: Dict[str, Set[str]] = {vt: set() for vt in vis_types}
+
+        for vis_type in vis_types:
+            for vis in group.get(vis_type, []) or []:
+                vis_id = vis.get("id", "")
+                author = vis.get("author", {}) or {}
+                author_username = author.get("username", "")
+                if vis_id and author_username:
+                    vis_counts[vis_type].add(f"{author_username}/{vis_id}")
+
+        transformed = {
+            "id": group.get("id", ""),
+            "name": group.get("name", "") or "",
+            "role": role,
+            "public": group.get("public") or False,
+            "is_open": group.get("is_open") or False,
+            "allow_inbound_mail": group.get("allow_inbound_mail") or False,
+            "mail_verify_spf": group.get("mail_verify_spf") or False,
+            "mail_verify_dkim": group.get("mail_verify_dkim") or False,
+            "members_count": members_count,
+            "plots": len(vis_counts["plots"]),
+            "grids": len(vis_counts["grids"]),
+            "mails": len(vis_counts["mails"]),
+            "docs": len(vis_counts["docs"]),
+            "repos": len(vis_counts["repos"]),
+            "jobs": len(vis_counts["jobs"]),
+            "created": group.get("created", "") or "",
+        }
+        result.append(transformed)
+
+    return result
+
+
+def list_org_groups_gql(gql: NovemGQL, org_id: str, current_user: str) -> List[Dict[str, Any]]:
+    """List org's groups via GraphQL, returning transformed format."""
+    variables = {"orgId": org_id}
+    data = gql._query(LIST_ORG_GROUPS_QUERY, variables)
+    return _transform_org_groups_response(data, current_user)
