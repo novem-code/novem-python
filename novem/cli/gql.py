@@ -826,3 +826,168 @@ def list_org_groups_gql(gql: NovemGQL, org_id: str, current_user: str) -> List[D
     variables = {"orgId": org_id}
     data = gql._query(LIST_ORG_GROUPS_QUERY, variables)
     return _transform_org_groups_response(data, current_user)
+
+
+LIST_ORG_GROUP_MEMBERS_QUERY = """
+query ListOrgGroupMembers($orgId: ID!) {
+  groups(id: $orgId, type: org) {
+    id
+    groups {
+      id
+      name
+      founders {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      admins {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      superusers {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      members {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      plots { id author { username } }
+      grids { id author { username } }
+      mails { id author { username } }
+      docs { id author { username } }
+      repos { id author { username } }
+      jobs { id author { username } }
+    }
+  }
+}
+"""
+
+
+def _transform_org_group_members_response(
+    data: Dict[str, Any], group_id: str, current_user: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform GraphQL org group members response for display.
+
+    Similar to org members but for a specific group, counting vis shared with this group.
+    """
+    groups_list = data.get("groups", []) or []
+    if not groups_list:
+        return []
+
+    org = groups_list[0]
+    org_groups = org.get("groups", []) or []
+
+    # Find the specific group by ID
+    group = None
+    for g in org_groups:
+        if g.get("id") == group_id:
+            group = g
+            break
+
+    if not group:
+        return []
+
+    # Role priority: founder > admin > superuser > member
+    role_priority = ["founder", "admin", "superuser", "member"]
+    role_fields = ["founders", "admins", "superusers", "members"]
+
+    # Build member dict with highest role (deduped)
+    members: Dict[str, Dict[str, Any]] = {}
+    for role, field in zip(role_priority, role_fields):
+        for user in group.get(field, []) or []:
+            username = user.get("username", "")
+            if username and username not in members:
+                relationship = user.get("relationship", {}) or {}
+                members[username] = {
+                    "username": username,
+                    "name": user.get("name", "") or "",
+                    "type": user.get("type", "REGULAR"),
+                    "public": user.get("public") or False,
+                    "role": role,
+                    "connected": relationship.get("connected") or False,
+                    "follower": relationship.get("follower") or False,
+                    "following": relationship.get("following") or False,
+                    "ignoring": relationship.get("ignoring") or False,
+                    # Initialize vis counts as sets for deduplication
+                    "plots": set(),
+                    "grids": set(),
+                    "mails": set(),
+                    "docs": set(),
+                    "repos": set(),
+                    "jobs": set(),
+                }
+
+    # Count vis per user from this group
+    vis_types = ["plots", "grids", "mails", "docs", "repos", "jobs"]
+    for vis_type in vis_types:
+        for vis in group.get(vis_type, []) or []:
+            author = vis.get("author", {}) or {}
+            author_username = author.get("username", "")
+            vis_id = vis.get("id", "")
+            if author_username in members and vis_id:
+                members[author_username][vis_type].add(f"{author_username}/{vis_id}")
+
+    # Convert sets to counts and return as list
+    result = []
+    for username, member in members.items():
+        member_data = {
+            "username": member["username"],
+            "name": member["name"],
+            "type": member["type"],
+            "public": member["public"],
+            "role": member["role"],
+            "connected": member["connected"],
+            "follower": member["follower"],
+            "following": member["following"],
+            "ignoring": member["ignoring"],
+            "plots": len(member["plots"]),
+            "grids": len(member["grids"]),
+            "mails": len(member["mails"]),
+            "docs": len(member["docs"]),
+            "repos": len(member["repos"]),
+            "jobs": len(member["jobs"]),
+            "is_me": username == current_user,
+        }
+        result.append(member_data)
+
+    return result
+
+
+def list_org_group_members_gql(gql: NovemGQL, org_id: str, group_id: str, current_user: str) -> List[Dict[str, Any]]:
+    """List org group members via GraphQL, returning transformed format with vis counts."""
+    variables = {"orgId": org_id}
+    data = gql._query(LIST_ORG_GROUP_MEMBERS_QUERY, variables)
+    return _transform_org_group_members_response(data, group_id, current_user)

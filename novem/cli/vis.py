@@ -14,6 +14,7 @@ from .gql import (
     list_grids_gql,
     list_jobs_gql,
     list_mails_gql,
+    list_org_group_members_gql,
     list_org_groups_gql,
     list_org_members_gql,
     list_orgs_gql,
@@ -1386,6 +1387,192 @@ def list_org_groups(args: Dict[str, Any]) -> None:
 
         # Convert counts to strings
         p["members_count"] = str(p.get("members_count", 0))
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_group_users(args: Dict[str, Any]) -> None:
+    """List members of a specific org group with roles and content shared with that group."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    group_id = args.get("group", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+    if not group_id:
+        print("Error: No group specified")
+        return
+
+    current_user = config.get("username", "")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_group_members_gql(gql, org_id, group_id, current_user)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Role priority map for sorting
+    role_order = {"founder": 0, "admin": 1, "superuser": 2, "member": 3}
+
+    # Sort by: me first > role priority > connected > alphabetically
+    def user_sort_key(u: Dict[str, Any]) -> Tuple[bool, int, bool, str]:
+        is_me = u.get("is_me", False)
+        return (
+            not is_me,  # Current user first
+            role_order.get(u.get("role", "member"), 3),  # Role priority
+            not u.get("connected", False),  # Connected users next
+            u.get("username", "").lower(),  # Alphabetically by username
+        )
+
+    plist = sorted(plist, key=user_sort_key)
+
+    if args.get("list"):
+        # print usernames only
+        for p in plist:
+            print(p["username"])
+        return
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "_verified",
+            "header": "   ",
+            "type": "text",
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "_public",
+            "header": "P",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_conn",
+            "header": "Relation",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process formatted columns
+    for p in plist:
+        # Marker: > for current user, * for verified/novem/org users
+        user_type = p.get("type", "").upper()
+        is_me = p.get("is_me", False)
+
+        if is_me:
+            # Current user always shows > with color based on type
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}>{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}>{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}>{cl.ENDFGC} "
+            else:
+                p["_verified"] = " > "
+        else:
+            # Other users show symbol based on type: ◆ for novem, * for verified, + for org
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}◆{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}*{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}+{cl.ENDFGC} "
+            else:
+                p["_verified"] = "   "
+
+        # Public profile indicator
+        p["_public"] = f"{cl.FAIL}P{cl.ENDFGC}" if p.get("public") else "-"
+
+        # Connection status: C F F I (connected, follower, following, ignoring)
+        connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
+        follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
+        following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
+        ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring} "
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
