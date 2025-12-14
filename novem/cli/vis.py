@@ -916,7 +916,7 @@ def list_orgs(args: Dict[str, Any]) -> None:
     if args.get("list"):
         # print org ids only
         for p in plist:
-            print(f"+{p['id']}")
+            print(p["id"])
         return
 
     def state_fmt(item: Dict[str, Any], _cl: Any) -> str:
@@ -938,10 +938,10 @@ def list_orgs(args: Dict[str, Any]) -> None:
 
     ppo: List[Dict[str, Any]] = [
         {
-            "key": "_org_id",
+            "key": "id",
             "header": "Org ID",
             "type": "text",
-            "clr": cl.OKGREEN,
+            "clr": cl.OKCYAN,
             "overflow": "keep",
         },
         {
@@ -987,9 +987,6 @@ def list_orgs(args: Dict[str, Any]) -> None:
 
     # Pre-process columns
     for p in plist:
-        # Org ID with + prefix
-        p["_org_id"] = f"+{p.get('id', '')}"
-
         # State column
         p["_state"] = state_fmt(p, cl)
 
