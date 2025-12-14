@@ -103,10 +103,8 @@ def refresh_config(args: Dict[str, Any]) -> None:
 
     # get novem username
     assert "username" in curconf
-    prefill = curconf["username"]
-
-    username = input_with_prefill(" \u2022 novem username: ", prefill)
-    # username = "abc"
+    username = curconf["username"]
+    print(f" \u2022 novem username: {username}")
 
     # get novem password
     password = getpass.getpass(" \u2022 novem password: ")
