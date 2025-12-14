@@ -584,12 +584,12 @@ def list_users(args: Dict[str, Any]) -> None:
             else:
                 p["_verified"] = "   "
 
-        # Connection status: C F F I (connected, follower, following, ignore)
+        # Connection status: C F F I (connected, follower, following, ignoring)
         connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
         follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
         following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
-        ignore = "-"  # Not available in current query
-        p["_conn"] = f"{connected} {follower} {following} {ignore}"
+        ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring}"
 
         # Groups: orgs, org_groups, user_groups
         orgs_str = fmt_num(p.get("orgs", 0))
