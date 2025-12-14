@@ -177,12 +177,14 @@ query ListUsers($limit: Int, $offset: Int) {
     name
     type
     bio
+    public
     relationship {
       orgs
       groups
       follower
       connected
       following
+      ignoring
     }
     social {
       followers
@@ -368,10 +370,12 @@ def _transform_users_response(users: List[Dict[str, Any]], me_type: str) -> List
             "name": user.get("name", "") or "",
             "type": user.get("type", ""),
             "bio": user.get("bio", "") or "",
+            "public": user.get("public", False),
             # Relationship fields
             "connected": relationship.get("connected", False),
             "follower": relationship.get("follower", False),
             "following": relationship.get("following", False),
+            "ignoring": relationship.get("ignoring", False),
             "orgs": relationship.get("orgs", 0) or 0,
             "groups": relationship.get("groups", 0) or 0,
             # Social fields

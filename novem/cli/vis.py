@@ -525,8 +525,14 @@ def list_users(args: Dict[str, Any]) -> None:
             "overflow": "keep",
         },
         {
+            "key": "_public",
+            "header": "P",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
             "key": "_conn",
-            "header": "Conn.",
+            "header": "Relation",
             "type": "text",
             "overflow": "keep",
         },
@@ -559,15 +565,40 @@ def list_users(args: Dict[str, Any]) -> None:
 
     # Pre-process formatted columns
     for p in plist:
-        # Verified star marker
-        p["_verified"] = f" {cl.WARNING}*{cl.ENDFGC} " if p.get("verified") else "   "
+        # Marker: > for current user, * for verified/novem/org users
+        user_type = p.get("type", "").upper()
+        is_me = p.get("username", "") == current_user
 
-        # Connection status: C F F I (connected, follower, following, ignore)
+        if is_me:
+            # Current user always shows > with color based on type
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}>{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}>{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}>{cl.ENDFGC} "
+            else:
+                p["_verified"] = " > "
+        else:
+            # Other users show symbol based on type: ◆ for novem, * for verified, + for org
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}◆{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}*{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}+{cl.ENDFGC} "
+            else:
+                p["_verified"] = "   "
+
+        # Public profile indicator
+        p["_public"] = f"{cl.FAIL}P{cl.ENDFGC}" if p.get("public") else "-"
+
+        # Connection status: C F F I (connected, follower, following, ignoring)
         connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
         follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
         following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
-        ignore = "-"  # Not available in current query
-        p["_conn"] = f"{connected} {follower} {following} {ignore}"
+        ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring} "
 
         # Groups: orgs, org_groups, user_groups
         orgs_str = fmt_num(p.get("orgs", 0))
