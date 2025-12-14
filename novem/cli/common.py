@@ -312,8 +312,13 @@ def job(args: Dict[str, Any]) -> None:
 
     create = args["create"]
 
+    usr = None
+    if "for_user" in args and args["for_user"]:
+        usr = args["for_user"]
+
     j = Job(
         name,
+        user=usr,
         ignore_ssl=ignore_ssl,
         create=create,
         config_path=args["config_path"],

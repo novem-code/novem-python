@@ -21,6 +21,7 @@ class NovemJobAPI(NovemAPI):
     shared: Optional[NovemShare]
     tags: Optional[NovemTags]
     id: str
+    user: Optional[str] = None
 
     _debug: bool = False
 
@@ -30,13 +31,20 @@ class NovemJobAPI(NovemAPI):
         if "debug" in kwargs and kwargs["debug"]:
             self._debug = True
 
+        if "user" in kwargs and kwargs["user"]:
+            self.user = kwargs["user"]
+
         if "create" not in kwargs or kwargs["create"]:
             # create when used as an api unless specifically told not to
             self.api_create("")
 
         self.config = NovemJobConfig(self)
-        self.shared = NovemShare(self, f"jobs/{self.id}")
-        self.tags = NovemTags(self, f"jobs/{self.id}")
+        if self.user:
+            base_path = f"users/{self.user}/jobs/{self.id}"
+        else:
+            base_path = f"jobs/{self.id}"
+        self.shared = NovemShare(self, base_path)
+        self.tags = NovemTags(self, base_path)
 
         if "shared" in kwargs:
             self.shared.set(kwargs["shared"])

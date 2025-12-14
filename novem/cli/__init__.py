@@ -26,6 +26,7 @@ from .config import check_if_profile_exists, update_config
 from .group import group
 from .invite import invite
 from .setup import setup
+from .vis import list_org_group_users, list_org_group_vis, list_org_groups, list_org_users, list_orgs
 
 sys.tracebacklimit = 0
 
@@ -406,8 +407,26 @@ novem --init --profile {args["profile"]}\
         qpr = f"{qpr}cols={sz.columns},rows={sz.lines - prompt_lines}"
         args["qpr"] = qpr
 
+    # operate on org group vis listing (if -O <org> -G <group> -p/-m/-g/-j with no vis ID)
+    if args and args.get("org") and args.get("group") and args.get("plot") is None and "plot" in args:
+        list_org_group_vis(args, "Plot")
+    elif args and args.get("org") and args.get("group") and args.get("mail") is None and "mail" in args:
+        list_org_group_vis(args, "Mail")
+    elif args and args.get("org") and args.get("group") and args.get("grid") is None and "grid" in args:
+        list_org_group_vis(args, "Grid")
+    elif args and args.get("org") and args.get("group") and args.get("job") is None and "job" in args:
+        list_org_group_vis(args, "Job")
+    # operate on org group user listing (if -O <org> -G <group> -u)
+    elif args and args.get("org") and args.get("group") and "for_user" in args and args.get("for_user") is None:
+        list_org_group_users(args)
+    # operate on org user listing (if -O <org> -u)
+    elif args and args.get("org") and "for_user" in args and args.get("for_user") is None:
+        list_org_users(args)
+    # operate on org group listing (if -O <org> -G)
+    elif args and args.get("org") and "group" in args and args.get("group") is None:
+        list_org_groups(args)
     # operate on user listing (if -u with no argument)
-    if args and args.get("for_user") is None and "for_user" in args:
+    elif args and args.get("for_user") is None and "for_user" in args:
         user(args)
     # operate on plot
     elif args and args["plot"] != "":
@@ -420,6 +439,9 @@ novem --init --profile {args["profile"]}\
         job(args)
     elif args and args["invite"] != "":
         invite(args)
+    # operate on org listing (if -O with no argument)
+    elif args and args.get("org") is None and "org" in args:
+        list_orgs(args)
     elif args and ("group" in args or "org" in args):
         group(args)
         pass

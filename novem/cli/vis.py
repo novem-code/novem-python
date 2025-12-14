@@ -9,7 +9,19 @@ from novem.exceptions import Novem404
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_current_config, pretty_format
 from .filter import apply_filters
-from .gql import NovemGQL, list_grids_gql, list_jobs_gql, list_mails_gql, list_plots_gql, list_users_gql
+from .gql import (
+    NovemGQL,
+    list_grids_gql,
+    list_jobs_gql,
+    list_mails_gql,
+    list_org_group_members_gql,
+    list_org_group_vis_gql,
+    list_org_groups_gql,
+    list_org_members_gql,
+    list_orgs_gql,
+    list_plots_gql,
+    list_users_gql,
+)
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -384,8 +396,14 @@ def list_vis_tags(vis_name: str, args: Dict[str, str], type: str) -> None:
 
     plist = []
 
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/vis/{pth}s/{vis_name}/tags"
+    else:
+        tag_path = f"vis/{pth}s/{vis_name}/tags"
+
     try:
-        plist = json.loads(novem.read(f"vis/{pth}s/{vis_name}/tags"))
+        plist = json.loads(novem.read(tag_path))
     except Novem404:
         plist = []
 
@@ -409,8 +427,14 @@ def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
 
     plist = []
 
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/jobs/{job_name}/tags"
+    else:
+        tag_path = f"jobs/{job_name}/tags"
+
     try:
-        plist = json.loads(novem.read(f"jobs/{job_name}/tags"))
+        plist = json.loads(novem.read(tag_path))
     except Novem404:
         plist = []
 
@@ -831,6 +855,893 @@ def list_jobs(args: Dict[str, Any]) -> None:
     for p in plist:
         p["_steps"] = p["_steps"].rjust(max_steps)
         p["run_count"] = p["run_count"].rjust(max_runs)
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def _format_relative_time(date_str: str) -> str:
+    """Format a date string as relative time (e.g., '2 weeks ago')."""
+    if not date_str:
+        return ""
+    try:
+        parsed = eut.parsedate(date_str)
+        if not parsed:
+            return date_str
+        dt = datetime.datetime(*parsed[:6])
+        now = datetime.datetime.now()
+        delta = now - dt
+
+        if delta.days < 0:
+            return "in the future"
+        elif delta.days == 0:
+            if delta.seconds < 60:
+                return "just now"
+            elif delta.seconds < 3600:
+                mins = delta.seconds // 60
+                return f"{mins} min{'s' if mins != 1 else ''} ago"
+            else:
+                hours = delta.seconds // 3600
+                return f"{hours} hour{'s' if hours != 1 else ''} ago"
+        elif delta.days == 1:
+            return "yesterday"
+        elif delta.days < 7:
+            return f"{delta.days} days ago"
+        elif delta.days < 14:
+            return "1 week ago"
+        elif delta.days < 30:
+            weeks = delta.days // 7
+            return f"{weeks} weeks ago"
+        elif delta.days < 60:
+            return "1 month ago"
+        elif delta.days < 365:
+            months = delta.days // 30
+            return f"{months} months ago"
+        elif delta.days < 730:
+            return "1 year ago"
+        else:
+            years = delta.days // 365
+            return f"{years} years ago"
+    except Exception:
+        return date_str
+
+
+def list_orgs(args: Dict[str, Any]) -> None:
+    """List organizations with custom formatting."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_orgs_gql(gql)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by role priority, then name
+    role_order = {"founder": 0, "admin": 1, "superuser": 2, "member": 3}
+    plist = sorted(plist, key=lambda x: (role_order.get(x.get("role", "member"), 3), x.get("name", "").lower()))
+
+    if args.get("list"):
+        # print org ids only
+        for p in plist:
+            print(p["id"])
+        return
+
+    def state_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format state column: P O S (public, open, subdomain)."""
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if item.get("public") else "-"
+        opn = f"{cl.FAIL}O{cl.ENDFGC}" if item.get("is_open") else "-"
+        sub = f"{cl.WARNING}S{cl.ENDFGC}" if item.get("enable_subdomain") else "-"
+        return f"{pub} {opn} {sub}"
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "id",
+            "header": "Org ID",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "groups_count",
+            "header": "Grp",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "members_count",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "_state",
+            "header": "State",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_joined",
+            "header": "Joined",
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process columns
+    for p in plist:
+        # State column
+        p["_state"] = state_fmt(p, cl)
+
+        # Joined column (relative time)
+        p["_joined"] = _format_relative_time(p.get("created", ""))
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
+
+        # Convert counts to strings
+        p["groups_count"] = str(p.get("groups_count", 0))
+        p["members_count"] = str(p.get("members_count", 0))
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_users(args: Dict[str, Any]) -> None:
+    """List org members with roles and content shared with org groups."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+
+    current_user = config.get("username", "")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_members_gql(gql, org_id, current_user)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Role priority map for sorting
+    role_order = {"founder": 0, "admin": 1, "superuser": 2, "member": 3}
+
+    # Sort by: me first > role priority > connected > alphabetically
+    def user_sort_key(u: Dict[str, Any]) -> Tuple[bool, int, bool, str]:
+        is_me = u.get("is_me", False)
+        return (
+            not is_me,  # Current user first
+            role_order.get(u.get("role", "member"), 3),  # Role priority
+            not u.get("connected", False),  # Connected users next
+            u.get("username", "").lower(),  # Alphabetically by username
+        )
+
+    plist = sorted(plist, key=user_sort_key)
+
+    if args.get("list"):
+        # print usernames only
+        for p in plist:
+            print(p["username"])
+        return
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "_verified",
+            "header": "   ",
+            "type": "text",
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "_public",
+            "header": "P",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_conn",
+            "header": "Relation",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process formatted columns
+    for p in plist:
+        # Marker: > for current user, * for verified/novem/org users
+        user_type = p.get("type", "").upper()
+        is_me = p.get("is_me", False)
+
+        if is_me:
+            # Current user always shows > with color based on type
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}>{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}>{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}>{cl.ENDFGC} "
+            else:
+                p["_verified"] = " > "
+        else:
+            # Other users show symbol based on type: ◆ for novem, * for verified, + for org
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}◆{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}*{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}+{cl.ENDFGC} "
+            else:
+                p["_verified"] = "   "
+
+        # Public profile indicator
+        p["_public"] = f"{cl.FAIL}P{cl.ENDFGC}" if p.get("public") else "-"
+
+        # Connection status: C F F I (connected, follower, following, ignoring)
+        connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
+        follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
+        following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
+        ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring} "
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_groups(args: Dict[str, Any]) -> None:
+    """List groups within an org."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+
+    current_user = config.get("username", "")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_groups_gql(gql, org_id, current_user)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by name
+    plist = sorted(plist, key=lambda x: x.get("name", "").lower())
+
+    if args.get("list"):
+        # print group ids only
+        for p in plist:
+            print(p["id"])
+        return
+
+    def state_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format state column: P O (public, open)."""
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if item.get("public") else "-"
+        opn = f"{cl.FAIL}O{cl.ENDFGC}" if item.get("is_open") else "-"
+        return f"{pub} {opn}"
+
+    def mail_fmt(item: Dict[str, Any], _cl: Any) -> str:
+        """Format mail column: M S D (inbound, spf, dkim)."""
+        inb = f"{cl.WARNING}M{cl.ENDFGC}" if item.get("allow_inbound_mail") else "-"
+        spf = f"{cl.OKGREEN}S{cl.ENDFGC}" if item.get("mail_verify_spf") else "-"
+        dkim = f"{cl.OKGREEN}D{cl.ENDFGC}" if item.get("mail_verify_dkim") else "-"
+        return f"{inb} {spf} {dkim}"
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "id",
+            "header": "Group ID",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "members_count",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        },
+        {
+            "key": "_state",
+            "header": "State",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_mail",
+            "header": "Mail",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_joined",
+            "header": "Created",
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process columns
+    for p in plist:
+        # State column
+        p["_state"] = state_fmt(p, cl)
+
+        # Mail column
+        p["_mail"] = mail_fmt(p, cl)
+
+        # Created column (relative time)
+        p["_joined"] = _format_relative_time(p.get("created", ""))
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
+
+        # Convert counts to strings
+        p["members_count"] = str(p.get("members_count", 0))
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
+    """List visualizations shared with a specific org group."""
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    group_id = args.get("group", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+    if not group_id:
+        print("Error: No group specified")
+        return
+
+    # Map vis_type to GraphQL field name (plural)
+    vis_type_map = {
+        "Plot": "plots",
+        "Grid": "grids",
+        "Mail": "mails",
+        "Doc": "docs",
+        "Repo": "repos",
+        "Job": "jobs",
+    }
+    gql_vis_type = vis_type_map.get(vis_type, vis_type.lower() + "s")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_group_vis_gql(gql, org_id, group_id, gql_vis_type)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
+    def parse_date(date_str: str) -> datetime.datetime:
+        parsed = eut.parsedate(date_str)
+        if parsed:
+            return datetime.datetime(*parsed[:6])
+        return datetime.datetime.min
+
+    def sort_tier(markers: str) -> int:
+        """Return sort tier: 0=fav, 1=like only, 2=rest."""
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
+
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x.get("updated", "")).timestamp()))
+
+    if args.get("list"):
+        # print to terminal (username/id format for easy use)
+        for p in plist:
+            print(f"{p['username']}/{p['id']}")
+        return
+
+    def share_fmt(share: str, _cl: Any) -> str:
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDFGC}" if "c" in sl else "-"  # chat claim
+        ug = f"{cl.OKGREEN}@{cl.ENDFGC}" if "@" in sl else "-"  # user group
+        og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def summary_fmt(summary: Optional[str], _cl: Any) -> str:
+        if not summary:
+            return ""
+        return summary.replace("\n", "")
+
+    def fav_fmt(markers: str, _cl: Any) -> str:
+        fav_str = f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        like_str = f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {fav_str}{like_str} "
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "fav",
+            "header": "    ",
+            "type": "text",
+            "fmt": fav_fmt,
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "id",
+            "header": f"{vis_type} ID",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "type",
+            "header": "Type",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "uri",
+            "header": "Url",
+            "type": "url",
+            "overflow": "keep",
+        },
+        {
+            "key": "updated",
+            "header": "Updated",
+            "type": "date",
+            "overflow": "keep",
+        },
+        {
+            "key": "summary",
+            "header": "Summary",
+            "fmt": summary_fmt,
+            "type": "text",
+            "overflow": "truncate",
+        },
+    ]
+
+    for p in plist:
+        if p.get("updated"):
+            parsed = eut.parsedate(p["updated"])
+            if parsed:
+                nd = datetime.datetime(*parsed[:6])
+                p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def list_org_group_users(args: Dict[str, Any]) -> None:
+    """List members of a specific org group with roles and content shared with that group."""
+    # Called from: novem -O <org> -G <group> -u
+    colors()
+
+    if "profile" in args:
+        args["config_profile"] = args["profile"]
+
+    (config_status, config) = get_current_config(**args)
+
+    org_id = args.get("org", "")
+    group_id = args.get("group", "")
+    if not org_id:
+        print("Error: No org specified")
+        return
+    if not group_id:
+        print("Error: No group specified")
+        return
+
+    current_user = config.get("username", "")
+
+    # Use GraphQL for listing
+    gql = NovemGQL(**args)
+    plist = list_org_group_members_gql(gql, org_id, group_id, current_user)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Role priority map for sorting
+    role_order = {"founder": 0, "admin": 1, "superuser": 2, "member": 3}
+
+    # Sort by: me first > role priority > connected > alphabetically
+    def user_sort_key(u: Dict[str, Any]) -> Tuple[bool, int, bool, str]:
+        is_me = u.get("is_me", False)
+        return (
+            not is_me,  # Current user first
+            role_order.get(u.get("role", "member"), 3),  # Role priority
+            not u.get("connected", False),  # Connected users next
+            u.get("username", "").lower(),  # Alphabetically by username
+        )
+
+    plist = sorted(plist, key=user_sort_key)
+
+    if args.get("list"):
+        # print usernames only
+        for p in plist:
+            print(p["username"])
+        return
+
+    # Helper to format number or dash
+    def fmt_num(n: int) -> str:
+        return str(n) if n else "-"
+
+    # Calculate max widths for dynamic columns
+    max_plots = max((len(fmt_num(p.get("plots", 0))) for p in plist), default=1)
+    max_grids = max((len(fmt_num(p.get("grids", 0))) for p in plist), default=1)
+    max_mails = max((len(fmt_num(p.get("mails", 0))) for p in plist), default=1)
+    max_docs = max((len(fmt_num(p.get("docs", 0))) for p in plist), default=1)
+    max_repos = max((len(fmt_num(p.get("repos", 0))) for p in plist), default=1)
+    max_jobs = max((len(fmt_num(p.get("jobs", 0))) for p in plist), default=1)
+
+    # Build dynamic header for content counts (P G M D R J)
+    content_header = " ".join(
+        [
+            "P".rjust(max_plots),
+            "G".rjust(max_grids),
+            "M".rjust(max_mails),
+            "D".rjust(max_docs),
+            "R".rjust(max_repos),
+            "J".rjust(max_jobs),
+        ]
+    )
+
+    def role_fmt(role: str, _cl: Any) -> str:
+        """Format role with color."""
+        if role == "founder":
+            return f"{cl.WARNING}{role}{cl.ENDFGC}"
+        elif role == "admin":
+            return f"{cl.FAIL}{role}{cl.ENDFGC}"
+        elif role == "superuser":
+            return f"{cl.OKCYAN}{role}{cl.ENDFGC}"
+        return role
+
+    ppo: List[Dict[str, Any]] = [
+        {
+            "key": "_verified",
+            "header": "   ",
+            "type": "text",
+            "overflow": "keep",
+            "no_border": True,
+            "no_padding": True,
+        },
+        {
+            "key": "username",
+            "header": "Username",
+            "type": "text",
+            "clr": cl.OKCYAN,
+            "overflow": "keep",
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+        },
+        {
+            "key": "role",
+            "header": "Role",
+            "type": "text",
+            "fmt": role_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "_public",
+            "header": "P",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_conn",
+            "header": "Relation",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
+            "key": "_content",
+            "header": content_header,
+            "type": "text",
+            "overflow": "keep",
+        },
+    ]
+
+    # Pre-process formatted columns
+    for p in plist:
+        # Marker: > for current user, * for verified/novem/org users
+        user_type = p.get("type", "").upper()
+        is_me = p.get("is_me", False)
+
+        if is_me:
+            # Current user always shows > with color based on type
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}>{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}>{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}>{cl.ENDFGC} "
+            else:
+                p["_verified"] = " > "
+        else:
+            # Other users show symbol based on type: ◆ for novem, * for verified, + for org
+            if user_type in ("NOVEM", "SYSTEM"):
+                p["_verified"] = f" {cl.WARNING}◆{cl.ENDFGC} "
+            elif user_type == "VERIFIED":
+                p["_verified"] = f" {cl.OKBLUE}*{cl.ENDFGC} "
+            elif user_type == "ORG":
+                p["_verified"] = f" {cl.OKGREEN}+{cl.ENDFGC} "
+            else:
+                p["_verified"] = "   "
+
+        # Public profile indicator
+        p["_public"] = f"{cl.FAIL}P{cl.ENDFGC}" if p.get("public") else "-"
+
+        # Connection status: C F F I (connected, follower, following, ignoring)
+        connected = f"{cl.OKGREEN}C{cl.ENDFGC}" if p.get("connected") else "-"
+        follower = f"{cl.OKBLUE}F{cl.ENDFGC}" if p.get("follower") else "-"
+        following = f"{cl.OKCYAN}F{cl.ENDFGC}" if p.get("following") else "-"
+        ignoring = f"{cl.FAIL}I{cl.ENDFGC}" if p.get("ignoring") else "-"
+        p["_conn"] = f"{connected} {follower} {following} {ignoring} "
+
+        # Content counts: P G M D R J
+        plots_str = fmt_num(p.get("plots", 0))
+        grids_str = fmt_num(p.get("grids", 0))
+        mails_str = fmt_num(p.get("mails", 0))
+        docs_str = fmt_num(p.get("docs", 0))
+        repos_str = fmt_num(p.get("repos", 0))
+        jobs_str = fmt_num(p.get("jobs", 0))
+        p["_content"] = (
+            f"{plots_str:>{max_plots}} {grids_str:>{max_grids}} {mails_str:>{max_mails}} "
+            f"{docs_str:>{max_docs}} {repos_str:>{max_repos}} {jobs_str:>{max_jobs}}"
+        )
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
