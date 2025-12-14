@@ -1268,7 +1268,7 @@ def list_org_groups(args: Dict[str, Any]) -> None:
 
     def mail_fmt(item: Dict[str, Any], _cl: Any) -> str:
         """Format mail column: M S D (inbound, spf, dkim)."""
-        inb = f"{cl.OKCYAN}M{cl.ENDFGC}" if item.get("allow_inbound_mail") else "-"
+        inb = f"{cl.WARNING}M{cl.ENDFGC}" if item.get("allow_inbound_mail") else "-"
         spf = f"{cl.OKGREEN}S{cl.ENDFGC}" if item.get("mail_verify_spf") else "-"
         dkim = f"{cl.OKGREEN}D{cl.ENDFGC}" if item.get("mail_verify_dkim") else "-"
         return f"{inb} {spf} {dkim}"
