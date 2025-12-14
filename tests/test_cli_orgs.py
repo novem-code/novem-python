@@ -2,7 +2,11 @@
 
 import pytest
 
-from novem.cli.gql import _transform_org_members_response, _transform_orgs_response
+from novem.cli.gql import (
+    _transform_org_group_members_response,
+    _transform_org_members_response,
+    _transform_orgs_response,
+)
 
 
 class TestTransformOrgsResponse:
@@ -848,3 +852,380 @@ class TestOrgMemberSorting:
         sorted_members = sorted(members, key=sort_key)
         assert sorted_members[0]["username"] == "connected"
         assert sorted_members[1]["username"] == "not_connected"
+
+
+class TestOrgMembersInvited:
+    """Tests for invited users in org members response."""
+
+    def test_invited_members_have_question_mark_role(self) -> None:
+        """Test that invited members have role with ? suffix."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "founders": [],
+                    "admins": [],
+                    "superusers": [],
+                    "members": [],
+                    "invited": {
+                        "admins": [
+                            {
+                                "username": "invited_admin",
+                                "name": "Invited Admin",
+                                "type": "REGULAR",
+                                "public": False,
+                                "relationship": None,
+                            }
+                        ],
+                        "superusers": [
+                            {
+                                "username": "invited_super",
+                                "name": "Invited Super",
+                                "type": "REGULAR",
+                                "public": False,
+                                "relationship": None,
+                            }
+                        ],
+                        "members": [
+                            {
+                                "username": "invited_member",
+                                "name": "Invited Member",
+                                "type": "REGULAR",
+                                "public": False,
+                                "relationship": None,
+                            }
+                        ],
+                    },
+                    "groups": [],
+                }
+            ]
+        }
+
+        result = _transform_org_members_response(data, "current_user")
+        assert len(result) == 3
+
+        invited_admin = next(m for m in result if m["username"] == "invited_admin")
+        assert invited_admin["role"] == "admin?"
+
+        invited_super = next(m for m in result if m["username"] == "invited_super")
+        assert invited_super["role"] == "superuser?"
+
+        invited_member = next(m for m in result if m["username"] == "invited_member")
+        assert invited_member["role"] == "member?"
+
+    def test_active_members_not_duplicated_as_invited(self) -> None:
+        """Test that active members don't appear again as invited."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "founders": [],
+                    "admins": [
+                        {
+                            "username": "active_user",
+                            "name": "Active User",
+                            "type": "REGULAR",
+                            "public": False,
+                            "relationship": None,
+                        }
+                    ],
+                    "superusers": [],
+                    "members": [],
+                    "invited": {
+                        "admins": [],
+                        "superusers": [],
+                        "members": [
+                            {
+                                # Same username - should not be duplicated
+                                "username": "active_user",
+                                "name": "Active User",
+                                "type": "REGULAR",
+                                "public": False,
+                                "relationship": None,
+                            }
+                        ],
+                    },
+                    "groups": [],
+                }
+            ]
+        }
+
+        result = _transform_org_members_response(data, "current_user")
+        assert len(result) == 1
+        assert result[0]["role"] == "admin"  # Active role takes precedence
+
+    def test_mixed_active_and_invited_members(self) -> None:
+        """Test org with both active and invited members."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "founders": [
+                        {
+                            "username": "founder1",
+                            "name": "Founder",
+                            "type": "REGULAR",
+                            "public": False,
+                            "relationship": None,
+                        }
+                    ],
+                    "admins": [],
+                    "superusers": [],
+                    "members": [
+                        {
+                            "username": "member1",
+                            "name": "Member",
+                            "type": "REGULAR",
+                            "public": False,
+                            "relationship": None,
+                        }
+                    ],
+                    "invited": {
+                        "admins": [
+                            {
+                                "username": "pending_admin",
+                                "name": "Pending Admin",
+                                "type": "REGULAR",
+                                "public": False,
+                                "relationship": None,
+                            }
+                        ],
+                        "superusers": [],
+                        "members": [],
+                    },
+                    "groups": [],
+                }
+            ]
+        }
+
+        result = _transform_org_members_response(data, "current_user")
+        assert len(result) == 3
+
+        roles = {m["username"]: m["role"] for m in result}
+        assert roles["founder1"] == "founder"
+        assert roles["member1"] == "member"
+        assert roles["pending_admin"] == "admin?"
+
+    def test_empty_invited_section(self) -> None:
+        """Test handling of empty invited section."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "founders": [
+                        {
+                            "username": "founder1",
+                            "name": "Founder",
+                            "type": "REGULAR",
+                            "public": False,
+                            "relationship": None,
+                        }
+                    ],
+                    "admins": [],
+                    "superusers": [],
+                    "members": [],
+                    "invited": {
+                        "admins": [],
+                        "superusers": [],
+                        "members": [],
+                    },
+                    "groups": [],
+                }
+            ]
+        }
+
+        result = _transform_org_members_response(data, "current_user")
+        assert len(result) == 1
+        assert result[0]["role"] == "founder"
+
+    def test_null_invited_section(self) -> None:
+        """Test handling when invited section is null."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "founders": [
+                        {
+                            "username": "founder1",
+                            "name": "Founder",
+                            "type": "REGULAR",
+                            "public": False,
+                            "relationship": None,
+                        }
+                    ],
+                    "admins": [],
+                    "superusers": [],
+                    "members": [],
+                    "invited": None,
+                    "groups": [],
+                }
+            ]
+        }
+
+        result = _transform_org_members_response(data, "current_user")
+        assert len(result) == 1
+
+
+class TestOrgGroupMembersInvited:
+    """Tests for invited users in org group members response."""
+
+    def test_invited_group_members_have_question_mark_role(self) -> None:
+        """Test that invited group members have role with ? suffix."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "groups": [
+                        {
+                            "id": "test_group",
+                            "name": "Test Group",
+                            "founders": [],
+                            "admins": [],
+                            "superusers": [],
+                            "members": [],
+                            "invited": {
+                                "admins": [
+                                    {
+                                        "username": "invited_admin",
+                                        "name": "Invited Admin",
+                                        "type": "REGULAR",
+                                        "public": False,
+                                        "relationship": None,
+                                    }
+                                ],
+                                "superusers": [],
+                                "members": [
+                                    {
+                                        "username": "invited_member",
+                                        "name": "Invited Member",
+                                        "type": "REGULAR",
+                                        "public": False,
+                                        "relationship": None,
+                                    }
+                                ],
+                            },
+                            "plots": [],
+                            "grids": [],
+                            "mails": [],
+                            "docs": [],
+                            "repos": [],
+                            "jobs": [],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        result = _transform_org_group_members_response(data, "test_group", "current_user")
+        assert len(result) == 2
+
+        invited_admin = next(m for m in result if m["username"] == "invited_admin")
+        assert invited_admin["role"] == "admin?"
+
+        invited_member = next(m for m in result if m["username"] == "invited_member")
+        assert invited_member["role"] == "member?"
+
+    def test_group_active_members_not_duplicated_as_invited(self) -> None:
+        """Test that active group members don't appear again as invited."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "groups": [
+                        {
+                            "id": "test_group",
+                            "name": "Test Group",
+                            "founders": [],
+                            "admins": [
+                                {
+                                    "username": "active_admin",
+                                    "name": "Active Admin",
+                                    "type": "REGULAR",
+                                    "public": False,
+                                    "relationship": None,
+                                }
+                            ],
+                            "superusers": [],
+                            "members": [],
+                            "invited": {
+                                "admins": [],
+                                "superusers": [],
+                                "members": [
+                                    {
+                                        "username": "active_admin",
+                                        "name": "Active Admin",
+                                        "type": "REGULAR",
+                                        "public": False,
+                                        "relationship": None,
+                                    }
+                                ],
+                            },
+                            "plots": [],
+                            "grids": [],
+                            "mails": [],
+                            "docs": [],
+                            "repos": [],
+                            "jobs": [],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        result = _transform_org_group_members_response(data, "test_group", "current_user")
+        assert len(result) == 1
+        assert result[0]["role"] == "admin"  # Active role, not invited
+
+    def test_group_mixed_active_and_invited(self) -> None:
+        """Test group with both active and invited members."""
+        data = {
+            "groups": [
+                {
+                    "id": "test_org",
+                    "groups": [
+                        {
+                            "id": "test_group",
+                            "name": "Test Group",
+                            "founders": [
+                                {
+                                    "username": "founder1",
+                                    "name": "Founder",
+                                    "type": "REGULAR",
+                                    "public": False,
+                                    "relationship": None,
+                                }
+                            ],
+                            "admins": [],
+                            "superusers": [],
+                            "members": [],
+                            "invited": {
+                                "admins": [],
+                                "superusers": [
+                                    {
+                                        "username": "pending_super",
+                                        "name": "Pending Super",
+                                        "type": "REGULAR",
+                                        "public": False,
+                                        "relationship": None,
+                                    }
+                                ],
+                                "members": [],
+                            },
+                            "plots": [],
+                            "grids": [],
+                            "mails": [],
+                            "docs": [],
+                            "repos": [],
+                            "jobs": [],
+                        }
+                    ],
+                }
+            ]
+        }
+
+        result = _transform_org_group_members_response(data, "test_group", "current_user")
+        assert len(result) == 2
+
+        roles = {m["username"]: m["role"] for m in result}
+        assert roles["founder1"] == "founder"
+        assert roles["pending_super"] == "superuser?"
