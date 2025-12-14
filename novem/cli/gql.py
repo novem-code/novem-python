@@ -519,3 +519,158 @@ def list_orgs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
     """List user's orgs via GraphQL, returning transformed format."""
     data = gql._query(LIST_ORGS_QUERY)
     return _transform_orgs_response(data)
+
+
+LIST_ORG_MEMBERS_QUERY = """
+query ListOrgMembers($orgId: ID!) {
+  groups(id: $orgId, type: org) {
+    id
+    founders {
+      username
+      name
+      type
+      public
+      relationship {
+        follower
+        connected
+        following
+        ignoring
+      }
+    }
+    admins {
+      username
+      name
+      type
+      public
+      relationship {
+        follower
+        connected
+        following
+        ignoring
+      }
+    }
+    superusers {
+      username
+      name
+      type
+      public
+      relationship {
+        follower
+        connected
+        following
+        ignoring
+      }
+    }
+    members {
+      username
+      name
+      type
+      public
+      relationship {
+        follower
+        connected
+        following
+        ignoring
+      }
+    }
+    groups {
+      id
+      plots { id author { username } }
+      grids { id author { username } }
+      mails { id author { username } }
+      docs { id author { username } }
+      repos { id author { username } }
+      jobs { id author { username } }
+    }
+  }
+}
+"""
+
+
+def _transform_org_members_response(data: Dict[str, Any], current_user: str) -> List[Dict[str, Any]]:
+    """
+    Transform GraphQL org members response for display.
+
+    Extracts members from each role list, deduplicates by highest role,
+    and counts vis shared with org groups per user.
+    """
+    groups_list = data.get("groups", []) or []
+    if not groups_list:
+        return []
+
+    org = groups_list[0]
+
+    # Role priority: founder > admin > superuser > member
+    role_priority = ["founder", "admin", "superuser", "member"]
+    role_fields = ["founders", "admins", "superusers", "members"]
+
+    # Build member dict with highest role (deduped)
+    members: Dict[str, Dict[str, Any]] = {}
+    for role, field in zip(role_priority, role_fields):
+        for user in org.get(field, []) or []:
+            username = user.get("username", "")
+            if username and username not in members:
+                relationship = user.get("relationship", {}) or {}
+                members[username] = {
+                    "username": username,
+                    "name": user.get("name", "") or "",
+                    "type": user.get("type", "REGULAR"),
+                    "public": user.get("public") or False,
+                    "role": role,
+                    "connected": relationship.get("connected") or False,
+                    "follower": relationship.get("follower") or False,
+                    "following": relationship.get("following") or False,
+                    "ignoring": relationship.get("ignoring") or False,
+                    # Initialize vis counts
+                    "plots": set(),
+                    "grids": set(),
+                    "mails": set(),
+                    "docs": set(),
+                    "repos": set(),
+                    "jobs": set(),
+                }
+
+    # Collect vis IDs per user from org groups
+    vis_types = ["plots", "grids", "mails", "docs", "repos", "jobs"]
+    org_groups = org.get("groups", []) or []
+
+    for group in org_groups:
+        for vis_type in vis_types:
+            for vis in group.get(vis_type, []) or []:
+                author = vis.get("author", {}) or {}
+                author_username = author.get("username", "")
+                vis_id = vis.get("id", "")
+                if author_username in members and vis_id:
+                    members[author_username][vis_type].add(vis_id)
+
+    # Convert sets to counts and return as list
+    result = []
+    for username, member in members.items():
+        member_data = {
+            "username": member["username"],
+            "name": member["name"],
+            "type": member["type"],
+            "public": member["public"],
+            "role": member["role"],
+            "connected": member["connected"],
+            "follower": member["follower"],
+            "following": member["following"],
+            "ignoring": member["ignoring"],
+            "plots": len(member["plots"]),
+            "grids": len(member["grids"]),
+            "mails": len(member["mails"]),
+            "docs": len(member["docs"]),
+            "repos": len(member["repos"]),
+            "jobs": len(member["jobs"]),
+            "is_me": username == current_user,
+        }
+        result.append(member_data)
+
+    return result
+
+
+def list_org_members_gql(gql: NovemGQL, org_id: str, current_user: str) -> List[Dict[str, Any]]:
+    """List org members via GraphQL, returning transformed format with vis counts."""
+    variables = {"orgId": org_id}
+    data = gql._query(LIST_ORG_MEMBERS_QUERY, variables)
+    return _transform_org_members_response(data, current_user)
