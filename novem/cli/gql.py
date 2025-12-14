@@ -627,6 +627,44 @@ query ListOrgMembers($orgId: ID!) {
         ignoring
       }
     }
+    invited {
+      admins {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      superusers {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+      members {
+        username
+        name
+        type
+        public
+        relationship {
+          follower
+          connected
+          following
+          ignoring
+        }
+      }
+    }
     groups {
       id
       plots { id author { username } }
@@ -662,6 +700,33 @@ def _transform_org_members_response(data: Dict[str, Any], current_user: str) -> 
     members: Dict[str, Dict[str, Any]] = {}
     for role, field in zip(role_priority, role_fields):
         for user in org.get(field, []) or []:
+            username = user.get("username", "")
+            if username and username not in members:
+                relationship = user.get("relationship", {}) or {}
+                members[username] = {
+                    "username": username,
+                    "name": user.get("name", "") or "",
+                    "type": user.get("type", "REGULAR"),
+                    "public": user.get("public") or False,
+                    "role": role,
+                    "connected": relationship.get("connected") or False,
+                    "follower": relationship.get("follower") or False,
+                    "following": relationship.get("following") or False,
+                    "ignoring": relationship.get("ignoring") or False,
+                    # Initialize vis counts
+                    "plots": set(),
+                    "grids": set(),
+                    "mails": set(),
+                    "docs": set(),
+                    "repos": set(),
+                    "jobs": set(),
+                }
+
+    # Process invited users (role with ? suffix)
+    invited = org.get("invited", {}) or {}
+    invited_role_map = [("admin?", "admins"), ("superuser?", "superusers"), ("member?", "members")]
+    for role, field in invited_role_map:
+        for user in invited.get(field, []) or []:
             username = user.get("username", "")
             if username and username not in members:
                 relationship = user.get("relationship", {}) or {}
@@ -884,6 +949,44 @@ query ListOrgGroupMembers($orgId: ID!) {
           ignoring
         }
       }
+      invited {
+        admins {
+          username
+          name
+          type
+          public
+          relationship {
+            follower
+            connected
+            following
+            ignoring
+          }
+        }
+        superusers {
+          username
+          name
+          type
+          public
+          relationship {
+            follower
+            connected
+            following
+            ignoring
+          }
+        }
+        members {
+          username
+          name
+          type
+          public
+          relationship {
+            follower
+            connected
+            following
+            ignoring
+          }
+        }
+      }
       plots { id author { username } }
       grids { id author { username } }
       mails { id author { username } }
@@ -929,6 +1032,33 @@ def _transform_org_group_members_response(
     members: Dict[str, Dict[str, Any]] = {}
     for role, field in zip(role_priority, role_fields):
         for user in group.get(field, []) or []:
+            username = user.get("username", "")
+            if username and username not in members:
+                relationship = user.get("relationship", {}) or {}
+                members[username] = {
+                    "username": username,
+                    "name": user.get("name", "") or "",
+                    "type": user.get("type", "REGULAR"),
+                    "public": user.get("public") or False,
+                    "role": role,
+                    "connected": relationship.get("connected") or False,
+                    "follower": relationship.get("follower") or False,
+                    "following": relationship.get("following") or False,
+                    "ignoring": relationship.get("ignoring") or False,
+                    # Initialize vis counts as sets for deduplication
+                    "plots": set(),
+                    "grids": set(),
+                    "mails": set(),
+                    "docs": set(),
+                    "repos": set(),
+                    "jobs": set(),
+                }
+
+    # Process invited users (role with ? suffix)
+    invited = group.get("invited", {}) or {}
+    invited_role_map = [("admin?", "admins"), ("superuser?", "superusers"), ("member?", "members")]
+    for role, field in invited_role_map:
+        for user in invited.get(field, []) or []:
             username = user.get("username", "")
             if username and username not in members:
                 relationship = user.get("relationship", {}) or {}
