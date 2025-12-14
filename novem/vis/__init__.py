@@ -39,8 +39,12 @@ class NovemVisAPI(NovemAPI):
         if "qpr" in kwargs and kwargs["qpr"]:
             self._qpr = kwargs["qpr"].replace(",", "&")
 
-        self.shared = NovemShare(self, f"vis/{self._vispath}/{self.id}")
-        self.tags = NovemTags(self, f"vis/{self._vispath}/{self.id}")
+        if self.user:
+            base_path = f"users/{self.user}/vis/{self._vispath}/{self.id}"
+        else:
+            base_path = f"vis/{self._vispath}/{self.id}"
+        self.shared = NovemShare(self, base_path)
+        self.tags = NovemTags(self, base_path)
         self.files = NovemFiles(self)
 
     def __setattr__(self, name: str, value: Any) -> None:

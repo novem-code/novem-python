@@ -396,8 +396,14 @@ def list_vis_tags(vis_name: str, args: Dict[str, str], type: str) -> None:
 
     plist = []
 
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/vis/{pth}s/{vis_name}/tags"
+    else:
+        tag_path = f"vis/{pth}s/{vis_name}/tags"
+
     try:
-        plist = json.loads(novem.read(f"vis/{pth}s/{vis_name}/tags"))
+        plist = json.loads(novem.read(tag_path))
     except Novem404:
         plist = []
 
