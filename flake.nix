@@ -3,47 +3,83 @@
 
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-    poetry2nix = {
-      url = "github:nix-community/poetry2nix";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    pyproject-nix = {
+      url = "github:pyproject-nix/pyproject.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.uv2nix.follows = "uv2nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, pyproject-nix, uv2nix, pyproject-build-systems, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        # Use `inputs` to avoid shadowing + infinite recursion
-        poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs; };
-        poetryEnv = poetry2nix.mkPoetryEnv {
-          projectDir = ./.;
-          preferWheels = true;
-          # groups = [];
-          # checkGroups = [];
+        python = pkgs.python312;
+
+        # Load workspace from uv.lock
+        workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
+
+        # Create package overlay from workspace
+        overlay = workspace.mkPyprojectOverlay {
+          sourcePreference = "wheel";
         };
+
+        # Build Python package set
+        pyprojectOverrides = _final: _prev: {
+          # Add any package-specific overrides here if needed
+        };
+
+        pythonSet =
+          (pkgs.callPackage pyproject-nix.build.packages {
+            inherit python;
+          }).overrideScope
+            (
+              pkgs.lib.composeManyExtensions [
+                pyproject-build-systems.overlays.default
+                overlay
+                pyprojectOverrides
+              ]
+            );
+
+        # Virtual environment for development (with dev dependencies)
+        venv = pythonSet.mkVirtualEnv "novem-dev-env" workspace.deps.all;
+
+        # Virtual environment for the package (without dev dependencies)
+        venvProd = pythonSet.mkVirtualEnv "novem-env" workspace.deps.default;
+
       in {
         checks = {
           default = pkgs.runCommand "run-pytest" { } ''
-            ${poetryEnv}/bin/pytest ${self}
+            ${venv}/bin/pytest ${self}
             touch $out
           '';
         };
 
         packages = {
           # Main Novem Python app/package
-          novem = poetry2nix.mkPoetryApplication {
-            projectDir = ./.;
-            preferWheels = true;
-          };
-          poetryEnv = poetryEnv;
+          novem = venvProd;
+          venv = venv;
           default = self.packages.${system}.novem;
         };
 
         # Development env
         # Enter using `nix develop` (or using `direnv`)
-        devShells.default = poetryEnv.env.overrideAttrs (_: {
-          buildInputs = [ pkgs.poetry ];
-        });
+        devShells.default = pkgs.mkShell {
+          packages = [
+            venv
+            pkgs.uv
+          ];
+        };
       });
 }
