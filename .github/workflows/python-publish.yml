@@ -93,7 +93,7 @@ jobs:
       id-token: write
     steps:
     - name: Retrieve wheel
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: python-wheel
         path: dist/
