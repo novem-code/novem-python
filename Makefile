@@ -1,10 +1,10 @@
 .PHONY: test bump-version pre-commit
 
 test:
-	@poetry run pytest
+	@uv run pytest
 
 bump-version:
-	@poetry run python scripts/bump_version.py
+	@uv run python scripts/bump_version.py
 
 pre-commit:
-	@poetry run pre-commit run --all
+	@uv run pre-commit run --all

@@ -17,16 +17,15 @@ development. To get started simply clone the repository and run the below
 commands.
 
 ```bash
-poetry install
-poetry shell
-pre-commit run --all-files
+uv sync
+uv run pre-commit run --all-files
 ```
 
 ## Before commiting
 Please make sure that all files confirm to the style guidelines
 
 ```bash
-pre-commit run --all-files
+uv run pre-commit run --all-files
 ```
 
 ## Pull requests

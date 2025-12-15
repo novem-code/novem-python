@@ -29,10 +29,8 @@ jobs:
       with:
         python-version: "3.10"
 
-    - name: Install Poetry
-      uses: abatilo/actions-poetry@v4
-      with:
-        poetry-version: 2.1.3
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
 
     - name: Bump version from tag
       run: |
@@ -44,17 +42,17 @@ jobs:
           exit 1
         fi
         echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-        poetry run python scripts/bump_version.py "$VERSION"
+        uv run python scripts/bump_version.py "$VERSION"
 
     - name: Test
       run: |
-        poetry install
-        poetry run pytest tests
+        uv sync
+        uv run pytest tests
 
     - name: Build the package
       run: |
         rm -rf dist
-        poetry build
+        uv build
 
     - name: Commit version bump
       env:
@@ -67,7 +65,7 @@ jobs:
         git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
 
         # Add changed files
-        git add pyproject.toml poetry.lock novem/version.py
+        git add pyproject.toml uv.lock novem/version.py
 
         # Only commit if there are changes
         if ! git diff --cached --quiet; then
