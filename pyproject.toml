@@ -3,9 +3,9 @@ name = "novem"
 version = "0.5.6"
 description = "python library for the novem data visualisation platform"
 authors = [
-    { name = "Sondov Engen", email = "sondov@novem.no" },
-    { name = "Bjørnar Snoksrud", email = "bjornars@novem.no" },
-    { name = "Martin Myrseth", email = "myme@novem.no" },
+    { name = "Sondov Engen", email = "sen@novem.io" },
+    { name = "Bjørnar Snoksrud", email = "bsn@novem.io" },
+    { name = "Martin Myrseth", email = "mmy@novem.io" },
 ]
 requires-python = ">=3.9,<4"
 readme = "README.md"
