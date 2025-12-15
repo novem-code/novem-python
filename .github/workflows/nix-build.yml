@@ -24,7 +24,7 @@ jobs:
     # Catch most downloads and dependency issues in a separate step to make the
     # nix checks logs cleaner.
     - name: Populate nix cache
-      run: nix build -L .#poetryEnv
+      run: nix build -L .#venv
 
     # Run the tests
     - name: Run nix checks
