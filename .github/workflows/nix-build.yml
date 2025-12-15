@@ -11,7 +11,6 @@ permissions:
 jobs:
   check:
     name: "Nix Checks"
-    if: false  # skip for now
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
