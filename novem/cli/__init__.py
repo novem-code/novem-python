@@ -28,7 +28,11 @@ from .invite import invite
 from .setup import setup
 from .vis import list_org_group_users, list_org_group_vis, list_org_groups, list_org_users, list_orgs
 
-sys.tracebacklimit = 0
+
+def _cli_excepthook(exc_type: type, exc_value: BaseException, exc_traceback: Any) -> None:
+    """Custom exception handler for CLI mode - suppresses tracebacks unless in debug mode."""
+    # Just print the exception message without traceback
+    print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
 
 
 def input_with_prefill(prompt: str, text: str) -> Any:
@@ -312,9 +316,9 @@ def run_cli_wrapped() -> None:
     # (parser:Any, args:Dict[str, str]) = setup(raw_args)
     (parser, args) = setup(raw_args)
 
-    # let's add traceback back in
-    if "debug" in args and args["debug"]:
-        del sys.tracebacklimit
+    # Install custom exception handler unless in debug mode
+    if not ("debug" in args and args["debug"]):
+        sys.excepthook = _cli_excepthook
 
     if len(raw_args) == 0:
         print_short(parser)
