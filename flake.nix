@@ -55,8 +55,16 @@
         # Virtual environment for development (with dev dependencies)
         venv = pythonSet.mkVirtualEnv "novem-dev-env" workspace.deps.all;
 
-        # Virtual environment for the package (without dev dependencies)
+        # Virtual environment for development (with dev dependencies)
         venvProd = pythonSet.mkVirtualEnv "novem-env" workspace.deps.default;
+
+        # Standalone novem package with just the CLI script
+        novemApp = pkgs.runCommand "novem" {
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+        } ''
+          mkdir -p $out/bin
+          makeWrapper ${venvProd}/bin/novem $out/bin/novem
+        '';
 
       in {
         checks = {
@@ -67,10 +75,12 @@
         };
 
         packages = {
-          # Main Novem Python app/package
-          novem = venvProd;
-          venv = venv;
+          # Main Novem Python CLI app
+          novem = novemApp;
           default = self.packages.${system}.novem;
+          # Full virtual environments
+          venv = venv;
+          venvProd = venvProd;
         };
 
         # Development env
