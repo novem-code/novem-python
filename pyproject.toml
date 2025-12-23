@@ -50,6 +50,19 @@ package = true
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/tests",
+  "/scripts",
+  "/.pre-commit-config.yaml",
+  "/.mailmap",
+  "/flake.nix",
+  "/flake.lock",
+  "/uv.lock",
+  "/Makefile",
+]
+
 [tool.black]
 line-length = 120
 target-version = ['py38']
