@@ -1,11 +1,10 @@
-import datetime
-import email.utils as eut
 import json
 from functools import partial
 
 import pytest
 
 from novem.cli.gql import _get_gql_endpoint
+from novem.cli.vis import _format_datetime_local, _parse_api_datetime
 from novem.utils import API_ROOT, pretty_format
 from tests.conftest import CliExit
 
@@ -348,8 +347,9 @@ def test_plot_list(cli, requests_mock, fs):
     ]
     plist = user_plot_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])  # type: ignore
-        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = _parse_api_datetime(p["updated"])
+        if dt:
+            p["updated"] = _format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo)
 

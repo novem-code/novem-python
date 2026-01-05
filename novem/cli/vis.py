@@ -2,6 +2,7 @@ import datetime
 import email.utils as eut
 import json
 import re
+from datetime import timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from novem.exceptions import Novem404
@@ -22,6 +23,42 @@ from .gql import (
     list_plots_gql,
     list_users_gql,
 )
+
+
+def _parse_api_datetime(date_str: str) -> Optional[datetime.datetime]:
+    """
+    Parse an API date string into a timezone-aware datetime.
+
+    The API returns dates in RFC 2822 format with "UTC" suffix, e.g.:
+    "Mon, 05 Jan 2026 23:40:13 UTC"
+
+    email.utils.parsedate doesn't recognize "UTC" as a timezone, only numeric
+    offsets like "+0000". We normalize the string before parsing.
+
+    Returns a timezone-aware datetime in UTC, or None if parsing fails.
+    """
+    if not date_str:
+        return None
+    try:
+        # Normalize "UTC" to "+0000" for email.utils parsing
+        normalized = date_str.replace(" UTC", " +0000").replace(" GMT", " +0000")
+        return eut.parsedate_to_datetime(normalized)
+    except Exception:
+        # Fallback: try parsing without timezone, assume UTC
+        try:
+            parsed = eut.parsedate(date_str)
+            if parsed:
+                dt = datetime.datetime(*parsed[:6])
+                return dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            pass
+        return None
+
+
+def _format_datetime_local(dt: datetime.datetime) -> str:
+    """Format a datetime as local time in YYYY-MM-DD HH:MM format."""
+    local_dt = dt.astimezone()  # Convert to system local timezone
+    return local_dt.strftime("%Y-%m-%d %H:%M")
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -181,8 +218,9 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     ]
 
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])
-        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = _parse_api_datetime(p["updated"])
+        if dt:
+            p["updated"] = _format_datetime_local(dt)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
@@ -251,10 +289,9 @@ def share_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> N
     ]
 
     for p in plist:
-        pds = eut.parsedate(p["created_on"])
-        if pds:
-            nd = datetime.datetime(*pds[:6])
-            p["created_on"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = _parse_api_datetime(p["created_on"])
+        if dt:
+            p["created_on"] = _format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
@@ -376,10 +413,9 @@ def tag_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> Non
     ]
 
     for p in plist:
-        pds = eut.parsedate(p.get("created_on", ""))
-        if pds:
-            nd = datetime.datetime(*pds[:6])
-            p["created_on"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = _parse_api_datetime(p.get("created_on", ""))
+        if dt:
+            p["created_on"] = _format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
@@ -876,11 +912,10 @@ def _format_relative_time(date_str: str) -> str:
     if not date_str:
         return ""
     try:
-        parsed = eut.parsedate(date_str)
-        if not parsed:
+        dt = _parse_api_datetime(date_str)
+        if not dt:
             return date_str
-        dt = datetime.datetime(*parsed[:6])
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(timezone.utc)
         delta = now - dt
 
         if delta.days < 0:
@@ -925,11 +960,10 @@ def _format_time_ago(date_str: str) -> str:
     if not date_str:
         return ""
     try:
-        parsed = eut.parsedate(date_str)
-        if not parsed:
+        dt = _parse_api_datetime(date_str)
+        if not dt:
             return date_str
-        dt = datetime.datetime(*parsed[:6])
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(timezone.utc)
         delta = now - dt
 
         if delta.days < 0:
@@ -1630,10 +1664,9 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
             p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
 
         if p.get("updated"):
-            parsed = eut.parsedate(p["updated"])
-            if parsed:
-                nd = datetime.datetime(*parsed[:6])
-                p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+            dt = _parse_api_datetime(p["updated"])
+            if dt:
+                p["updated"] = _format_datetime_local(dt)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)

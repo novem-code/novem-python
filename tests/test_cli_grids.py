@@ -1,8 +1,7 @@
-import datetime
-import email.utils as eut
 from functools import partial
 
 from novem.cli.gql import _get_gql_endpoint
+from novem.cli.vis import _format_datetime_local, _parse_api_datetime
 from novem.utils import API_ROOT, pretty_format
 
 from .utils import write_config
@@ -346,8 +345,9 @@ def test_grid_list(cli, requests_mock, fs):
     ]
     plist = user_grid_list
     for p in plist:
-        nd = datetime.datetime(*eut.parsedate(p["updated"])[:6])  # type: ignore
-        p["updated"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = _parse_api_datetime(p["updated"])
+        if dt:
+            p["updated"] = _format_datetime_local(dt)
 
     expected = pretty_format(plist, ppo) + "\n"
 
