@@ -160,6 +160,7 @@ query ListJobs($author: String, $limit: Int, $offset: Int) {
       type
     }
     last_run_status
+    last_run_time
     run_count
     job_steps
     current_step
@@ -318,7 +319,8 @@ def _transform_jobs_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]
     """
     Transform GraphQL jobs response for job listing.
 
-    Includes job-specific fields: last_run_status, run_count, job_steps, current_step, schedule, triggers.
+    Includes job-specific fields: last_run_status, last_run_time, run_count, job_steps,
+    current_step, schedule, triggers.
     """
     result = []
     for item in items:
@@ -332,6 +334,7 @@ def _transform_jobs_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]
             "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
             "fav": _get_markers(item.get("tags", [])),
             "last_run_status": item.get("last_run_status", ""),
+            "last_run_time": item.get("last_run_time", ""),
             "run_count": item.get("run_count", 0),
             "job_steps": item.get("job_steps", 0),
             "current_step": item.get("current_step"),
@@ -1201,6 +1204,7 @@ query ListOrgGroupVis($orgId: ID!) {
         shared { id name type }
         tags { id name type }
         author { username }
+        last_run_time
       }
     }
   }
