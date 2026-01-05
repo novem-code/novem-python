@@ -854,7 +854,7 @@ def list_jobs(args: Dict[str, Any]) -> None:
         p["run_count"] = str(run_count) if run_count is not None else ""
 
         # Last run - format last_run_time as relative time
-        p["_last_run"] = _format_last_run(p.get("last_run_time", ""))
+        p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
 
     # Calculate max widths for right-aligned columns (must be at least header width)
     max_steps = max(max((len(p["_steps"]) for p in plist), default=0), len("Steps"))
@@ -917,8 +917,8 @@ def _format_relative_time(date_str: str) -> str:
         return date_str
 
 
-def _format_last_run(date_str: str) -> str:
-    """Format a date string as relative time for job last run display.
+def _format_time_ago(date_str: str) -> str:
+    """Format a date string as compact relative time.
 
     Uses compact format: "1 min ago", "2 hrs ago", "1 day ago", etc.
     """
@@ -1627,7 +1627,7 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
     for p in plist:
         # Format last_run for jobs
         if vis_type == "Job":
-            p["_last_run"] = _format_last_run(p.get("last_run_time", ""))
+            p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
 
         if p.get("updated"):
             parsed = eut.parsedate(p["updated"])
