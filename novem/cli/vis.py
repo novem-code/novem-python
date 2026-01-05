@@ -791,6 +791,12 @@ def list_jobs(args: Dict[str, Any]) -> None:
             "overflow": "keep",
         },
         {
+            "key": "_last_run",
+            "header": "Last Run",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
             "key": "shared",
             "header": "Shared",
             "type": "text",
@@ -847,6 +853,9 @@ def list_jobs(args: Dict[str, Any]) -> None:
         run_count = p.get("run_count")
         p["run_count"] = str(run_count) if run_count is not None else ""
 
+        # Last run - format last_run_time as relative time
+        p["_last_run"] = _format_last_run(p.get("last_run_time", ""))
+
     # Calculate max widths for right-aligned columns (must be at least header width)
     max_steps = max(max((len(p["_steps"]) for p in plist), default=0), len("Steps"))
     max_runs = max(max((len(p["run_count"]) for p in plist), default=0), len("Runs"))
@@ -887,6 +896,58 @@ def _format_relative_time(date_str: str) -> str:
                 return f"{hours} hour{'s' if hours != 1 else ''} ago"
         elif delta.days == 1:
             return "yesterday"
+        elif delta.days < 7:
+            return f"{delta.days} days ago"
+        elif delta.days < 14:
+            return "1 week ago"
+        elif delta.days < 30:
+            weeks = delta.days // 7
+            return f"{weeks} weeks ago"
+        elif delta.days < 60:
+            return "1 month ago"
+        elif delta.days < 365:
+            months = delta.days // 30
+            return f"{months} months ago"
+        elif delta.days < 730:
+            return "1 year ago"
+        else:
+            years = delta.days // 365
+            return f"{years} years ago"
+    except Exception:
+        return date_str
+
+
+def _format_last_run(date_str: str) -> str:
+    """Format a date string as relative time for job last run display.
+
+    Uses compact format: "1 min ago", "2 hrs ago", "1 day ago", etc.
+    """
+    if not date_str:
+        return ""
+    try:
+        parsed = eut.parsedate(date_str)
+        if not parsed:
+            return date_str
+        dt = datetime.datetime(*parsed[:6])
+        now = datetime.datetime.now()
+        delta = now - dt
+
+        if delta.days < 0:
+            return "in the future"
+        elif delta.days == 0:
+            if delta.seconds < 60:
+                return "just now"
+            elif delta.seconds < 3600:
+                mins = delta.seconds // 60
+                return f"{mins} min ago"
+            else:
+                hours = delta.seconds // 3600
+                if hours == 1:
+                    return "1 hour ago"
+                else:
+                    return f"{hours} hrs ago"
+        elif delta.days == 1:
+            return "1 day ago"
         elif delta.days < 7:
             return f"{delta.days} days ago"
         elif delta.days < 14:
@@ -1549,7 +1610,25 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
         },
     ]
 
+    # Add Last Run column for jobs only (after Type column)
+    if vis_type == "Job":
+        # Find Type column index and insert after it
+        type_idx = next((i for i, col in enumerate(ppo) if col.get("key") == "type"), -1)
+        ppo.insert(
+            type_idx + 1,
+            {
+                "key": "_last_run",
+                "header": "Last Run",
+                "type": "text",
+                "overflow": "keep",
+            },
+        )
+
     for p in plist:
+        # Format last_run for jobs
+        if vis_type == "Job":
+            p["_last_run"] = _format_last_run(p.get("last_run_time", ""))
+
         if p.get("updated"):
             parsed = eut.parsedate(p["updated"])
             if parsed:
