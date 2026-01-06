@@ -1,4 +1,4 @@
-.PHONY: test bump-version pre-commit
+.PHONY: test bump-version pre-commit build
 
 test:
 	@uv run pytest
@@ -8,3 +8,6 @@ bump-version:
 
 pre-commit:
 	@uv run pre-commit run --all
+
+build:
+	@uv build
