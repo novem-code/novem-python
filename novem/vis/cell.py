@@ -127,3 +127,11 @@ class NovemCellConfig(object):
     @merge.setter
     def merge(self, style: Union[str, Selector]) -> None:
         return self.write("/config/table/cell/merge", style)
+
+    @property
+    def overflow(self) -> str:
+        return self._proxy("/config/table/cell/overflow")
+
+    @overflow.setter
+    def overflow(self, style: Union[str, Selector]) -> None:
+        return self.write("/config/table/cell/overflow", style)
