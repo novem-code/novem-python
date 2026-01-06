@@ -4,8 +4,7 @@ from functools import partial
 import pytest
 
 from novem.cli.gql import _get_gql_endpoint
-from novem.cli.vis import _format_datetime_local, _parse_api_datetime
-from novem.utils import API_ROOT, pretty_format
+from novem.utils import API_ROOT, format_datetime_local, parse_api_datetime, pretty_format
 from tests.conftest import CliExit
 
 from .utils import write_config
@@ -347,9 +346,9 @@ def test_plot_list(cli, requests_mock, fs):
     ]
     plist = user_plot_list
     for p in plist:
-        dt = _parse_api_datetime(p["updated"])
+        dt = parse_api_datetime(p["updated"])
         if dt:
-            p["updated"] = _format_datetime_local(dt)
+            p["updated"] = format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo)
 

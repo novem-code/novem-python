@@ -1,5 +1,4 @@
 import datetime
-import email.utils as eut
 import json
 import re
 from datetime import timezone
@@ -8,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
-from ..utils import cl, colors, get_current_config, pretty_format
+from ..utils import cl, colors, format_datetime_local, get_current_config, parse_api_datetime, pretty_format
 from .filter import apply_filters
 from .gql import (
     NovemGQL,
@@ -23,42 +22,6 @@ from .gql import (
     list_plots_gql,
     list_users_gql,
 )
-
-
-def _parse_api_datetime(date_str: str) -> Optional[datetime.datetime]:
-    """
-    Parse an API date string into a timezone-aware datetime.
-
-    The API returns dates in RFC 2822 format with "UTC" suffix, e.g.:
-    "Mon, 05 Jan 2026 23:40:13 UTC"
-
-    email.utils.parsedate doesn't recognize "UTC" as a timezone, only numeric
-    offsets like "+0000". We normalize the string before parsing.
-
-    Returns a timezone-aware datetime in UTC, or None if parsing fails.
-    """
-    if not date_str:
-        return None
-    try:
-        # Normalize "UTC" to "+0000" for email.utils parsing
-        normalized = date_str.replace(" UTC", " +0000").replace(" GMT", " +0000")
-        return eut.parsedate_to_datetime(normalized)
-    except Exception:
-        # Fallback: try parsing without timezone, assume UTC
-        try:
-            parsed = eut.parsedate(date_str)
-            if parsed:
-                dt = datetime.datetime(*parsed[:6])
-                return dt.replace(tzinfo=timezone.utc)
-        except Exception:
-            pass
-        return None
-
-
-def _format_datetime_local(dt: datetime.datetime) -> str:
-    """Format a datetime as local time in YYYY-MM-DD HH:MM format."""
-    local_dt = dt.astimezone()  # Convert to system local timezone
-    return local_dt.strftime("%Y-%m-%d %H:%M")
 
 
 def list_vis(args: Dict[str, Any], type: str) -> None:
@@ -118,10 +81,8 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
     # Parse date string for proper sorting (format: "Thu, 17 Mar 2022 12:19:02 UTC")
     def parse_date(date_str: str) -> datetime.datetime:
-        parsed = eut.parsedate(date_str)
-        if parsed:
-            return datetime.datetime(*parsed[:6])
-        return datetime.datetime.min
+        dt = parse_api_datetime(date_str)
+        return dt if dt else datetime.datetime.min.replace(tzinfo=timezone.utc)
 
     def sort_tier(markers: str) -> int:
         """Return sort tier: 0=fav, 1=like only, 2=rest."""
@@ -218,9 +179,9 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
     ]
 
     for p in plist:
-        dt = _parse_api_datetime(p["updated"])
+        dt = parse_api_datetime(p["updated"])
         if dt:
-            p["updated"] = _format_datetime_local(dt)
+            p["updated"] = format_datetime_local(dt)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
@@ -289,9 +250,9 @@ def share_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> N
     ]
 
     for p in plist:
-        dt = _parse_api_datetime(p["created_on"])
+        dt = parse_api_datetime(p["created_on"])
         if dt:
-            p["created_on"] = _format_datetime_local(dt)
+            p["created_on"] = format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
@@ -413,9 +374,9 @@ def tag_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> Non
     ]
 
     for p in plist:
-        dt = _parse_api_datetime(p.get("created_on", ""))
+        dt = parse_api_datetime(p.get("created_on", ""))
         if dt:
-            p["created_on"] = _format_datetime_local(dt)
+            p["created_on"] = format_datetime_local(dt)
 
     ppl = pretty_format(plist, ppo, striped=striped)
     print(ppl)
@@ -713,10 +674,8 @@ def list_jobs(args: Dict[str, Any]) -> None:
 
     # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
     def parse_date(date_str: str) -> datetime.datetime:
-        parsed = eut.parsedate(date_str)
-        if parsed:
-            return datetime.datetime(*parsed[:6])
-        return datetime.datetime.min
+        dt = parse_api_datetime(date_str)
+        return dt if dt else datetime.datetime.min.replace(tzinfo=timezone.utc)
 
     def sort_tier(markers: str) -> int:
         """Return sort tier: 0=fav, 1=like only, 2=rest."""
@@ -912,7 +871,7 @@ def _format_relative_time(date_str: str) -> str:
     if not date_str:
         return ""
     try:
-        dt = _parse_api_datetime(date_str)
+        dt = parse_api_datetime(date_str)
         if not dt:
             return date_str
         now = datetime.datetime.now(timezone.utc)
@@ -960,7 +919,7 @@ def _format_time_ago(date_str: str) -> str:
     if not date_str:
         return ""
     try:
-        dt = _parse_api_datetime(date_str)
+        dt = parse_api_datetime(date_str)
         if not dt:
             return date_str
         now = datetime.datetime.now(timezone.utc)
@@ -1540,10 +1499,8 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
 
     # Sort by: 1) favs first, 2) likes second, 3) rest last - each group sorted by updated (newest first)
     def parse_date(date_str: str) -> datetime.datetime:
-        parsed = eut.parsedate(date_str)
-        if parsed:
-            return datetime.datetime(*parsed[:6])
-        return datetime.datetime.min
+        dt = parse_api_datetime(date_str)
+        return dt if dt else datetime.datetime.min.replace(tzinfo=timezone.utc)
 
     def sort_tier(markers: str) -> int:
         """Return sort tier: 0=fav, 1=like only, 2=rest."""
@@ -1664,9 +1621,9 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
             p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
 
         if p.get("updated"):
-            dt = _parse_api_datetime(p["updated"])
+            dt = parse_api_datetime(p["updated"])
             if dt:
-                p["updated"] = _format_datetime_local(dt)
+                p["updated"] = format_datetime_local(dt)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
