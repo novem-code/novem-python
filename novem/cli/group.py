@@ -1,5 +1,3 @@
-import datetime
-import email.utils as eut
 import json
 import re
 from typing import Any, Dict, List
@@ -7,7 +5,7 @@ from typing import Any, Dict, List
 from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
-from ..utils import cl, pretty_format
+from ..utils import cl, format_datetime_local, parse_api_datetime, pretty_format
 
 
 def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
@@ -106,8 +104,9 @@ def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
     ]
 
     for p in flist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = parse_api_datetime(p["created"])
+        if dt:
+            p["created"] = format_datetime_local(dt)
 
     ppl = pretty_format(flist, ppo)
 
@@ -241,8 +240,9 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
     ]
 
     for p in flist:
-        nd = datetime.datetime(*eut.parsedate(p["created"])[:6])
-        p["created"] = nd.strftime("%Y-%m-%d %H:%M")
+        dt = parse_api_datetime(p["created"])
+        if dt:
+            p["created"] = format_datetime_local(dt)
 
     ppl = pretty_format(flist, ppo)
 
