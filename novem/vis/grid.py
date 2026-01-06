@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Union
 
 from novem.vis import NovemVisAPI
+
+from .grid_helpers import GridMap
 
 
 class Grid(NovemVisAPI):
@@ -129,7 +131,9 @@ class Grid(NovemVisAPI):
         return self.api_read("/mapping")
 
     @mapping.setter
-    def mapping(self, value: str) -> None:
+    def mapping(self, value: Union[str, GridMap]) -> None:
+        if isinstance(value, GridMap):
+            value = str(value)
         return self.api_write("/mapping", value)
 
     @property
@@ -159,3 +163,26 @@ class Grid(NovemVisAPI):
     @type.setter
     def type(self, value: str) -> None:
         return self.api_write("/config/type", value)
+
+    ###
+    # Interactive utility functions
+    ###
+
+    @property
+    def x(self) -> None:
+        """Print ANSI representation of the grid."""
+        print(self.api_read("/files/grid.ansi"))
+        return None
+
+    @property
+    def i(self) -> Any:
+        """
+        Utility for getting a qtconsole/Jupyter image representation.
+        """
+        from IPython.core.display import Image  # type: ignore
+
+        return Image(
+            self.api_read_bytes(f"/files/{self._type}.png"),
+            retina=False,
+            width=900,
+        )
