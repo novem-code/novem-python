@@ -29,7 +29,9 @@ class NovemGQL:
         self._config = config
         self._session = requests.Session()
         self._debug = kwargs.get("debug", False)
-        self._gql_debug = kwargs.get("gql_debug", False)
+        # Support both old gql_debug and new gql parameter for debug mode
+        gql_param = kwargs.get("gql", False)
+        self._gql_debug = gql_param is True  # True when --gql with no argument
 
         token = config.get("token")
         if token:
@@ -40,6 +42,21 @@ class NovemGQL:
 
         if self._debug:
             print(f"GQL endpoint: {self._endpoint}")
+
+    def run_raw_query(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Execute a GraphQL query and return the raw result (for CLI --gql @filename)."""
+        payload: Dict[str, Any] = {"query": query}
+        if variables:
+            payload["variables"] = variables
+
+        if self._debug:
+            print(f"GQL query: {query.strip()}")
+            if variables:
+                print(f"GQL variables: {variables}")
+
+        response = self._session.post(self._endpoint, json=payload)
+        response.raise_for_status()
+        return response.json()
 
     def _query(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute a GraphQL query and return the result."""

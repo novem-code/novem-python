@@ -23,6 +23,7 @@ from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .common import grid, job, mail, plot, user
 from .config import check_if_profile_exists, update_config
+from .gql import NovemGQL
 from .group import group
 from .invite import invite
 from .setup import setup
@@ -395,6 +396,25 @@ novem --init --profile {args["profile"]}\
         novem = NovemAPI(**args, is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
+        return
+
+    # handle --gql @filename to run a GraphQL query from file
+    if args and args.get("gql") and isinstance(args["gql"], str):
+        import json
+
+        gql_arg = args["gql"]
+        if gql_arg.startswith("@"):
+            # Read query from file (expand ~ for home directory)
+            filename = os.path.expanduser(gql_arg[1:])
+            with open(filename, "r") as f:
+                query = f.read()
+        else:
+            # Treat as inline query
+            query = gql_arg
+
+        gql = NovemGQL(**args)
+        result = gql.run_raw_query(query)
+        print(json.dumps(result, indent=2))
         return
 
     # if --fs is set get terminal dimensions and ammend qpr
