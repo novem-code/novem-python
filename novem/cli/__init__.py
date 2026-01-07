@@ -393,6 +393,8 @@ novem --init --profile {args["profile"]}\
 
     # check info and if present get info
     if args and args["info"]:
+        if args.get("profile"):
+            args["config_profile"] = args["profile"]
         novem = NovemAPI(**args, is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
@@ -401,6 +403,10 @@ novem --init --profile {args["profile"]}\
     # handle --gql to run a GraphQL query from stdin, file, or inline
     # Only run standalone if no other commands are specified
     if args and args.get("gql"):
+        # Map profile to config_profile for get_current_config
+        if args.get("profile"):
+            args["config_profile"] = args["profile"]
+
         gql_arg = args["gql"]
         has_other_cmd = (
             args.get("plot") != ""
