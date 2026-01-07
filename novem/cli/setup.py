@@ -57,7 +57,8 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         nargs="?",
         const=True,
         default=False,
-        help="Run a GraphQL query. Use @filename to read query from file, or no argument to enable debug output",
+        help="Run a GraphQL query. Use @filename to read from file, no argument to read from stdin, "
+        "or combine with -p/-g/-m/-j/-u to show debug output",
     )
 
     parser.add_argument(
