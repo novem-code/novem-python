@@ -51,11 +51,14 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
 
     parser.add_argument(
         "--gql",
-        dest="gql_debug",
-        action="store_true",
+        dest="gql",
+        action="store",
         required=False,
+        nargs="?",
+        const=True,
         default=False,
-        help="Show GraphQL query and response",
+        help="Run a GraphQL query. Use @filename to read from file, no argument to read from stdin, "
+        "or combine with -p/-g/-m/-j/-u to show debug output",
     )
 
     parser.add_argument(

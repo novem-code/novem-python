@@ -23,6 +23,7 @@ from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .common import grid, job, mail, plot, user
 from .config import check_if_profile_exists, update_config
+from .gql import NovemGQL
 from .group import group
 from .invite import invite
 from .setup import setup
@@ -392,10 +393,52 @@ novem --init --profile {args["profile"]}\
 
     # check info and if present get info
     if args and args["info"]:
+        if args.get("profile"):
+            args["config_profile"] = args["profile"]
         novem = NovemAPI(**args, is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
         return
+
+    # handle --gql to run a GraphQL query from stdin, file, or inline
+    # Only run standalone if no other commands are specified
+    if args and args.get("gql"):
+        # Map profile to config_profile for get_current_config
+        if args.get("profile"):
+            args["config_profile"] = args["profile"]
+
+        gql_arg = args["gql"]
+        has_other_cmd = (
+            args.get("plot") != ""
+            or args.get("grid") != ""
+            or args.get("mail") != ""
+            or args.get("job") != ""
+            or args.get("invite") != ""
+            or args.get("for_user") != ""
+            or "org" in args  # uses SUPPRESS, so only present if specified
+            or "group" in args  # uses SUPPRESS, so only present if specified
+        )
+
+        # If --gql has a value (@file or inline query), or no other command, run standalone
+        if isinstance(gql_arg, str) or (gql_arg is True and not has_other_cmd):
+            import json
+
+            if gql_arg is True:
+                # No argument and no other command - read from stdin
+                query = sys.stdin.read()
+            elif gql_arg.startswith("@"):
+                # Read query from file (expand ~ for home directory)
+                filename = os.path.expanduser(gql_arg[1:])
+                with open(filename, "r") as f:
+                    query = f.read()
+            else:
+                # Treat as inline query
+                query = gql_arg
+
+            gql = NovemGQL(**args)
+            result = gql.run_raw_query(query)
+            print(json.dumps(result, indent=2))
+            return
 
     # if --fs is set get terminal dimensions and ammend qpr
     if args and "fs" in args and args["fs"]:
