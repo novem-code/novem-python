@@ -1,4 +1,5 @@
 import getpass
+import json
 import os
 import random
 import socket
@@ -8,7 +9,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
-from novem.exceptions import Novem401
+from novem.exceptions import Novem401, Novem404
 
 if os.name == "nt":
     from pyreadline3 import Readline  # type: ignore
@@ -212,13 +213,52 @@ def init_config(args: Dict[str, Any]) -> None:
         )
         sys.exit(1)
 
+    # resolve api_root early (needed for both token and password flows)
+    if not api_root:
+        _, curconf = get_current_config(**args)
+        api_root = curconf["api_root"]
+
+    ignore_ssl = args.get("ignore_ssl", False)
+
+    # handle --init --token flow: register an existing token
+    if token is True:  # flag given without value
+        token = getpass.getpass(" \u2022 novem token: ")
+
+    if token:
+        if _do_debug:
+            print("INIT: validating supplied token")
+
+        try:
+            novem = NovemAPI(token=token, api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
+
+            # validate token and get username via /whoami
+            username = novem.read("whoami")
+
+            # get token metadata
+            token_info = json.loads(novem.read("token"))
+            token_name = token_info["token_name"]
+
+        except (Novem401, Novem404, Exception) as e:
+            if _do_debug:
+                print(f"INIT: token validation failed: {e}")
+            print("Invalid or expired token")
+            sys.exit(1)
+
+        # default profile to username if not supplied
+        if not profile:
+            profile = username
+
+        do_update_config(profile, username, api_root, token_name, token, config_path)
+        return
+
+    # existing username/password flow
     if _do_debug:
         print("INIT: construct token name")
     valid_char_sm = string.ascii_lowercase + string.digits
     valid_char = valid_char_sm + "-_"
     hostname: str = socket.gethostname()
 
-    token_name: Union[str, None] = None
+    token_name = None
     if not token_name:
         token_hostname: str = "".join([x for x in hostname.lower() if x in valid_char])
         nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
@@ -258,16 +298,6 @@ def init_config(args: Dict[str, Any]) -> None:
 
     if _do_debug:
         print("INIT: construct request")
-
-    if not api_root:
-        _, curconf = get_current_config(**args)
-        api_root = curconf["api_root"]
-
-    # let's grab our token
-    ignore_ssl = args.get("ignore_ssl", False)
-
-    if _do_debug:
-        print("INIT: request token")
 
     novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
 
