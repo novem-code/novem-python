@@ -144,8 +144,11 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         dest="token",
         action="store",
         required=False,
+        nargs="?",
+        const=True,
         default=None,
-        help="use this token instead, overrides profile lookup",
+        help="use this token instead, overrides profile lookup. "
+        "With --init, prompts for token to register an existing token",
     )
 
     parser.add_argument(

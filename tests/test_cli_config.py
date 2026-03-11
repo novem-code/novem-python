@@ -432,3 +432,105 @@ token = token2
 
     cli("--conf", "conf", "--profile", "user2", "-p")
     assert captured_token == "token2"
+
+
+# --- Tests for --init --token workflow ---
+
+token_info_resp = {
+    "token_name": "my-web-token",
+    "token_id": "abc123",
+}
+
+
+def test_init_with_token_flag(requests_mock, fs, cli):
+    """Test --init --token with token provided via stdin prompt."""
+    test_token = "test_token_value"
+
+    # Mock /whoami to return username
+    requests_mock.register_uri("GET", f"{API_ROOT}whoami", text="demouser")
+
+    # Mock /token to return token metadata
+    requests_mock.register_uri("GET", f"{API_ROOT}token", text=json.dumps(token_info_resp))
+
+    # get default config path
+    cfolder, cpath = get_config_path()
+
+    # verify that our config is missing
+    assert not file_exists(cpath)
+
+    # token is provided via stdin (getpass reads from stdin when /dev/tty is unavailable)
+    out, err = cli("--init", "--token", stdin=f"{test_token}\n")
+
+    # verify that our config is there
+    assert file_exists(cpath)
+
+    config = configparser.ConfigParser()
+    config.read(cpath)
+
+    assert config.has_section("general")
+
+    # profile should default to the username from /whoami
+    assert config["general"]["profile"] == "demouser"
+    assert config["general"]["api_root"] == API_ROOT
+
+    # verify the profile section
+    profile = "profile:demouser"
+    assert config.has_section(profile)
+    assert config[profile]["username"] == "demouser"
+    assert config[profile]["token"] == test_token
+    assert config[profile]["token_name"] == "my-web-token"
+
+
+def test_init_with_token_and_profile(requests_mock, fs, cli):
+    """Test --init --token --profile to use a custom profile name."""
+    test_token = "test_token_value"
+
+    # Mock /whoami to return username
+    requests_mock.register_uri("GET", f"{API_ROOT}whoami", text="demouser")
+
+    # Mock /token to return token metadata
+    requests_mock.register_uri("GET", f"{API_ROOT}token", text=json.dumps(token_info_resp))
+
+    # get default config path
+    cfolder, cpath = get_config_path()
+
+    assert not file_exists(cpath)
+
+    out, err = cli("--init", "--token", "--profile", "myprofile", stdin=f"{test_token}\n")
+
+    assert file_exists(cpath)
+
+    config = configparser.ConfigParser()
+    config.read(cpath)
+
+    # profile should be the custom name, not the username
+    assert config["general"]["profile"] == "myprofile"
+
+    profile = "profile:myprofile"
+    assert config.has_section(profile)
+    assert config[profile]["username"] == "demouser"
+    assert config[profile]["token"] == test_token
+    assert config[profile]["token_name"] == "my-web-token"
+
+
+def test_init_with_token_invalid(requests_mock, fs, cli):
+    """Test that an invalid token prints an error and exits."""
+    test_token = "bad_token"
+
+    # Mock /whoami to return 401
+    requests_mock.register_uri("GET", f"{API_ROOT}whoami", status_code=401, json={"message": "Unauthorized"})
+
+    # get default config path
+    cfolder, cpath = get_config_path()
+
+    assert not file_exists(cpath)
+
+    with pytest.raises(CliExit) as e:
+        cli("--init", "--token", stdin=f"{test_token}\n")
+
+    out, err = e.value.args
+    assert e.value.code == 1
+    assert "Invalid or expired token" in out
+
+    # config should NOT have been created
+    assert not file_exists(cpath)
