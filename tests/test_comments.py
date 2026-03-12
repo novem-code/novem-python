@@ -6,6 +6,8 @@ from novem.cli.gql import (
     _build_var_lookup,
     _format_var_value,
     _process_message,
+    _render_inline_ansi,
+    _render_message_lines,
     _render_vde_var_ansi,
     _resolve_mentions,
 )
@@ -424,11 +426,13 @@ def test_render_vde_var_ansi_up():
     result = _render_vde_var_ansi("0.15", "+,.1%", "relative", "0")
     assert "\u25b2" in result  # up triangle
     assert "+15.0%" in result
+    assert "\033[48;5;22m" in result  # green background
 
 
 def test_render_vde_var_ansi_down():
     result = _render_vde_var_ansi("-0.05", "+,.1%", "relative", "0")
     assert "\u25bc" in result  # down triangle
+    assert "\033[48;5;52m" in result  # red background
 
 
 def test_render_vde_var_ansi_neutral():
@@ -436,6 +440,7 @@ def test_render_vde_var_ansi_neutral():
     assert "\u25b2" not in result
     assert "\u25bc" not in result
     assert "42.00" in result
+    assert "\033[48;5;236m" in result  # gray background pill
 
 
 # ---------------------------------------------------------------------------
@@ -472,8 +477,115 @@ def test_process_message_mentions_and_vars():
 
 
 def test_process_message_unknown_var():
-    # When a var is in the lookup but not found, show path without braces
+    # When a var is in the lookup but not found, show path in gray
     var_lookup = {"/u/other/p/x/v/y": {"value": "1", "format": None, "type": None, "threshold": None}}
     msg = "Check {/u/unknown/p/test/v/missing}"
     result = _process_message(msg, None, var_lookup)
-    assert result == "Check /u/unknown/p/test/v/missing"
+    assert "/u/unknown/p/test/v/missing" in result
+    assert "{" not in result
+
+
+# ---------------------------------------------------------------------------
+# Inline markdown rendering
+# ---------------------------------------------------------------------------
+
+
+def test_inline_bold():
+    result = _render_inline_ansi("Hello **world**")
+    assert "\033[1m" in result
+    assert "world" in result
+    assert "**" not in result
+
+
+def test_inline_italic():
+    result = _render_inline_ansi("Hello *world*")
+    assert "\033[3m" in result
+    assert "world" in result
+    assert result.count("*") == 0
+
+
+def test_inline_code():
+    result = _render_inline_ansi("Use `foo()` here")
+    assert "foo()" in result
+    assert "`" not in result
+    assert "\033[48;5;236m" in result  # gray background
+
+
+def test_inline_strikethrough():
+    result = _render_inline_ansi("This is ~~wrong~~ right")
+    assert "\033[9m" in result
+    assert "wrong" in result
+    assert "~~" not in result
+
+
+def test_inline_link():
+    result = _render_inline_ansi("See [docs](https://example.com)")
+    assert "\033[4m" in result  # underline
+    assert "docs" in result
+    assert "https://example.com" in result
+    assert "[docs]" not in result
+
+
+def test_inline_mention_with_map():
+    mention_map = {"_maaaaaaaaaaaaaaaa": "alice"}
+    result = _render_inline_ansi("Hey @_maaaaaaaaaaaaaaaa", mention_map)
+    assert "@alice" in result
+    assert "_m" not in result
+
+
+def test_inline_vde_var():
+    var_lookup = {"/u/bob/p/dash/v/ret": {"value": "0.1", "format": "+,.1%", "type": "relative", "threshold": "0"}}
+    result = _render_inline_ansi("Return is {/u/bob/p/dash/v/ret}", var_lookup=var_lookup)
+    assert "+10.0%" in result
+    assert "{" not in result
+
+
+def test_inline_nested_bold_italic():
+    result = _render_inline_ansi("**bold and *italic* text**")
+    assert "\033[1m" in result  # bold
+    assert "bold and" in result
+
+
+# ---------------------------------------------------------------------------
+# Block-level message rendering
+# ---------------------------------------------------------------------------
+
+
+def test_message_lines_code_block():
+    msg = "Look:\n```python\ndef foo():\n    pass\n```\nDone."
+    lines = _render_message_lines(msg, "  ", 80)
+    # Should have code block lines with gray background
+    code_lines = [ln for ln in lines if "def foo():" in ln]
+    assert len(code_lines) == 1
+    assert "\033[48;5;236m" in code_lines[0]
+
+
+def test_message_lines_heading():
+    msg = "# Big Title\nSome text"
+    lines = _render_message_lines(msg, "  ", 80)
+    assert any("Big Title" in ln and "\033[1m" in ln for ln in lines)
+
+
+def test_message_lines_blockquote():
+    msg = "> quoted text\n> more quote"
+    lines = _render_message_lines(msg, "  ", 80)
+    assert any("\u2502" in ln and "quoted text" in ln for ln in lines)
+
+
+def test_message_lines_list():
+    msg = "- item one\n- item two"
+    lines = _render_message_lines(msg, "  ", 80)
+    assert any("\u2022" in ln and "item one" in ln for ln in lines)
+    assert any("\u2022" in ln and "item two" in ln for ln in lines)
+
+
+def test_message_lines_hr():
+    msg = "above\n---\nbelow"
+    lines = _render_message_lines(msg, "  ", 80)
+    assert any("\u2500" in ln for ln in lines)
+
+
+def test_message_lines_paragraph():
+    msg = "Just a simple paragraph."
+    lines = _render_message_lines(msg, "| ", 80)
+    assert lines == ["| Just a simple paragraph."]

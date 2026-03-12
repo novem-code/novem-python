@@ -16,7 +16,7 @@ from novem.cli.vis import (
     list_vis_shares,
     list_vis_tags,
 )
-from novem.utils import data_on_stdin
+from novem.utils import API_ROOT, data_on_stdin
 from novem.vis import NovemVisAPI
 
 
@@ -158,7 +158,15 @@ class VisBase:
             topics, vde_vars = fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
             me = gql._config.get("username", "")
             var_lookup = _build_var_lookup(vde_vars, usr or "", self.fragment, name) if vde_vars else None
-            print(render_topics(topics, me=me, var_lookup=var_lookup))
+            print(
+                render_topics(
+                    topics,
+                    me=me,
+                    var_lookup=var_lookup,
+                    session=gql._session,
+                    api_root=gql._config.get("api_root") or API_ROOT,
+                )
+            )
             return
 
         # if we have the -e or edit flag then this takes presedence over all other

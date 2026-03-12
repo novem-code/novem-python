@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from .api_ref import NovemAPI
+from .utils import API_ROOT
 
 # Single-letter FQNP type codes to API path plurals
 _TYPE_MAP: Dict[str, str] = {
@@ -291,7 +292,15 @@ class Context(NovemAPI):
 
         self._load()
         username = self._config.get("username", "")
-        return render_topics(self._raw_topics or [], me=username, var_lookup=self._var_lookup)
+        api_root = self._config.get("api_root") or API_ROOT
+        session = self._session if hasattr(self, "_session") else None
+        return render_topics(
+            self._raw_topics or [],
+            me=username,
+            var_lookup=self._var_lookup,
+            session=session,
+            api_root=api_root,
+        )
 
     @property
     def ansi(self) -> str:
@@ -319,7 +328,15 @@ class Context(NovemAPI):
 
         await self.aload()
         username = self._config.get("username", "")
-        return render_topics(self._raw_topics or [], me=username, var_lookup=self._var_lookup)
+        api_root = self._config.get("api_root") or API_ROOT
+        session = self._session if hasattr(self, "_session") else None
+        return render_topics(
+            self._raw_topics or [],
+            me=username,
+            var_lookup=self._var_lookup,
+            session=session,
+            api_root=api_root,
+        )
 
     async def areply(self, text: str, title: Optional[str] = None) -> None:
         """Async: post a reply."""
