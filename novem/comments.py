@@ -225,7 +225,9 @@ class Context(NovemAPI):
         """REST API base path for threads on this visualization."""
         if not self._vis_type or not self._vis_id:
             raise RuntimeError(f"FQNP {self._fqnp} does not reference a visualization")
-        return f"vis/{self._vis_type}/{self._vis_id}/threads"
+        me = self._config.get("username", "")
+        prefix = f"users/{self._user}/" if self._user and self._user != me else ""
+        return f"{prefix}vis/{self._vis_type}/{self._vis_id}/threads"
 
     # -- Tree access --
 

@@ -207,15 +207,25 @@ def test_dict_to_topic():
 # ---------------------------------------------------------------------------
 
 
-def test_context_threads_base():
+def test_context_threads_base_other_user():
     base = os.path.dirname(os.path.abspath(__file__))
     config_file = f"{base}/test.conf"
 
+    # alice != sondov (config username), so use long path
     ctx = Context("/u/alice/p/myplot", config_path=config_file)
-    assert ctx._threads_base == "vis/plots/myplot/threads"
+    assert ctx._threads_base == "users/alice/vis/plots/myplot/threads"
     assert ctx._user == "alice"
     assert ctx._vis_type == "plots"
     assert ctx._vis_id == "myplot"
+
+
+def test_context_threads_base_own_user():
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    # sondov == sondov (config username), so use short path
+    ctx = Context("/u/sondov/p/myplot", config_path=config_file)
+    assert ctx._threads_base == "vis/plots/myplot/threads"
 
 
 def test_context_comment_chain():
@@ -223,7 +233,7 @@ def test_context_comment_chain():
     config_file = f"{base}/test.conf"
 
     ctx = Context("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply", config_path=config_file)
-    assert ctx._threads_base == "vis/plots/myplot/threads"
+    assert ctx._threads_base == "users/alice/vis/plots/myplot/threads"
     assert ctx._user == "alice"
     assert ctx._comment_chain == ["@sen~topic", "@bob~reply"]
 
