@@ -4,7 +4,7 @@ MCP mention responder — on each @mention, spins up an MCP server
 and lets Claude explore the thread and reply via tool use.
 
 Usage:
-    pip install novem[events,mcp] anthropic
+    pip install -r examples/requirements.txt
     python examples/mcp_mention_responder.py
     python examples/mcp_mention_responder.py "/u/myuser/p/*/e/mention"
 """
@@ -14,9 +14,12 @@ import sys
 from typing import Any, List
 
 import anthropic
+from dotenv import load_dotenv
 
 from novem.comments import MCP
 from novem.events import Events
+
+load_dotenv()
 
 DEFAULT_PATTERNS = [
     "/u/*/p/*/e/mention",
