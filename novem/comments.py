@@ -23,10 +23,10 @@ def _split_comment_path(fqnp: str) -> Tuple[str, List[str]]:
     """Split a FQNP into (base, comment_segments).
 
     Examples:
-        "/u/alice/p/myplot/c/@sen~topic/c/@bob~reply"
-        -> ("/u/alice/p/myplot", ["@sen~topic", "@bob~reply"])
+        "/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply"
+        -> ("/u/user1/p/my-plot", ["@user2~topic", "@user3~reply"])
 
-        "/u/alice/p/myplot" -> ("/u/alice/p/myplot", [])
+        "/u/user1/p/my-plot" -> ("/u/user1/p/my-plot", [])
     """
     parts = fqnp.strip("/").split("/")
     base_parts: List[str] = []
@@ -73,12 +73,12 @@ def _parse_fqnp(fqnp: str) -> ParsedFQNP:
     Strips /c/ segments before parsing.
 
     Examples:
-        "/u/alice/p/myplot"              -> ParsedFQNP(user="alice", vis_type="plots", vis_id="myplot")
-        "/u/alice/grp/mygroup"           -> ParsedFQNP(user="alice", group_name="mygroup", group_type="user_group")
-        "/o/myorg/g/mygroup"             -> ParsedFQNP(org="myorg", group_name="mygroup", group_type="org_group")
-        "/u/alice/p/myplot/c/@sen~topic" -> ParsedFQNP(user="alice", vis_type="plots", vis_id="myplot")
-        "/u/alice"                       -> ParsedFQNP(user="alice")
-        "/o/myorg"                       -> ParsedFQNP(org="myorg")
+        "/u/user1/p/my-plot"              -> ParsedFQNP(user="user1", vis_type="plots", vis_id="my-plot")
+        "/u/user1/grp/my-group"           -> ParsedFQNP(user="user1", group_name="my-group", group_type="user_group")
+        "/o/my-org/g/my-group"            -> ParsedFQNP(org="my-org", group_name="my-group", group_type="org_group")
+        "/u/user1/p/my-plot/c/@user2~topic" -> ParsedFQNP(user="user1", vis_type="plots", vis_id="my-plot")
+        "/u/user1"                        -> ParsedFQNP(user="user1")
+        "/o/my-org"                       -> ParsedFQNP(org="my-org")
     """
     base, _ = _split_comment_path(fqnp)
     parts = [p for p in base.strip("/").split("/") if p]
@@ -230,12 +230,12 @@ class Context(NovemAPI):
     Usage::
 
         # Load full VDE context, focused on a specific comment
-        ctx = Context("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
+        ctx = Context("/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply")
         ctx.topics           # all topics on the VDE
-        ctx.topic            # the focused Topic (@sen~topic)
-        ctx.comment          # the focused Comment (@bob~reply)
+        ctx.topic            # the focused Topic (@user2~topic)
+        ctx.comment          # the focused Comment (@user3~reply)
 
-        ctx.reply("Thanks!")                     # reply under @bob~reply
+        ctx.reply("Thanks!")                     # reply under @user3~reply
         ctx.reply("Great!", title="agreed")      # slug = @me~agreed
 
         # Async variants
@@ -542,12 +542,12 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
 
         from novem.comments import MCP
 
-        server = MCP("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
+        server = MCP("/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply")
         server.run()  # stdio transport
 
     Args:
         fqnp: Fully Qualified Name Path, e.g.
-              ``/u/alice/p/myplot/c/@sen~topic/c/@bob~reply``
+              ``/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply``
         **kwargs: Passed through to :class:`Context`
                   (``config_profile``, ``token``, ``config_path``, …).
 
@@ -583,6 +583,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         ]
 
     server.api_tools = api_tools  # type: ignore[attr-defined]
+    server.on_reply = None  # type: ignore[attr-defined]
 
     # -- read-only tools ------------------------------------------------
 
@@ -612,7 +613,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         """Get a single topic and its full comment tree.
 
         Args:
-            ref: Topic reference, e.g. ``@alice~my-topic``.
+            ref: Topic reference, e.g. ``@user1~my-topic``.
         """
         for t in ctx.topics:
             if t.ref == ref:
@@ -657,7 +658,12 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         Args:
             text: The message body (plain text or markdown).
         """
-        ctx.reply(text)
+        if server.on_reply:  # type: ignore[attr-defined]
+            text = server.on_reply(text)  # type: ignore[attr-defined]
+        try:
+            ctx.reply(text)
+        except Exception as e:
+            return f"Reply failed: {e}"
         return "Reply posted."
 
     return server

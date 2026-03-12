@@ -5,8 +5,8 @@ Mention responder — listens for @mention events and prints the thread context.
 Usage:
     pip install novem[events]
     python examples/mention_responder.py
-    python examples/mention_responder.py "/u/myuser/p/*/e/mention"
-    python examples/mention_responder.py "/o/myorg/g/*/e/mention"
+    python examples/mention_responder.py "/u/<user>/p/*/e/mention"
+    python examples/mention_responder.py "/o/<org>/g/*/e/mention"
     python examples/mention_responder.py --profile sd
 """
 
@@ -49,9 +49,9 @@ async def main() -> None:
             continue
 
         # target_fqnp is the full comment permalink, e.g.
-        # /u/alice/p/myplot/c/@sen~topic/c/@bob~reply
-        # /u/alice/grp/mygroup/c/@sen~topic
-        # /o/myorg/g/mygroup/c/@sen~topic
+        # /u/user1/p/my-plot/c/@user2~topic/c/@user3~reply
+        # /u/user1/grp/my-group/c/@user2~topic
+        # /o/my-org/g/my-group/c/@user2~topic
         ctx = Context(msg.target_fqnp, **ctx_kwargs)
         print(await ctx.atxt())
 
