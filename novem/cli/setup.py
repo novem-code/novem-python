@@ -74,6 +74,26 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     parser.add_argument(
+        "--events",
+        dest="events",
+        nargs="+",
+        required=False,
+        default=None,
+        metavar="FQNP",
+        help="subscribe to real-time events using FQNP patterns. "
+        "Example: --events /u/sondov/p/tst_plot/e/update /u/trt/p/markets/*",
+    )
+
+    parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        required=False,
+        default=False,
+        help="output events as JSON lines (default is human-readable)",
+    )
+
+    parser.add_argument(
         "--dump",
         metavar=("OUT_PATH"),
         dest="dump",
