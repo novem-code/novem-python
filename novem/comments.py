@@ -646,6 +646,31 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
             pass
         return "\n".join(lines)
 
+    @server.tool()
+    def get_vis_screenshot() -> Any:
+        """Get a PNG screenshot of the visualization being discussed.
+
+        Returns the rendered image so you can see exactly what users
+        are looking at.  Only available when the FQNP points to a
+        visualization (plot, grid, mail, …).
+        """
+        from mcp.server.fastmcp import Image
+
+        if not parsed.is_vis:
+            return "This FQNP does not reference a visualization."
+        try:
+            # Reverse lookup: "plots" -> "p"
+            type_letter = next((k for k, v in _TYPE_MAP.items() if v == parsed.vis_type), None)
+            if not type_letter:
+                return f"Unknown vis type: {parsed.vis_type}"
+            url = f"{ctx._api_root}u/{parsed.owner}/{type_letter}/{parsed.vis_id}/img"
+            resp = ctx._session.get(url)
+            if resp.status_code != 200:
+                return f"Failed to fetch screenshot (HTTP {resp.status_code})."
+            return Image(data=resp.content, format="png")
+        except Exception as e:
+            return f"Failed to fetch screenshot: {e}"
+
     # -- write tool -----------------------------------------------------
 
     @server.tool()
