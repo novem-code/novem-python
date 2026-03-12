@@ -5,7 +5,7 @@ from typing import Any, Dict, Literal, Optional
 from novem import Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.editor import edit
-from novem.cli.gql import NovemGQL, fetch_topics_gql, render_topics
+from novem.cli.gql import NovemGQL, _build_var_lookup, fetch_vde_topics_gql, render_topics
 from novem.cli.setup import Share, Tag
 from novem.cli.vis import (
     list_job_shares,
@@ -155,9 +155,10 @@ class VisBase:
             if "profile" in args and args["profile"]:
                 args["config_profile"] = args["profile"]
             gql = NovemGQL(**args)
-            topics = fetch_topics_gql(gql, self.fragment, name, author=usr)
+            topics, vde_vars = fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
             me = gql._config.get("username", "")
-            print(render_topics(topics, me=me))
+            var_lookup = _build_var_lookup(vde_vars, usr or "", self.fragment, name) if vde_vars else None
+            print(render_topics(topics, me=me, var_lookup=var_lookup))
             return
 
         # if we have the -e or edit flag then this takes presedence over all other

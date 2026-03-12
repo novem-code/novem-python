@@ -1,7 +1,7 @@
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List
 
 from ..utils import get_current_config
@@ -71,8 +71,7 @@ async def _subscribe_events(args: Dict[str, Any], patterns: List[str]) -> None:
         import socketio
     except ImportError:
         print(
-            'Error: The "events" extra is required for --events.\n'
-            "Install it with: pip install novem[events]",
+            'Error: The "events" extra is required for --events.\n' "Install it with: pip install novem[events]",
             file=sys.stderr,
         )
         sys.exit(1)

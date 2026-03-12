@@ -10,7 +10,7 @@ import json
 import re
 import shutil
 import textwrap
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 
@@ -1350,6 +1350,7 @@ _COMMENT_FIELDS = """
     created
     updated
     creator { username }
+    mentions { nonce user { username } }
 """
 
 
@@ -1367,6 +1368,7 @@ def _build_comment_fragment(depth: int = 4) -> str:
 _TOPICS_QUERY_TPL = """
 query GetTopics($id: ID!, $author: String) {{
   {vis_type}(id: $id, author: $author) {{
+    vars {{ id value format type threshold }}
     topics {{
       topic_id
       slug
@@ -1381,6 +1383,7 @@ query GetTopics($id: ID!, $author: String) {{
       created
       updated
       creator {{ username }}
+      mentions {{ nonce user {{ username }} }}
       comments {{{comment_fragment}
       }}
     }}
@@ -1408,6 +1411,14 @@ def _has_truncated_replies(comments: List[Dict[str, Any]]) -> bool:
 
 def fetch_topics_gql(gql: NovemGQL, vis_type: str, vis_id: str, author: Optional[str] = None) -> List[Dict[str, Any]]:
     """Fetch topics and comments, deepening the query if threads are truncated."""
+    topics, _ = fetch_vde_topics_gql(gql, vis_type, vis_id, author=author)
+    return topics
+
+
+def fetch_vde_topics_gql(
+    gql: NovemGQL, vis_type: str, vis_id: str, author: Optional[str] = None
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Fetch topics, comments, and VDE vars. Returns (topics, vars)."""
     variables: Dict[str, Any] = {"id": vis_id}
     if author:
         variables["author"] = author
@@ -1415,14 +1426,16 @@ def fetch_topics_gql(gql: NovemGQL, vis_type: str, vis_id: str, author: Optional
     depth = 3
     max_depth = 12
     topics: List[Dict[str, Any]] = []
+    vde_vars: List[Dict[str, Any]] = []
 
     while depth <= max_depth:
         query = _build_topics_query(vis_type, depth=depth)
         data = gql._query(query, variables)
         items = data.get(vis_type, [])
         if not items:
-            return []
+            return [], []
         topics = items[0].get("topics", [])
+        vde_vars = items[0].get("vars", []) or []
 
         # Check if any topic has truncated comment trees
         truncated = any(_has_truncated_replies(t.get("comments", [])) for t in topics)
@@ -1430,7 +1443,191 @@ def fetch_topics_gql(gql: NovemGQL, vis_type: str, vis_id: str, author: Optional
             break
         depth += 3
 
-    return topics
+    return topics, vde_vars
+
+
+# ---------------------------------------------------------------------------
+# Message processing: mentions + VDE variable embeds
+# ---------------------------------------------------------------------------
+
+_VDE_VAR_RE = re.compile(r"\{(/u/[A-Za-z0-9_.-]+/[pgmdrj]/[A-Za-z0-9_.-]+/v/[A-Za-z0-9_.-]+)\}")
+_MENTION_RE = re.compile(r"@(_m[a-f0-9]{16})")
+
+
+def _resolve_mentions(message: str, mentions: Optional[List[Dict[str, Any]]]) -> str:
+    """Replace @_m<nonce> placeholders with @username."""
+    if not mentions:
+        return message
+    nonce_map = {}
+    for m in mentions:
+        nonce = m.get("nonce", "")
+        username = (m.get("user") or {}).get("username", "")
+        if nonce and username:
+            nonce_map[nonce] = username
+
+    def _repl(match: re.Match) -> str:  # type: ignore[type-arg]
+        nonce = match.group(1)
+        username = nonce_map.get(nonce)
+        return f"@{username}" if username else match.group(0)
+
+    return _MENTION_RE.sub(_repl, message)
+
+
+def _format_var_value(
+    value: Optional[str], fmt: Optional[str], var_type: Optional[str], threshold: Optional[str]
+) -> str:
+    """Format a VDE variable value according to its format string.
+
+    Mirrors the webapp's formatVar.ts logic.
+    """
+    if value is None:
+        return ""
+
+    # Text passthrough
+    if fmt == "st" or var_type == "text":
+        return value
+
+    # Date passthrough
+    if fmt and fmt.startswith("%"):
+        return value
+
+    try:
+        num = float(value)
+    except (ValueError, TypeError):
+        return value
+
+    is_percent = bool(fmt and "%" in fmt)
+    show_sign = bool(fmt and "+" in fmt)
+    use_comma = bool(fmt and "," in fmt)
+
+    # Parse precision from format string
+    precision = 0
+    if fmt:
+        # Money: "$2m" → 2
+        money_match = re.match(r"^([$€£])(\d+)m$", fmt)
+        if money_match:
+            symbol = money_match.group(1)
+            precision = int(money_match.group(2))
+            display = abs(num)
+            formatted = f"{display:.{precision}f}"
+            formatted = _comma_group(formatted)
+            if num < 0:
+                formatted = "\u2212" + formatted
+            elif show_sign:
+                formatted = "+" + formatted
+            return f"{symbol}{formatted}"
+
+        # .Nf or .N%
+        prec_match = re.search(r"\.(\d+)", fmt)
+        if prec_match:
+            precision = int(prec_match.group(1))
+
+    display_num = num * 100 if is_percent else num
+    formatted = f"{abs(display_num):.{precision}f}"
+
+    if use_comma:
+        formatted = _comma_group(formatted)
+
+    if display_num < 0:
+        formatted = "\u2212" + formatted
+    elif show_sign and display_num >= 0:
+        formatted = "+" + formatted
+
+    if is_percent:
+        formatted += "%"
+
+    return formatted
+
+
+def _comma_group(s: str) -> str:
+    """Add thousands separators to a formatted number string."""
+    parts = s.split(".")
+    digits = parts[0]
+    grouped = ""
+    for i, ch in enumerate(reversed(digits)):
+        if i > 0 and i % 3 == 0:
+            grouped = "," + grouped
+        grouped = ch + grouped
+    parts[0] = grouped
+    return ".".join(parts)
+
+
+def _render_vde_var_ansi(
+    value: Optional[str],
+    fmt: Optional[str],
+    var_type: Optional[str],
+    threshold: Optional[str],
+) -> str:
+    """Render a VDE variable as an ANSI-colored inline pill."""
+    formatted = _format_var_value(value, fmt, var_type, threshold)
+    if not formatted:
+        return ""
+
+    # Direction indicator for relative type
+    if var_type == "relative" and value is not None and threshold is not None:
+        try:
+            val = float(value)
+            thresh = float(threshold)
+            if val > thresh:
+                return f"{cl.OKGREEN}\u25b2 {formatted}{cl.ENDC}"
+            elif val < thresh:
+                return f"{cl.FAIL}\u25bc {formatted}{cl.ENDC}"
+        except (ValueError, TypeError):
+            pass
+
+    return formatted
+
+
+def _build_var_lookup(
+    vde_vars: List[Dict[str, Any]], user: str, vis_type: str, vis_id: str
+) -> Dict[str, Dict[str, Any]]:
+    """Build a lookup dict from VDE var FQNP path to var data.
+
+    Maps e.g. "/u/alice/p/myplot/v/revenue" -> {"value": "0.15", "format": "+,.1%", ...}
+    """
+    # Reverse the type map: "plots" -> "p", "grids" -> "g", etc.
+    type_to_code = {"plots": "p", "grids": "g", "mails": "m", "docs": "d", "jobs": "j", "repos": "r"}
+    code = type_to_code.get(vis_type, "")
+    lookup: Dict[str, Dict[str, Any]] = {}
+    for v in vde_vars:
+        var_id = v.get("id", "")
+        if var_id:
+            path = f"/u/{user}/p/{vis_id}/v/{var_id}" if code == "p" else f"/u/{user}/{code}/{vis_id}/v/{var_id}"
+            lookup[path] = v
+    return lookup
+
+
+def _process_message(
+    message: str,
+    mentions: Optional[List[Dict[str, Any]]] = None,
+    var_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> str:
+    """Process a message: resolve mentions and render VDE variable embeds."""
+    if not message:
+        return message
+
+    # Resolve mentions
+    message = _resolve_mentions(message, mentions)
+
+    # Render VDE variable embeds
+    if var_lookup:
+
+        def _var_repl(match: re.Match) -> str:  # type: ignore[type-arg]
+            path = match.group(1)
+            var_data = var_lookup.get(path)
+            if var_data:
+                return _render_vde_var_ansi(
+                    var_data.get("value"),
+                    var_data.get("format"),
+                    var_data.get("type"),
+                    var_data.get("threshold"),
+                )
+            # Unknown var — show path without braces
+            return path
+
+        message = _VDE_VAR_RE.sub(_var_repl, message)
+
+    return message
 
 
 def _relative_time(dt: datetime.datetime) -> str:
@@ -1482,7 +1679,13 @@ def _get_term_width() -> int:
 
 
 def _render_comment(
-    comment: Dict[str, Any], prefix: str, connector: str, child_prefix: str, width: int = 0, me: str = ""
+    comment: Dict[str, Any],
+    prefix: str,
+    connector: str,
+    child_prefix: str,
+    width: int = 0,
+    me: str = "",
+    var_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> str:
     """Render a single comment and its replies as a tree."""
     if not width:
@@ -1492,6 +1695,7 @@ def _render_comment(
 
     username = comment.get("creator", {}).get("username", "?")
     message = comment.get("message", "") or ""
+    mentions = comment.get("mentions")
     deleted = comment.get("deleted", False)
     edited = comment.get("edited", False)
     created_str = comment.get("created", "")
@@ -1536,6 +1740,7 @@ def _render_comment(
     if deleted:
         lines.append(f"{body_prefix}{cl.FGGRAY}[deleted]{cl.ENDC}")
     elif message:
+        message = _process_message(message, mentions, var_lookup)
         lines.extend(_wrap_text(message, body_prefix, width))
 
     # Replies
@@ -1544,12 +1749,16 @@ def _render_comment(
         is_last = i == len(replies) - 1
         rc = "└ " if is_last else "├ "
         rp = "  " if is_last else "│ "
-        lines.append(_render_comment(reply, f"{prefix}{child_prefix}", rc, rp, width, me=me))
+        lines.append(_render_comment(reply, f"{prefix}{child_prefix}", rc, rp, width, me=me, var_lookup=var_lookup))
 
     return "\n".join(lines)
 
 
-def render_topics(topics: List[Dict[str, Any]], me: str = "") -> str:
+def render_topics(
+    topics: List[Dict[str, Any]],
+    me: str = "",
+    var_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> str:
     """Render a list of topics with their comment trees."""
     colors()
 
@@ -1564,6 +1773,7 @@ def render_topics(topics: List[Dict[str, Any]], me: str = "") -> str:
 
         username = topic.get("creator", {}).get("username", "?")
         message = topic.get("message", "") or ""
+        mentions = topic.get("mentions")
         audience = topic.get("audience", "")
         status = topic.get("status", "")
         num_comments = topic.get("num_comments", 0)
@@ -1612,6 +1822,7 @@ def render_topics(topics: List[Dict[str, Any]], me: str = "") -> str:
         # Topic body
         body_prefix = f"{cl.BOLD}│{cl.ENDC} "
         if message:
+            message = _process_message(message, mentions, var_lookup)
             lines.extend(_wrap_text(message, body_prefix, width))
 
         # Comments
@@ -1620,7 +1831,9 @@ def render_topics(topics: List[Dict[str, Any]], me: str = "") -> str:
             is_last = i == len(comments) - 1
             connector = "├ " if not is_last else "└ "
             child_prefix = "│ " if not is_last else "  "
-            lines.append(_render_comment(comment, body_prefix, connector, child_prefix, width, me=me))
+            lines.append(
+                _render_comment(comment, body_prefix, connector, child_prefix, width, me=me, var_lookup=var_lookup)
+            )
 
         if not comments:
             lines.append(f"{cl.BOLD}└{cl.ENDC} {cl.FGGRAY}(no comments){cl.ENDC}")

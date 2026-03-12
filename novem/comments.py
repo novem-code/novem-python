@@ -1,0 +1,363 @@
+"""Thread context and comment interaction for the novem platform."""
+
+import asyncio
+import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+from .api_ref import NovemAPI
+
+# Single-letter FQNP type codes to API path plurals
+_TYPE_MAP: Dict[str, str] = {
+    "p": "plots",
+    "g": "grids",
+    "m": "mails",
+    "d": "docs",
+    "j": "jobs",
+    "r": "repos",
+}
+
+
+def _split_comment_path(fqnp: str) -> Tuple[str, List[str]]:
+    """Split a FQNP into (base, comment_segments).
+
+    Examples:
+        "/u/alice/p/myplot/c/@sen~topic/c/@bob~reply"
+        -> ("/u/alice/p/myplot", ["@sen~topic", "@bob~reply"])
+
+        "/u/alice/p/myplot" -> ("/u/alice/p/myplot", [])
+    """
+    parts = fqnp.strip("/").split("/")
+    base_parts: List[str] = []
+    comment_segs: List[str] = []
+    i = 0
+    while i < len(parts):
+        if parts[i] == "c" and i + 1 < len(parts):
+            comment_segs.append(parts[i + 1])
+            i += 2
+        else:
+            base_parts.append(parts[i])
+            i += 1
+    return "/" + "/".join(base_parts), comment_segs
+
+
+def _parse_fqnp(fqnp: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """Parse a FQNP into (user, vis_type_plural, vis_id).
+
+    Strips /c/ segments before parsing.
+
+    Examples:
+        "/u/alice/p/myplot"                       -> ("alice", "plots", "myplot")
+        "/u/alice/p/myplot/c/@sen~topic"          -> ("alice", "plots", "myplot")
+        "/u/alice"                                -> ("alice", None, None)
+        "/o/myorg"                                -> ("myorg", None, None)
+    """
+    base, _ = _split_comment_path(fqnp)
+    parts = [p for p in base.strip("/").split("/") if p]
+
+    if len(parts) < 2:
+        raise ValueError(f"Invalid FQNP: {fqnp}")
+
+    if parts[0] == "u":
+        user = parts[1]
+        if len(parts) >= 4 and parts[2] in _TYPE_MAP:
+            return user, _TYPE_MAP[parts[2]], parts[3]
+        return user, None, None
+
+    if parts[0] == "o":
+        return parts[1], None, None
+
+    raise ValueError(f"Invalid FQNP prefix: {parts[0]}")
+
+
+def _gen_slug() -> str:
+    """Generate a slug from the current timestamp."""
+    return f"r{int(time.time() * 1000) % 10**10}"
+
+
+# ---------------------------------------------------------------------------
+# Tree data structures — mirror the GQL response
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Comment:
+    """A comment in a thread tree."""
+
+    slug: str
+    message: str
+    creator: str
+    depth: int
+    replies: List["Comment"] = field(default_factory=list)
+    comment_id: Optional[int] = None
+    deleted: bool = False
+    edited: bool = False
+    num_replies: int = 0
+    likes: int = 0
+    dislikes: int = 0
+    my_reaction: Optional[str] = None
+    created: str = ""
+    updated: str = ""
+
+    @property
+    def ref(self) -> str:
+        """REST-style reference: @creator~slug."""
+        return f"@{self.creator}~{self.slug}"
+
+
+@dataclass
+class Topic:
+    """A topic (thread root) on a visualization."""
+
+    slug: str
+    message: str
+    creator: str
+    comments: List[Comment] = field(default_factory=list)
+    topic_id: Optional[int] = None
+    audience: str = "public"
+    status: str = "active"
+    num_comments: int = 0
+    likes: int = 0
+    dislikes: int = 0
+    my_reaction: Optional[str] = None
+    edited: bool = False
+    created: str = ""
+    updated: str = ""
+
+    @property
+    def ref(self) -> str:
+        """REST-style reference: @creator~slug."""
+        return f"@{self.creator}~{self.slug}"
+
+
+def _dict_to_comment(d: Dict[str, Any]) -> Comment:
+    """Convert a GQL comment dict to a Comment."""
+    return Comment(
+        slug=d.get("slug", ""),
+        message=d.get("message", "") or "",
+        creator=d.get("creator", {}).get("username", ""),
+        depth=d.get("depth", 0),
+        replies=[_dict_to_comment(r) for r in (d.get("replies") or [])],
+        comment_id=d.get("comment_id"),
+        deleted=d.get("deleted", False),
+        edited=d.get("edited", False),
+        num_replies=d.get("num_replies", 0),
+        likes=d.get("likes", 0),
+        dislikes=d.get("dislikes", 0),
+        my_reaction=d.get("my_reaction"),
+        created=d.get("created", ""),
+        updated=d.get("updated", ""),
+    )
+
+
+def _dict_to_topic(d: Dict[str, Any]) -> Topic:
+    """Convert a GQL topic dict to a Topic."""
+    return Topic(
+        slug=d.get("slug", ""),
+        message=d.get("message", "") or "",
+        creator=d.get("creator", {}).get("username", ""),
+        comments=[_dict_to_comment(c) for c in (d.get("comments") or [])],
+        topic_id=d.get("topic_id"),
+        audience=d.get("audience", "public"),
+        status=d.get("status", "active"),
+        num_comments=d.get("num_comments", 0),
+        likes=d.get("likes", 0),
+        dislikes=d.get("dislikes", 0),
+        my_reaction=d.get("my_reaction"),
+        edited=d.get("edited", False),
+        created=d.get("created", ""),
+        updated=d.get("updated", ""),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Backward compat
+# ---------------------------------------------------------------------------
+
+
+class Message:
+    """A comment or reply to post (kept for backward compatibility)."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+# ---------------------------------------------------------------------------
+# Context
+# ---------------------------------------------------------------------------
+
+
+class Context(NovemAPI):
+    """Thread context for a FQNP.
+
+    Loads the full topic/comment tree from GraphQL and provides navigation
+    via /c/ segments in the FQNP.
+
+    Usage::
+
+        # Load full VDE context, focused on a specific comment
+        ctx = Context("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
+        ctx.topics           # all topics on the VDE
+        ctx.topic            # the focused Topic (@sen~topic)
+        ctx.comment          # the focused Comment (@bob~reply)
+
+        ctx.reply("Thanks!")                     # reply under @bob~reply
+        ctx.reply("Great!", title="agreed")      # slug = @me~agreed
+
+        # Async variants
+        await ctx.aload()
+        print(await ctx.atxt())
+        await ctx.areply("Thanks!")
+    """
+
+    def __init__(self, fqnp: str, **kwargs: Any) -> None:
+        self._fqnp = fqnp
+        self._user, self._vis_type, self._vis_id = _parse_fqnp(fqnp)
+        _, self._comment_chain = _split_comment_path(fqnp)
+        super().__init__(**kwargs)
+        self._raw_topics: Optional[List[Dict[str, Any]]] = None
+        self._raw_vars: Optional[List[Dict[str, Any]]] = None
+        self._topics: Optional[List[Topic]] = None
+
+    @property
+    def _threads_base(self) -> str:
+        """REST API base path for threads on this visualization."""
+        if not self._vis_type or not self._vis_id:
+            raise RuntimeError(f"FQNP {self._fqnp} does not reference a visualization")
+        return f"vis/{self._vis_type}/{self._vis_id}/threads"
+
+    # -- Tree access --
+
+    def _load(self) -> None:
+        """Lazy-load the topic tree from GQL."""
+        if self._raw_topics is not None:
+            return
+        self._raw_topics, self._raw_vars = self._fetch_raw_topics()
+        self._topics = [_dict_to_topic(t) for t in self._raw_topics]
+
+    @property
+    def topics(self) -> List[Topic]:
+        """All topics on this visualization."""
+        self._load()
+        assert self._topics is not None
+        return self._topics
+
+    @property
+    def topic(self) -> Optional[Topic]:
+        """The focused topic (first /c/ segment), or None."""
+        if not self._comment_chain:
+            return None
+        ref = self._comment_chain[0]
+        for t in self.topics:
+            if t.ref == ref:
+                return t
+        return None
+
+    @property
+    def comment(self) -> Optional[Comment]:
+        """The deepest focused comment (from /c/ chain), or None."""
+        if len(self._comment_chain) < 2:
+            return None
+        t = self.topic
+        if not t:
+            return None
+        node: Optional[Comment] = None
+        comments = t.comments
+        for ref in self._comment_chain[1:]:
+            for c in comments:
+                if c.ref == ref:
+                    node = c
+                    comments = c.replies
+                    break
+            else:
+                return node
+        return node
+
+    # -- Sync interface --
+
+    @property
+    def _var_lookup(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Build a var lookup dict from loaded VDE vars."""
+        from .cli.gql import _build_var_lookup
+
+        if not self._raw_vars:
+            return None
+        return _build_var_lookup(self._raw_vars, self._user, self._vis_type or "", self._vis_id or "")
+
+    @property
+    def txt(self) -> str:
+        """ANSI-rendered thread listing."""
+        from .cli.gql import render_topics
+
+        self._load()
+        username = self._config.get("username", "")
+        return render_topics(self._raw_topics or [], me=username, var_lookup=self._var_lookup)
+
+    @property
+    def ansi(self) -> str:
+        """ANSI-rendered thread listing (alias for txt)."""
+        return self.txt
+
+    def reply(self, text: str, title: Optional[str] = None) -> None:
+        """Post a reply at the current focus point.
+
+        Args:
+            text: The message body.
+            title: Optional slug for the comment. Auto-generated if omitted.
+        """
+        self._do_reply(text, title)
+
+    # -- Async interface --
+
+    async def aload(self) -> None:
+        """Async: pre-load the topic tree."""
+        await asyncio.to_thread(self._load)
+
+    async def atxt(self) -> str:
+        """Async: ANSI-rendered thread listing."""
+        from .cli.gql import render_topics
+
+        await self.aload()
+        username = self._config.get("username", "")
+        return render_topics(self._raw_topics or [], me=username, var_lookup=self._var_lookup)
+
+    async def areply(self, text: str, title: Optional[str] = None) -> None:
+        """Async: post a reply."""
+        await asyncio.to_thread(self._do_reply, text, title)
+
+    # -- Internal --
+
+    def _fetch_raw_topics(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        from .cli.gql import NovemGQL, fetch_vde_topics_gql
+
+        gql_kwargs: Dict[str, Any] = {}
+        if hasattr(self, "token"):
+            gql_kwargs["token"] = self.token
+        if hasattr(self, "_api_root"):
+            gql_kwargs["api_root"] = self._api_root
+
+        gql = NovemGQL(**gql_kwargs)
+        return fetch_vde_topics_gql(gql, self._vis_type or "", self._vis_id or "", author=self._user)
+
+    def _do_reply(self, text: str, title: Optional[str] = None) -> None:
+        base = self._threads_base
+        username = self._config.get("username", "")
+        slug = title or _gen_slug()
+        my_ref = f"@{username}~{slug}"
+
+        # Build path from /c/ chain
+        if self._comment_chain:
+            path = f"{base}/{self._comment_chain[0]}"
+            for seg in self._comment_chain[1:]:
+                path += f"/comments/{seg}"
+            path += f"/comments/{my_ref}"
+        else:
+            # No focus — reply to latest topic, or create new one
+            self._load()
+            if self._topics:
+                path = f"{base}/{self._topics[0].ref}/comments/{my_ref}"
+            else:
+                path = f"{base}/{my_ref}"
+
+        self.create(path)
+        self.write(f"{path}/msg", text)

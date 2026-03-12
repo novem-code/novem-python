@@ -1,4 +1,6 @@
 from .claim import Claim
+from .comments import Comment, Context, Message, Topic
+from .events import EventMessage, Events
 from .group.org import Org
 from .job import Job
 from .profile import Profile
@@ -8,4 +10,20 @@ from .vis.grid import Grid
 from .vis.mail import Mail
 from .vis.plot import Plot
 
-__all__ = ["Plot", "Mail", "Grid", "Org", "Repo", "Job", "Claim", "Profile", "__version__"]
+__all__ = [
+    "Plot",
+    "Mail",
+    "Grid",
+    "Org",
+    "Repo",
+    "Job",
+    "Claim",
+    "Profile",
+    "Events",
+    "EventMessage",
+    "Context",
+    "Comment",
+    "Topic",
+    "Message",
+    "__version__",
+]
