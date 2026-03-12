@@ -4,9 +4,7 @@ MCP mention responder — on each @mention, spins up an MCP server
 and lets Claude explore the thread and reply via tool use.
 
 Usage:
-    pip install -r examples/requirements.txt
-    python examples/mcp_mention_responder.py
-    python examples/mcp_mention_responder.py "/u/myuser/p/*/e/mention"
+    uv run --extra events --extra mcp --with anthropic --with python-dotenv examples/mcp_mention_responder.py
 """
 
 import asyncio
@@ -34,7 +32,8 @@ client = anthropic.Anthropic()
 SYSTEM = (
     "You are a helpful assistant responding to mentions on the novem "
     "data visualization platform. Use the available tools to read the "
-    "conversation context, then reply concisely."
+    "conversation context, then reply concisely.\n\n"
+    f"{MCP.DOCS_MARKDOWN_COMMENTS}"  # type: ignore[attr-defined]
 )
 
 
@@ -65,22 +64,26 @@ async def handle(msg: Any) -> None:
             messages=messages,
         )
 
-        if resp.stop_reason == "end_of_turn":
+        # Execute any tool calls, otherwise we're done
+        tool_blocks = [b for b in resp.content if b.type == "tool_use"]
+        if not tool_blocks:
+            for block in resp.content:
+                if hasattr(block, "text"):
+                    print(f"  [reply] {block.text}", file=sys.stderr)
             break
 
-        # Execute tool calls against the MCP server
         messages.append({"role": "assistant", "content": resp.content})
         results = []
-        for block in resp.content:
-            if block.type == "tool_use":
-                content, _meta = await mcp.call_tool(block.name, block.input)
-                results.append(
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": content[0].text if content else "",
-                    }
-                )
+        for block in tool_blocks:
+            print(f"  [tool] {block.name}({block.input})", file=sys.stderr)
+            content, _meta = await mcp.call_tool(block.name, block.input)
+            results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": content[0].text if content else "",
+                }
+            )
         messages.append({"role": "user", "content": results})
 
 

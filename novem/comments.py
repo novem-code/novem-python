@@ -500,6 +500,38 @@ def _fmt_topics(topics: List[Topic]) -> str:
     return "\n\n".join(_fmt_topic(t) for t in topics)
 
 
+_DOCS_MARKDOWN_COMMENTS = """\
+Novem comments support the following markdown syntax:
+
+Inline:
+  **bold**              Bold text
+  *italic*              Italic text
+  ~~strikethrough~~     Strikethrough text
+  `code`                Inline code
+  [text](url)           Link (url must start with http://, https://, or /)
+  ^text^                Superscript
+  ~text~                Subscript (use ~~ for strikethrough)
+  @username             Mention a user
+
+Block-level:
+  # Heading             Headings (# through ######)
+  > quote               Blockquote (can span multiple lines)
+  - item                Unordered list (- or *)
+  ---                   Horizontal rule
+  ^^ text               Footer (small, muted text — can span multiple ^^ lines)
+  ```lang               Fenced code block (language label is optional)
+  code
+  ```
+
+Novem-specific embeds:
+  {/u/<user>/p/<plot>/v/<var>}    Embed a live VDE variable value inline
+  ![alt](/u/<user>/p/<plot>)      Embed a visualisation (must be on its own line)
+  Supported vis types: p (plots), g (grids), m (mails), d (docs)
+
+Not supported: ordered lists, tables, images.
+"""
+
+
 def MCP(fqnp: str, **kwargs: Any) -> Any:
     """Create an MCP server scoped to a comment FQNP.
 
@@ -629,3 +661,6 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         return "Reply posted."
 
     return server
+
+
+MCP.DOCS_MARKDOWN_COMMENTS = _DOCS_MARKDOWN_COMMENTS  # type: ignore[attr-defined]
