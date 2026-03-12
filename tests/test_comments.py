@@ -29,38 +29,77 @@ from novem.comments import (
 
 
 def test_parse_fqnp_vis():
-    user, vis_type, vis_id = _parse_fqnp("/u/alice/p/myplot")
-    assert user == "alice"
-    assert vis_type == "plots"
-    assert vis_id == "myplot"
+    p = _parse_fqnp("/u/alice/p/myplot")
+    assert p.user == "alice"
+    assert p.vis_type == "plots"
+    assert p.vis_id == "myplot"
+    assert p.is_vis
+    assert not p.is_group
 
 
 def test_parse_fqnp_grid():
-    user, vis_type, vis_id = _parse_fqnp("/u/bob/g/mygrid")
-    assert user == "bob"
-    assert vis_type == "grids"
-    assert vis_id == "mygrid"
+    p = _parse_fqnp("/u/bob/g/mygrid")
+    assert p.user == "bob"
+    assert p.vis_type == "grids"
+    assert p.vis_id == "mygrid"
 
 
 def test_parse_fqnp_mail():
-    user, vis_type, vis_id = _parse_fqnp("/u/charlie/m/newsletter")
-    assert user == "charlie"
-    assert vis_type == "mails"
-    assert vis_id == "newsletter"
+    p = _parse_fqnp("/u/charlie/m/newsletter")
+    assert p.user == "charlie"
+    assert p.vis_type == "mails"
+    assert p.vis_id == "newsletter"
 
 
 def test_parse_fqnp_user_only():
-    user, vis_type, vis_id = _parse_fqnp("/u/alice")
-    assert user == "alice"
-    assert vis_type is None
-    assert vis_id is None
+    p = _parse_fqnp("/u/alice")
+    assert p.user == "alice"
+    assert p.vis_type is None
+    assert p.vis_id is None
+    assert not p.is_vis
+    assert not p.is_group
 
 
 def test_parse_fqnp_org():
-    name, vis_type, vis_id = _parse_fqnp("/o/myorg")
-    assert name == "myorg"
-    assert vis_type is None
-    assert vis_id is None
+    p = _parse_fqnp("/o/myorg")
+    assert p.org == "myorg"
+    assert p.vis_type is None
+    assert not p.is_vis
+    assert not p.is_group
+
+
+def test_parse_fqnp_org_group():
+    p = _parse_fqnp("/o/myorg/g/mygroup")
+    assert p.org == "myorg"
+    assert p.group_name == "mygroup"
+    assert p.group_type == "org_group"
+    assert p.is_group
+    assert not p.is_vis
+    assert p.owner == "myorg"
+
+
+def test_parse_fqnp_user_group():
+    p = _parse_fqnp("/u/alice/grp/mygroup")
+    assert p.user == "alice"
+    assert p.group_name == "mygroup"
+    assert p.group_type == "user_group"
+    assert p.is_group
+    assert not p.is_vis
+    assert p.owner == "alice"
+
+
+def test_parse_fqnp_org_group_with_comments():
+    p = _parse_fqnp("/o/myorg/g/mygroup/c/@sen~topic/c/@bob~reply")
+    assert p.org == "myorg"
+    assert p.group_name == "mygroup"
+    assert p.group_type == "org_group"
+
+
+def test_parse_fqnp_user_group_with_comments():
+    p = _parse_fqnp("/u/alice/grp/mygroup/c/@sen~topic")
+    assert p.user == "alice"
+    assert p.group_name == "mygroup"
+    assert p.group_type == "user_group"
 
 
 def test_parse_fqnp_invalid():
@@ -93,10 +132,10 @@ def test_split_comment_path_nested():
 
 
 def test_parse_fqnp_strips_comment_segments():
-    user, vis_type, vis_id = _parse_fqnp("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
-    assert user == "alice"
-    assert vis_type == "plots"
-    assert vis_id == "myplot"
+    p = _parse_fqnp("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
+    assert p.user == "alice"
+    assert p.vis_type == "plots"
+    assert p.vis_id == "myplot"
 
 
 # ---------------------------------------------------------------------------
@@ -238,12 +277,47 @@ def test_context_comment_chain():
     assert ctx._comment_chain == ["@sen~topic", "@bob~reply"]
 
 
+def test_context_threads_base_org_group():
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    ctx = Context("/o/myorg/g/mygroup", config_path=config_file)
+    assert ctx._threads_base == "orgs/myorg/groups/mygroup/threads"
+
+
+def test_context_threads_base_user_group_other():
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    # alice != sondov (config username), so use long path
+    ctx = Context("/u/alice/grp/mygroup", config_path=config_file)
+    assert ctx._threads_base == "users/alice/groups/mygroup/threads"
+
+
+def test_context_threads_base_user_group_own():
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    # sondov == sondov, so use short path
+    ctx = Context("/u/sondov/grp/mygroup", config_path=config_file)
+    assert ctx._threads_base == "groups/mygroup/threads"
+
+
+def test_context_org_group_comment_chain():
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    ctx = Context("/o/myorg/g/mygroup/c/@sen~topic/c/@bob~reply", config_path=config_file)
+    assert ctx._threads_base == "orgs/myorg/groups/mygroup/threads"
+    assert ctx._comment_chain == ["@sen~topic", "@bob~reply"]
+
+
 def test_context_user_only_no_threads():
     base = os.path.dirname(os.path.abspath(__file__))
     config_file = f"{base}/test.conf"
 
     ctx = Context("/u/alice", config_path=config_file)
-    with pytest.raises(RuntimeError, match="does not reference a visualization"):
+    with pytest.raises(RuntimeError, match="does not reference a visualization or group"):
         _ = ctx._threads_base
 
 
@@ -347,6 +421,42 @@ def test_context_reply_deep_chain(requests_mock):
     put_reqs = [r for r in history if r.method == "PUT" and "threads" in r.path]
     expected = "@sen~topic/comments/@bob~mid/comments/@charlie~leaf/comments/@sondov~deeper"
     assert expected in put_reqs[-1].path
+
+
+def test_context_reply_org_group(requests_mock):
+    import re
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    threads_re = re.compile(r".*/orgs/myorg/groups/mygroup/threads/.*")
+    requests_mock.register_uri("PUT", threads_re, status_code=201)
+    requests_mock.register_uri("POST", threads_re, status_code=200)
+
+    ctx = Context("/o/myorg/g/mygroup/c/@sen~topic", config_path=config_file)
+    ctx.reply("Group reply!", title="reply1")
+
+    history = requests_mock.request_history
+    put_reqs = [r for r in history if r.method == "PUT" and "threads" in r.path]
+    assert "orgs/myorg/groups/mygroup/threads/@sen~topic/comments/@sondov~reply1" in put_reqs[-1].path
+
+
+def test_context_reply_user_group(requests_mock):
+    import re
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    threads_re = re.compile(r".*/users/alice/groups/mygroup/threads/.*")
+    requests_mock.register_uri("PUT", threads_re, status_code=201)
+    requests_mock.register_uri("POST", threads_re, status_code=200)
+
+    ctx = Context("/u/alice/grp/mygroup/c/@sen~topic", config_path=config_file)
+    ctx.reply("Group reply!", title="reply1")
+
+    history = requests_mock.request_history
+    put_reqs = [r for r in history if r.method == "PUT" and "threads" in r.path]
+    assert "users/alice/groups/mygroup/threads/@sen~topic/comments/@sondov~reply1" in put_reqs[-1].path
 
 
 # ---------------------------------------------------------------------------

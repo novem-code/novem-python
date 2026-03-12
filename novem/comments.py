@@ -42,16 +42,43 @@ def _split_comment_path(fqnp: str) -> Tuple[str, List[str]]:
     return "/" + "/".join(base_parts), comment_segs
 
 
-def _parse_fqnp(fqnp: str) -> Tuple[str, Optional[str], Optional[str]]:
-    """Parse a FQNP into (user, vis_type_plural, vis_id).
+@dataclass
+class ParsedFQNP:
+    """Parsed components of a Fully Qualified Name Path."""
+
+    user: Optional[str] = None
+    org: Optional[str] = None
+    vis_type: Optional[str] = None
+    vis_id: Optional[str] = None
+    group_name: Optional[str] = None
+    group_type: Optional[str] = None  # "org_group" or "user_group"
+
+    @property
+    def is_vis(self) -> bool:
+        return self.vis_type is not None
+
+    @property
+    def is_group(self) -> bool:
+        return self.group_name is not None
+
+    @property
+    def owner(self) -> str:
+        """The owner/namespace identifier (user or org)."""
+        return self.user or self.org or ""
+
+
+def _parse_fqnp(fqnp: str) -> ParsedFQNP:
+    """Parse a FQNP into its components.
 
     Strips /c/ segments before parsing.
 
     Examples:
-        "/u/alice/p/myplot"                       -> ("alice", "plots", "myplot")
-        "/u/alice/p/myplot/c/@sen~topic"          -> ("alice", "plots", "myplot")
-        "/u/alice"                                -> ("alice", None, None)
-        "/o/myorg"                                -> ("myorg", None, None)
+        "/u/alice/p/myplot"              -> ParsedFQNP(user="alice", vis_type="plots", vis_id="myplot")
+        "/u/alice/grp/mygroup"           -> ParsedFQNP(user="alice", group_name="mygroup", group_type="user_group")
+        "/o/myorg/g/mygroup"             -> ParsedFQNP(org="myorg", group_name="mygroup", group_type="org_group")
+        "/u/alice/p/myplot/c/@sen~topic" -> ParsedFQNP(user="alice", vis_type="plots", vis_id="myplot")
+        "/u/alice"                       -> ParsedFQNP(user="alice")
+        "/o/myorg"                       -> ParsedFQNP(org="myorg")
     """
     base, _ = _split_comment_path(fqnp)
     parts = [p for p in base.strip("/").split("/") if p]
@@ -61,12 +88,18 @@ def _parse_fqnp(fqnp: str) -> Tuple[str, Optional[str], Optional[str]]:
 
     if parts[0] == "u":
         user = parts[1]
-        if len(parts) >= 4 and parts[2] in _TYPE_MAP:
-            return user, _TYPE_MAP[parts[2]], parts[3]
-        return user, None, None
+        if len(parts) >= 4:
+            if parts[2] == "grp":
+                return ParsedFQNP(user=user, group_name=parts[3], group_type="user_group")
+            if parts[2] in _TYPE_MAP:
+                return ParsedFQNP(user=user, vis_type=_TYPE_MAP[parts[2]], vis_id=parts[3])
+        return ParsedFQNP(user=user)
 
     if parts[0] == "o":
-        return parts[1], None, None
+        org = parts[1]
+        if len(parts) >= 4 and parts[2] == "g":
+            return ParsedFQNP(org=org, group_name=parts[3], group_type="org_group")
+        return ParsedFQNP(org=org)
 
     raise ValueError(f"Invalid FQNP prefix: {parts[0]}")
 
@@ -213,21 +246,46 @@ class Context(NovemAPI):
 
     def __init__(self, fqnp: str, **kwargs: Any) -> None:
         self._fqnp = fqnp
-        self._user, self._vis_type, self._vis_id = _parse_fqnp(fqnp)
+        self._parsed = _parse_fqnp(fqnp)
         _, self._comment_chain = _split_comment_path(fqnp)
         super().__init__(**kwargs)
         self._raw_topics: Optional[List[Dict[str, Any]]] = None
         self._raw_vars: Optional[List[Dict[str, Any]]] = None
         self._topics: Optional[List[Topic]] = None
 
+    # Convenience accessors for backward compat
+    @property
+    def _user(self) -> str:
+        return self._parsed.user or self._parsed.org or ""
+
+    @property
+    def _vis_type(self) -> Optional[str]:
+        return self._parsed.vis_type
+
+    @property
+    def _vis_id(self) -> Optional[str]:
+        return self._parsed.vis_id
+
     @property
     def _threads_base(self) -> str:
-        """REST API base path for threads on this visualization."""
-        if not self._vis_type or not self._vis_id:
-            raise RuntimeError(f"FQNP {self._fqnp} does not reference a visualization")
+        """REST API base path for threads on this resource."""
+        p = self._parsed
         me = self._config.get("username", "")
-        prefix = f"users/{self._user}/" if self._user and self._user != me else ""
-        return f"{prefix}vis/{self._vis_type}/{self._vis_id}/threads"
+
+        # Org group: orgs/{org}/groups/{group}/threads
+        if p.group_type == "org_group":
+            return f"orgs/{p.org}/groups/{p.group_name}/threads"
+
+        # User group: groups/{group}/threads or users/{user}/groups/{group}/threads
+        if p.group_type == "user_group":
+            prefix = f"users/{p.user}/" if p.user and p.user != me else ""
+            return f"{prefix}groups/{p.group_name}/threads"
+
+        # VDE: vis/{type}/{id}/threads or users/{user}/vis/{type}/{id}/threads
+        if not p.vis_type or not p.vis_id:
+            raise RuntimeError(f"FQNP {self._fqnp} does not reference a visualization or group")
+        prefix = f"users/{p.user}/" if p.user and p.user != me else ""
+        return f"{prefix}vis/{p.vis_type}/{p.vis_id}/threads"
 
     # -- Tree access --
 
@@ -283,7 +341,7 @@ class Context(NovemAPI):
         """Build a var lookup dict from loaded VDE vars."""
         from .cli.gql import _build_var_lookup
 
-        if not self._raw_vars:
+        if not self._raw_vars or self._parsed.is_group:
             return None
         return _build_var_lookup(self._raw_vars, self._user, self._vis_type or "", self._vis_id or "")
 
@@ -347,7 +405,7 @@ class Context(NovemAPI):
     # -- Internal --
 
     def _fetch_raw_topics(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        from .cli.gql import NovemGQL, fetch_vde_topics_gql
+        from .cli.gql import NovemGQL, fetch_group_topics_gql, fetch_vde_topics_gql
 
         gql_kwargs: Dict[str, Any] = {}
         if hasattr(self, "token"):
@@ -356,6 +414,17 @@ class Context(NovemAPI):
             gql_kwargs["api_root"] = self._api_root
 
         gql = NovemGQL(**gql_kwargs)
+        p = self._parsed
+
+        if p.is_group:
+            topics = fetch_group_topics_gql(
+                gql,
+                group_name=p.group_name or "",
+                group_type=p.group_type or "",
+                parent=p.org or p.user or "",
+            )
+            return topics, []
+
         return fetch_vde_topics_gql(gql, self._vis_type or "", self._vis_id or "", author=self._user)
 
     def _do_reply(self, text: str, title: Optional[str] = None) -> None:

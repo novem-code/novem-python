@@ -1447,6 +1447,70 @@ def fetch_vde_topics_gql(
 
 
 # ---------------------------------------------------------------------------
+# Group topics (org groups and user groups)
+# ---------------------------------------------------------------------------
+
+_GROUP_TOPICS_QUERY_TPL = """
+query GetGroupTopics($name: String!, $type: GroupType!, $parent_group: String) {{
+  groups(name: $name, type: $type, parent_group: $parent_group) {{
+    topics {{
+      topic_id
+      slug
+      message
+      audience
+      status
+      num_comments
+      likes
+      dislikes
+      my_reaction
+      edited
+      created
+      updated
+      creator {{ username }}
+      mentions {{ nonce user {{ username }} }}
+      comments {{{comment_fragment}
+      }}
+    }}
+  }}
+}}
+"""
+
+
+def _build_group_topics_query(depth: int = 3) -> str:
+    """Build a topics query for a group."""
+    comment_fragment = _build_comment_fragment(depth)
+    return _GROUP_TOPICS_QUERY_TPL.format(comment_fragment=comment_fragment)
+
+
+def fetch_group_topics_gql(gql: NovemGQL, group_name: str, group_type: str, parent: str) -> List[Dict[str, Any]]:
+    """Fetch topics and comments for a group. Returns topics list."""
+    variables: Dict[str, Any] = {
+        "name": group_name,
+        "type": group_type,
+        "parent_group": parent,
+    }
+
+    depth = 3
+    max_depth = 12
+    topics: List[Dict[str, Any]] = []
+
+    while depth <= max_depth:
+        query = _build_group_topics_query(depth=depth)
+        data = gql._query(query, variables)
+        groups = data.get("groups", [])
+        if not groups:
+            return []
+        topics = groups[0].get("topics", [])
+
+        truncated = any(_has_truncated_replies(t.get("comments", [])) for t in topics)
+        if not truncated:
+            break
+        depth += 3
+
+    return topics
+
+
+# ---------------------------------------------------------------------------
 # Message processing: mentions, VDE variable embeds, and markdown rendering
 # ---------------------------------------------------------------------------
 

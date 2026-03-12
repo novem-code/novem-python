@@ -130,19 +130,24 @@ def test_example_help():
     assert "pattern" in result.stdout
 
 
-def test_example_default_pattern():
+def test_example_default_patterns():
     stderr = _run_example_stderr()
     assert "Listening on: /u/*/p/*/e/mention" in stderr
+    assert "Listening on: /u/*/grp/*/e/mention" in stderr
+    assert "Listening on: /o/*/g/*/e/mention" in stderr
 
 
 def test_example_custom_pattern():
     stderr = _run_example_stderr("/u/bob/p/*/e/mention")
     assert "Listening on: /u/bob/p/*/e/mention" in stderr
+    # Custom pattern replaces defaults
+    assert "/u/*/grp/" not in stderr
 
 
 def test_example_profile_flag():
     stderr = _run_example_stderr("--profile", "sd")
     assert "Listening on: /u/*/p/*/e/mention" in stderr
+    assert "Listening on: /o/*/g/*/e/mention" in stderr
 
 
 def test_example_profile_with_pattern():
