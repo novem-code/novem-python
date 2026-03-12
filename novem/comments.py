@@ -1,4 +1,4 @@
-"""Thread context and comment interaction for the novem platform."""
+"""Thread context, comment interaction, and MCP server for the novem platform."""
 
 import asyncio
 import time
@@ -449,3 +449,183 @@ class Context(NovemAPI):
 
         self.create(path)
         self.write(f"{path}/msg", text)
+
+
+# ---------------------------------------------------------------------------
+# MCP server
+# ---------------------------------------------------------------------------
+
+
+def _check_mcp_deps() -> Any:
+    try:
+        from mcp.server.fastmcp import FastMCP
+
+        return FastMCP
+    except ImportError:
+        raise ImportError('The "mcp" extra is required. Install with: pip install novem[mcp]')
+
+
+def _fmt_comment(c: Comment, indent: int = 0) -> str:
+    """Plain-text comment formatter (no ANSI — intended for LLM consumption)."""
+    prefix = "  " * indent
+    header = f"{prefix}@{c.creator} ({c.ref})"
+    if c.edited:
+        header += " [edited]"
+    if c.deleted:
+        header += " [deleted]"
+    lines = [header]
+    for line in c.message.splitlines():
+        lines.append(f"{prefix}  {line}")
+    for r in c.replies:
+        lines.append(_fmt_comment(r, indent + 1))
+    return "\n".join(lines)
+
+
+def _fmt_topic(t: Topic) -> str:
+    """Plain-text topic formatter (no ANSI — intended for LLM consumption)."""
+    header = f"Topic {t.ref} by @{t.creator} [{t.status}]"
+    if t.num_comments:
+        header += f" ({t.num_comments} comments)"
+    lines = [header]
+    for line in t.message.splitlines():
+        lines.append(f"  {line}")
+    for c in t.comments:
+        lines.append(_fmt_comment(c, 1))
+    return "\n".join(lines)
+
+
+def _fmt_topics(topics: List[Topic]) -> str:
+    if not topics:
+        return "No topics found."
+    return "\n\n".join(_fmt_topic(t) for t in topics)
+
+
+def MCP(fqnp: str, **kwargs: Any) -> Any:
+    """Create an MCP server scoped to a comment FQNP.
+
+    The returned server exposes tools for exploring the conversation tree
+    and replying at the mention location.
+
+    Usage::
+
+        from novem.comments import MCP
+
+        server = MCP("/u/alice/p/myplot/c/@sen~topic/c/@bob~reply")
+        server.run()  # stdio transport
+
+    Args:
+        fqnp: Fully Qualified Name Path, e.g.
+              ``/u/alice/p/myplot/c/@sen~topic/c/@bob~reply``
+        **kwargs: Passed through to :class:`Context`
+                  (``config_profile``, ``token``, ``config_path``, …).
+
+    Returns:
+        A ``FastMCP`` server instance.
+    """
+    FastMCP = _check_mcp_deps()
+
+    parsed = _parse_fqnp(fqnp)
+    ctx = Context(fqnp, **kwargs)
+
+    # Build a short human-readable label for the server
+    if parsed.is_vis:
+        label = f"{parsed.vis_type}/{parsed.vis_id}"
+    elif parsed.is_group:
+        label = f"group/{parsed.group_name}"
+    else:
+        label = parsed.owner
+    server = FastMCP(f"novem-comments ({label})")
+
+    # -- Anthropic SDK helper -------------------------------------------
+
+    async def api_tools() -> List[Dict[str, Any]]:
+        """Return tools in Anthropic API format."""
+        mcp_tools = await server.list_tools()
+        return [
+            {
+                "name": t.name,
+                "description": t.description or "",
+                "input_schema": t.inputSchema,
+            }
+            for t in mcp_tools
+        ]
+
+    server.api_tools = api_tools  # type: ignore[attr-defined]
+
+    # -- read-only tools ------------------------------------------------
+
+    @server.tool()
+    def get_thread_context() -> str:
+        """Get the full conversation thread as plain text.
+
+        Returns every topic and its nested comments for the visualization
+        or group that this server is scoped to.
+        """
+        return _fmt_topics(ctx.topics)
+
+    @server.tool()
+    def list_topics() -> str:
+        """List topics with a one-line summary each.
+
+        Use this for an overview before drilling into a specific topic.
+        """
+        lines: List[str] = []
+        for t in ctx.topics:
+            preview = t.message.replace("\n", " ")[:120]
+            lines.append(f"- {t.ref} by @{t.creator} [{t.status}] ({t.num_comments} comments): {preview}")
+        return "\n".join(lines) or "No topics found."
+
+    @server.tool()
+    def get_topic(ref: str) -> str:
+        """Get a single topic and its full comment tree.
+
+        Args:
+            ref: Topic reference, e.g. ``@alice~my-topic``.
+        """
+        for t in ctx.topics:
+            if t.ref == ref:
+                return _fmt_topic(t)
+        return f"Topic {ref} not found."
+
+    @server.tool()
+    def get_vis_info() -> str:
+        """Get metadata about the visualization this thread belongs to.
+
+        Returns type, owner, and id.  Only available when the FQNP
+        points to a visualization (plot, grid, mail, …).
+        """
+        if not parsed.is_vis:
+            return "This FQNP does not reference a visualization."
+        lines = [
+            f"type: {parsed.vis_type}",
+            f"id: {parsed.vis_id}",
+            f"owner: {parsed.owner}",
+        ]
+        # Try to read title/caption from the API
+        try:
+            prefix = f"users/{parsed.user}/" if parsed.user else ""
+            base = f"{prefix}vis/{parsed.vis_type}/{parsed.vis_id}"
+            for prop in ("name", "caption", "description"):
+                val = ctx.read(f"{base}/config/{prop}")
+                if val:
+                    lines.append(f"{prop}: {val}")
+        except Exception:
+            pass
+        return "\n".join(lines)
+
+    # -- write tool -----------------------------------------------------
+
+    @server.tool()
+    def reply(text: str) -> str:
+        """Reply to the comment or topic that triggered this context.
+
+        The reply is posted at the deepest /c/ segment in the FQNP —
+        i.e. directly where the mention happened.
+
+        Args:
+            text: The message body (plain text or markdown).
+        """
+        ctx.reply(text)
+        return "Reply posted."
+
+    return server
