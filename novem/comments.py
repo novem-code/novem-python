@@ -427,7 +427,8 @@ class Context(NovemAPI):
 
         return fetch_vde_topics_gql(gql, self._vis_type or "", self._vis_id or "", author=self._user)
 
-    def _do_reply(self, text: str, title: Optional[str] = None) -> None:
+    def _do_reply(self, text: str, title: Optional[str] = None) -> str:
+        """Post a reply and return the API path of the created comment."""
         base = self._threads_base
         username = self._config.get("username", "")
         slug = title or _gen_slug()
@@ -449,6 +450,7 @@ class Context(NovemAPI):
 
         self.create(path)
         self.write(f"{path}/msg", text)
+        return path
 
 
 # ---------------------------------------------------------------------------
@@ -673,23 +675,33 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
 
     # -- write tool -----------------------------------------------------
 
+    _reply_path: Optional[str] = None
+
     @server.tool()
     def reply(text: str) -> str:
         """Reply to the comment or topic that triggered this context.
 
-        The reply is posted at the deepest /c/ segment in the FQNP —
-        i.e. directly where the mention happened.
+        The first call creates a new comment. Subsequent calls update
+        the same comment — use this to post an initial reply quickly
+        and then refine it, or to provide progress updates.
 
         Args:
             text: The message body (plain text or markdown).
         """
+        nonlocal _reply_path
         if server.on_reply:  # type: ignore[attr-defined]
             text = server.on_reply(text)  # type: ignore[attr-defined]
         try:
-            ctx.reply(text)
+            if _reply_path:
+                # Update existing reply
+                ctx.write(f"{_reply_path}/msg", text)
+                return "Reply updated."
+            else:
+                # Create new reply
+                _reply_path = ctx._do_reply(text)
+                return "Reply posted."
         except Exception as e:
             return f"Reply failed: {e}"
-        return "Reply posted."
 
     return server
 
