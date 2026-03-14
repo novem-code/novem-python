@@ -320,7 +320,13 @@ def group(args: Dict[str, Any]) -> None:
         return
 
     # --comments on a group
-    if args.get("comments") and has_group and group_name:
+    if args.get("comments"):
+        if not has_group or not group_name:
+            import sys
+
+            print("Error: --comments requires a group name", file=sys.stderr)
+            return
+
         from .gql import NovemGQL, fetch_group_topics_gql, render_topics
 
         if "profile" in args and args["profile"]:
@@ -347,5 +353,3 @@ def group(args: Dict[str, Any]) -> None:
             )
         )
         return
-
-    # print("no condition")
