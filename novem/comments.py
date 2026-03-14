@@ -1,4 +1,10 @@
-"""Thread context, comment interaction, and MCP server for the novem platform."""
+"""Thread context, comment interaction, and in-process MCP server for the novem platform.
+
+The :func:`MCP` factory creates an embeddable MCP server that gives any
+MCP-aware agent (Claude, LangChain, custom loops, …) the ability to read
+and reply to novem comment threads.  It is *not* a standalone CLI server —
+see the ``examples/`` directory for typical integration patterns.
+"""
 
 import asyncio
 import time
@@ -535,26 +541,49 @@ Not supported: ordered lists, tables, images.
 
 
 def MCP(fqnp: str, **kwargs: Any) -> Any:
-    """Create an MCP server scoped to a comment FQNP.
+    """Create an in-process MCP server scoped to a comment thread.
 
-    The returned server exposes tools for exploring the conversation tree
-    and replying at the mention location.
+    This is **not** a standalone MCP server — it returns a ``FastMCP``
+    instance meant to be embedded directly into an agentic workflow
+    (e.g. a Claude agent, LangChain pipeline, or custom loop).  The
+    server exposes tools for reading the conversation tree and posting
+    replies, so any MCP-aware agent can interact with novem comments
+    out of the box.
 
-    Usage::
+    The typical use-case is ``pip install novem[mcp]`` and then wiring
+    the server into your agent's tool set with a few lines of code::
 
         from novem.comments import MCP
 
-        server = MCP("/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply")
-        server.run()  # stdio transport
+        # Create a server focused on a specific thread / mention
+        server = MCP("/u/alice/p/dash/c/@bob~question")
+
+        # Option 1 — run as stdio MCP server (for MCP-native clients)
+        server.run()
+
+        # Option 2 — get Anthropic-API-shaped tool defs for direct use
+        tools = await server.api_tools()
+        # … pass *tools* to your Claude API / agent-SDK call
+
+    Exposed tools (prefixed with ``novem_`` to avoid collisions when
+    combining multiple MCP servers):
+        * ``novem_get_thread_context`` — full conversation tree (plain text)
+        * ``novem_list_topics`` — one-line summary per topic
+        * ``novem_get_topic`` — single topic with nested comments
+        * ``novem_get_vis_info`` — metadata about the parent visualisation
+        * ``novem_get_vis_screenshot`` — PNG render of the visualisation
+        * ``novem_reply`` — post (or update) a reply at the focus point
 
     Args:
-        fqnp: Fully Qualified Name Path, e.g.
-              ``/u/user1/p/my-plot/c/@user2~topic/c/@user3~reply``
+        fqnp: Fully Qualified Name Path pointing to a visualisation,
+              group, or a specific comment, e.g.
+              ``/u/alice/p/dash/c/@bob~question/c/@carol~reply``.
         **kwargs: Passed through to :class:`Context`
                   (``config_profile``, ``token``, ``config_path``, …).
 
     Returns:
-        A ``FastMCP`` server instance.
+        A ``FastMCP`` server instance ready to ``.run()`` or to be
+        queried for tool definitions via ``await server.api_tools()``.
     """
     FastMCP = _check_mcp_deps()
 
@@ -590,7 +619,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
     # -- read-only tools ------------------------------------------------
 
     @server.tool()
-    def get_thread_context() -> str:
+    def novem_get_thread_context() -> str:
         """Get the full conversation thread as plain text.
 
         Returns every topic and its nested comments for the visualization
@@ -599,7 +628,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         return _fmt_topics(ctx.topics)
 
     @server.tool()
-    def list_topics() -> str:
+    def novem_list_topics() -> str:
         """List topics with a one-line summary each.
 
         Use this for an overview before drilling into a specific topic.
@@ -611,7 +640,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         return "\n".join(lines) or "No topics found."
 
     @server.tool()
-    def get_topic(ref: str) -> str:
+    def novem_get_topic(ref: str) -> str:
         """Get a single topic and its full comment tree.
 
         Args:
@@ -623,7 +652,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         return f"Topic {ref} not found."
 
     @server.tool()
-    def get_vis_info() -> str:
+    def novem_get_vis_info() -> str:
         """Get metadata about the visualization this thread belongs to.
 
         Returns type, owner, and id.  Only available when the FQNP
@@ -649,7 +678,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         return "\n".join(lines)
 
     @server.tool()
-    def get_vis_screenshot() -> Any:
+    def novem_get_vis_screenshot() -> Any:
         """Get a PNG screenshot of the visualization being discussed.
 
         Returns the rendered image so you can see exactly what users
@@ -678,7 +707,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
     _reply_path: Optional[str] = None
 
     @server.tool()
-    def reply(text: str) -> str:
+    def novem_reply(text: str) -> str:
         """Reply to the comment or topic that triggered this context.
 
         The first call creates a new comment. Subsequent calls update

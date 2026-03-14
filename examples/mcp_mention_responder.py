@@ -56,7 +56,7 @@ async def handle(msg: Any) -> None:
     mcp.on_reply = on_reply
 
     # Instant acknowledgement — will be overwritten with the real reply
-    await mcp.call_tool("reply", {"text": "On it!"})
+    await mcp.call_tool("novem_reply", {"text": "On it!"})
 
     messages: List[Any] = [
         {
