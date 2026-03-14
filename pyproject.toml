@@ -19,6 +19,14 @@ dependencies = [
     "packaging==26.0",
 ]
 
+[project.optional-dependencies]
+events = [
+    "python-socketio[asyncio_client]>=5.11.0",
+]
+mcp = [
+    "mcp>=1.0.0; python_version>='3.10'",
+]
+
 [project.urls]
 Homepage = "https://novem.io"
 Repository = "https://github.com/novem-code/novem-python"
@@ -55,6 +63,7 @@ exclude = [
   "/.github",
   "/tests",
   "/scripts",
+  "/examples",
   "/.pre-commit-config.yaml",
   "/.mailmap",
   "/flake.nix",

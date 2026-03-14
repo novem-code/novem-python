@@ -24,6 +24,7 @@ from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .common import grid, job, mail, plot, user
 from .config import check_if_profile_exists, update_config
+from .events import run_events
 from .gql import NovemGQL
 from .group import group
 from .invite import invite
@@ -427,6 +428,11 @@ novem --init --profile {args["profile"]}\
         novem = NovemAPI(**args, is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
+        return
+
+    # handle --events to subscribe to real-time events
+    if args and args.get("events"):
+        run_events(args)
         return
 
     # handle --add-ssh-key to add an SSH key for git access

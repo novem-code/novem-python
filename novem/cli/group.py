@@ -319,4 +319,37 @@ def group(args: Dict[str, Any]) -> None:
         list_groups(args, novem, "/groups/")
         return
 
-    # print("no condition")
+    # --comments on a group
+    if args.get("comments"):
+        if not has_group or not group_name:
+            import sys
+
+            print("Error: --comments requires a group name", file=sys.stderr)
+            return
+
+        from .gql import NovemGQL, fetch_group_topics_gql, render_topics
+
+        if "profile" in args and args["profile"]:
+            args["config_profile"] = args["profile"]
+
+        gql = NovemGQL(**args)
+
+        if has_org and org_name:
+            group_type = "org_group"
+            parent = org_name
+        else:
+            group_type = "user_group"
+            parent = gql._config.get("username", "")
+
+        topics = fetch_group_topics_gql(gql, group_name, group_type, parent)
+        me = gql._config.get("username", "")
+        api_root = gql._config.get("api_root") or "https://api.novem.io/v1/"
+        print(
+            render_topics(
+                topics,
+                me=me,
+                session=gql._session,
+                api_root=api_root,
+            )
+        )
+        return

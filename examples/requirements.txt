@@ -1,0 +1,3 @@
+novem[events,mcp]
+anthropic
+python-dotenv
