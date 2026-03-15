@@ -31,10 +31,15 @@ patterns = sys.argv[1:] or DEFAULT_PATTERNS
 
 client = anthropic.Anthropic()
 
-SYSTEM = (
+SYSTEM_TPL = (
     "You are a helpful assistant responding to mentions on the novem "
     "data visualization platform. Use the available tools to read the "
     "conversation context, then reply concisely.\n\n"
+    "Your novem username is '{username}'. When an event is triggered by "
+    "your own actions (i.e. the actor is yourself), you should almost always "
+    "ignore it — only reply if there is an obvious error to correct or if "
+    "adding a comment would provide significant value. When in doubt, do "
+    "nothing.\n\n"
     f"{MCP.DOCS_MARKDOWN_COMMENTS}"  # type: ignore[attr-defined]
 )
 
@@ -49,6 +54,9 @@ async def handle(msg: Any) -> None:
     mcp = MCP(msg.target_fqnp)
     tools = await mcp.api_tools()
 
+    # Username comes from the server (via the GQL query that loaded the thread)
+    my_username = mcp.ctx.me
+
     def on_reply(text: str) -> str:
         elapsed = time.time() - start
         return f"{text}\n\n---\n^^ Generated in {elapsed:.1f}s using {MODEL}"
@@ -56,7 +64,10 @@ async def handle(msg: Any) -> None:
     mcp.on_reply = on_reply
 
     # Instant acknowledgement — will be overwritten with the real reply
-    await mcp.call_tool("novem_reply", {"text": "On it!"})
+    if msg.actor != my_username:
+        await mcp.call_tool("novem_reply", {"text": "On it!"})
+
+    system = SYSTEM_TPL.format(username=my_username)
 
     messages: List[Any] = [
         {
@@ -69,7 +80,7 @@ async def handle(msg: Any) -> None:
         resp = client.messages.create(
             model=MODEL,
             max_tokens=1024,
-            system=SYSTEM,
+            system=system,
             tools=tools,
             messages=messages,
         )

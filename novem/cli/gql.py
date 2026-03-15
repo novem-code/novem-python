@@ -1367,6 +1367,7 @@ def _build_comment_fragment(depth: int = 4) -> str:
 
 _TOPICS_QUERY_TPL = """
 query GetTopics($id: ID!, $author: String) {{
+  me {{ username }}
   {vis_type}(id: $id, author: $author) {{
     vars {{ id value format type threshold }}
     topics {{
@@ -1419,6 +1420,14 @@ def fetch_vde_topics_gql(
     gql: NovemGQL, vis_type: str, vis_id: str, author: Optional[str] = None
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Fetch topics, comments, and VDE vars. Returns (topics, vars)."""
+    topics, vde_vars, _ = _fetch_vde_topics_gql(gql, vis_type, vis_id, author=author)
+    return topics, vde_vars
+
+
+def _fetch_vde_topics_gql(
+    gql: NovemGQL, vis_type: str, vis_id: str, author: Optional[str] = None
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], str]:
+    """Fetch topics, comments, VDE vars, and current username. Returns (topics, vars, username)."""
     variables: Dict[str, Any] = {"id": vis_id}
     if author:
         variables["author"] = author
@@ -1427,13 +1436,15 @@ def fetch_vde_topics_gql(
     max_depth = 12
     topics: List[Dict[str, Any]] = []
     vde_vars: List[Dict[str, Any]] = []
+    username = ""
 
     while depth <= max_depth:
         query = _build_topics_query(vis_type, depth=depth)
         data = gql._query(query, variables)
+        username = (data.get("me") or {}).get("username", "")
         items = data.get(vis_type, [])
         if not items:
-            return [], []
+            return [], [], username
         topics = items[0].get("topics", [])
         vde_vars = items[0].get("vars", []) or []
 
@@ -1443,7 +1454,7 @@ def fetch_vde_topics_gql(
             break
         depth += 3
 
-    return topics, vde_vars
+    return topics, vde_vars, username
 
 
 # ---------------------------------------------------------------------------
@@ -1452,6 +1463,7 @@ def fetch_vde_topics_gql(
 
 _GROUP_TOPICS_QUERY_TPL = """
 query GetGroupTopics($name: String!, $type: GroupType!, $parent_group: String) {{
+  me {{ username }}
   groups(name: $name, type: $type, parent_group: $parent_group) {{
     topics {{
       topic_id
@@ -1484,6 +1496,14 @@ def _build_group_topics_query(depth: int = 3) -> str:
 
 def fetch_group_topics_gql(gql: NovemGQL, group_name: str, group_type: str, parent: str) -> List[Dict[str, Any]]:
     """Fetch topics and comments for a group. Returns topics list."""
+    topics, _ = _fetch_group_topics_gql(gql, group_name, group_type, parent)
+    return topics
+
+
+def _fetch_group_topics_gql(
+    gql: NovemGQL, group_name: str, group_type: str, parent: str
+) -> Tuple[List[Dict[str, Any]], str]:
+    """Fetch topics and comments for a group. Returns (topics, username)."""
     variables: Dict[str, Any] = {
         "name": group_name,
         "type": group_type,
@@ -1493,13 +1513,15 @@ def fetch_group_topics_gql(gql: NovemGQL, group_name: str, group_type: str, pare
     depth = 3
     max_depth = 12
     topics: List[Dict[str, Any]] = []
+    username = ""
 
     while depth <= max_depth:
         query = _build_group_topics_query(depth=depth)
         data = gql._query(query, variables)
+        username = (data.get("me") or {}).get("username", "")
         groups = data.get("groups", [])
         if not groups:
-            return []
+            return [], username
         topics = groups[0].get("topics", [])
 
         truncated = any(_has_truncated_replies(t.get("comments", [])) for t in topics)
@@ -1507,7 +1529,7 @@ def fetch_group_topics_gql(gql: NovemGQL, group_name: str, group_type: str, pare
             break
         depth += 3
 
-    return topics
+    return topics, username
 
 
 # ---------------------------------------------------------------------------

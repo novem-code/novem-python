@@ -258,6 +258,7 @@ class Context(NovemAPI):
         self._raw_topics: Optional[List[Dict[str, Any]]] = None
         self._raw_vars: Optional[List[Dict[str, Any]]] = None
         self._topics: Optional[List[Topic]] = None
+        self._me: str = ""
 
     # Convenience accessors for backward compat
     @property
@@ -271,6 +272,13 @@ class Context(NovemAPI):
     @property
     def _vis_id(self) -> Optional[str]:
         return self._parsed.vis_id
+
+    @property
+    def me(self) -> str:
+        """Current authenticated username, fetched from the server via GQL."""
+        if not self._me:
+            self._load()
+        return self._me
 
     @property
     def _threads_base(self) -> str:
@@ -411,7 +419,7 @@ class Context(NovemAPI):
     # -- Internal --
 
     def _fetch_raw_topics(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        from .cli.gql import NovemGQL, fetch_group_topics_gql, fetch_vde_topics_gql
+        from .cli.gql import NovemGQL, _fetch_group_topics_gql, _fetch_vde_topics_gql
 
         gql_kwargs: Dict[str, Any] = {}
         if hasattr(self, "token"):
@@ -423,15 +431,20 @@ class Context(NovemAPI):
         p = self._parsed
 
         if p.is_group:
-            topics = fetch_group_topics_gql(
+            topics, username = _fetch_group_topics_gql(
                 gql,
                 group_name=p.group_name or "",
                 group_type=p.group_type or "",
                 parent=p.org or p.user or "",
             )
+            self._me = username
             return topics, []
 
-        return fetch_vde_topics_gql(gql, self._vis_type or "", self._vis_id or "", author=self._user)
+        topics, vde_vars, username = _fetch_vde_topics_gql(
+            gql, self._vis_type or "", self._vis_id or "", author=self._user
+        )
+        self._me = username
+        return topics, vde_vars
 
     def _do_reply(self, text: str, title: Optional[str] = None) -> str:
         """Post a reply and return the API path of the created comment."""
@@ -615,6 +628,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
 
     server.api_tools = api_tools  # type: ignore[attr-defined]
     server.on_reply = None  # type: ignore[attr-defined]
+    server.ctx = ctx  # type: ignore[attr-defined]
 
     # -- read-only tools ------------------------------------------------
 
