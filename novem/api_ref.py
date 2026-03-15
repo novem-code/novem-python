@@ -50,6 +50,10 @@ class Novem403(NovemException):
     pass
 
 
+class Novem409(NovemException):
+    pass
+
+
 class Novem401(NovemException):
     pass
 
@@ -196,5 +200,7 @@ or set the NOVEM_TOKEN environment variable.\
             resp = r.json()
             if r.status_code == 404:
                 raise Novem404(resp["message"])
+            elif r.status_code == 409:
+                raise Novem409(resp.get("message", "Resource already exists"))
             else:
                 print(r.json())

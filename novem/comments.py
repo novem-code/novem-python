@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .api_ref import NovemAPI
+from .api_ref import Novem409, NovemAPI
 from .utils import API_ROOT
 
 # Single-letter FQNP type codes to API path plurals
@@ -310,6 +310,13 @@ class Context(NovemAPI):
         self._raw_topics, self._raw_vars = self._fetch_raw_topics()
         self._topics = [_dict_to_topic(t) for t in self._raw_topics]
 
+    def reload(self) -> None:
+        """Force re-fetch the topic tree from GQL."""
+        self._raw_topics = None
+        self._raw_vars = None
+        self._topics = None
+        self._load()
+
     @property
     def topics(self) -> List[Topic]:
         """All topics on this visualization."""
@@ -347,6 +354,67 @@ class Context(NovemAPI):
             else:
                 return node
         return node
+
+    def _my_replies(self) -> List[Comment]:
+        """Return direct replies from the current user on the focused node."""
+        username = self.me
+        if not username:
+            return []
+        node = self.comment or self.topic
+        if node is None:
+            return []
+        children = node.replies if isinstance(node, Comment) else node.comments
+        return [r for r in children if r.creator == username]
+
+    @property
+    def has_my_reply(self) -> bool:
+        """True if the focused comment/topic already has a direct reply from the current user."""
+        return len(self._my_replies()) > 0
+
+    def _my_replies_summary(self) -> str:
+        """One-line-per-reply summary of existing replies from the current user."""
+        replies = self._my_replies()
+        if not replies:
+            return "(none)"
+        lines = []
+        for r in replies:
+            preview = r.message[:120].replace("\n", " ")
+            lines.append(f"- @{r.creator}~{r.slug}: {preview}")
+        return "\n".join(lines)
+
+    @property
+    def focused_thread(self) -> str:
+        """Plain-text rendering of the ancestor chain down to the focused comment.
+
+        Returns the topic, then each comment in the /c/ chain (the conversation
+        leading to the mention), with the final (focused) comment clearly marked.
+        If there's no focus, returns an empty string.
+        """
+        t = self.topic
+        if t is None:
+            return ""
+
+        lines = [f"Topic {t.ref} by @{t.creator}"]
+        for line in t.message.splitlines():
+            lines.append(f"  {line}")
+
+        # Walk the /c/ chain (skipping the topic ref which is _comment_chain[0])
+        if len(self._comment_chain) >= 2:
+            comments = t.comments
+            for i, ref in enumerate(self._comment_chain[1:]):
+                for c in comments:
+                    if c.ref == ref:
+                        is_last = i == len(self._comment_chain) - 2
+                        indent = i + 1
+                        prefix = "  " * indent
+                        marker = " <<<" if is_last else ""
+                        lines.append(f"{prefix}@{c.creator} ({c.ref}){marker}")
+                        for ln in c.message.splitlines():
+                            lines.append(f"{prefix}  {ln}")
+                        comments = c.replies
+                        break
+
+        return "\n".join(lines)
 
     # -- Sync interface --
 
@@ -467,7 +535,10 @@ class Context(NovemAPI):
             else:
                 path = f"{base}/{my_ref}"
 
-        self.create(path)
+        try:
+            self.create(path)
+        except Novem409:
+            pass  # Comment already exists (e.g. fixed slug) — update it
         self.write(f"{path}/msg", text)
         return path
 
@@ -628,6 +699,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
 
     server.api_tools = api_tools  # type: ignore[attr-defined]
     server.on_reply = None  # type: ignore[attr-defined]
+    server.reply_slug = None  # type: ignore[attr-defined]
     server.ctx = ctx  # type: ignore[attr-defined]
 
     # -- read-only tools ------------------------------------------------
@@ -740,8 +812,19 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
                 ctx.write(f"{_reply_path}/msg", text)
                 return "Reply updated."
             else:
+                # Before creating a new reply, re-check the thread to see
+                # if another handler already replied (race condition dedup).
+                ctx.reload()
+                if ctx.has_my_reply:
+                    existing = ctx._my_replies_summary()
+                    return (
+                        f"A reply from '{ctx.me}' already exists on this comment:\n\n"
+                        f"{existing}\n\n"
+                        "Do NOT reply again unless there is an obvious error to correct."
+                    )
                 # Create new reply
-                _reply_path = ctx._do_reply(text)
+                slug = server.reply_slug  # type: ignore[attr-defined]
+                _reply_path = ctx._do_reply(text, title=slug)
                 return "Reply posted."
         except Exception as e:
             return f"Reply failed: {e}"
