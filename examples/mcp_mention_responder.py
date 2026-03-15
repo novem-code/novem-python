@@ -81,7 +81,13 @@ async def handle(msg: Any) -> None:
         messages.append({"role": "assistant", "content": resp.content})
         results = []
         for block in tool_blocks:
-            result = await mcp.call_tool(block.name, block.input)
+            try:
+                result = await mcp.call_tool(block.name, block.input)
+            except Exception as e:
+                results.append(
+                    {"type": "tool_result", "tool_use_id": block.id, "content": str(e), "is_error": True}
+                )
+                continue
             content = result[0] if isinstance(result, tuple) else result
             result_content: List[Any] = []
             for item in content:
