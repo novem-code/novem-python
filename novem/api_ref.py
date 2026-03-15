@@ -190,7 +190,14 @@ or set the NOVEM_TOKEN environment variable.\
             else:
                 print(r.json())
 
-    def create(self, path: str) -> None:
+    def create(self, path: str, raise_on_conflict: bool = False) -> bool:
+        """PUT to create a resource. Returns True if created, False on 409.
+
+        Args:
+            path: API path to create.
+            raise_on_conflict: If True, raise Novem409 on HTTP 409 instead of
+                returning False.
+        """
 
         r = self._session.put(
             f"{self._api_root}{path}",
@@ -201,6 +208,10 @@ or set the NOVEM_TOKEN environment variable.\
             if r.status_code == 404:
                 raise Novem404(resp["message"])
             elif r.status_code == 409:
-                raise Novem409(resp.get("message", "Resource already exists"))
+                if raise_on_conflict:
+                    raise Novem409(resp.get("message", "Resource already exists"))
+                return False
             else:
                 print(r.json())
+
+        return True

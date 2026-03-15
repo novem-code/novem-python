@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .api_ref import Novem409, NovemAPI
+from .api_ref import NovemAPI
 from .utils import API_ROOT
 
 # Single-letter FQNP type codes to API path plurals
@@ -535,10 +535,7 @@ class Context(NovemAPI):
             else:
                 path = f"{base}/{my_ref}"
 
-        try:
-            self.create(path)
-        except Novem409:
-            pass  # Comment already exists (e.g. fixed slug) — update it
+        self.create(path)  # 409 (already exists) returns False — fine, we'll update
         self.write(f"{path}/msg", text)
         return path
 
