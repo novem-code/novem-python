@@ -120,6 +120,14 @@ def get_config_path() -> Tuple[str, str]:
     return (novem_dir, novem_config)
 
 
+def _apply_env_fallbacks(co: "Config") -> None:
+    """Apply environment variable fallbacks for token and api_root."""
+    if not co.get("token"):
+        co["token"] = os.getenv("NOVEM_TOKEN")
+    if not co.get("api_root"):
+        co["api_root"] = os.getenv("NOVEM_API_ROOT") or API_ROOT
+
+
 def get_current_config(
     **kwargs: Any,
 ) -> Tuple[bool, Config]:
@@ -142,6 +150,7 @@ def get_current_config(
     )
 
     if kwargs.get("token", False) or "ignore_config" in kwargs:
+        _apply_env_fallbacks(co)
         return True, co
 
     # config path can be supplied as an option, if it is use that
@@ -162,6 +171,7 @@ def get_current_config(
             co["api_root"] = general["api_root"]
 
     except KeyError:
+        _apply_env_fallbacks(co)
         return (False, co)
 
     else:
@@ -184,6 +194,7 @@ def get_current_config(
             co["ignore_ssl_warn"] = uc.getboolean("ignore_ssl_warn")
 
     except KeyError:
+        _apply_env_fallbacks(co)
         return (True, co)
 
     # kwargs supercedes
@@ -192,6 +203,8 @@ def get_current_config(
 
     if kwargs.get("token", False):
         co["token"] = kwargs["token"]
+
+    _apply_env_fallbacks(co)
 
     co["profile"] = profile
 

@@ -88,25 +88,18 @@ class NovemAPI(object):
 
             urllib3.disable_warnings()
 
-        # api root should always be supplied in the result
-        self._api_root = config["api_root"]
-        if not self._api_root:
-            self._api_root = os.getenv("NOVEM_API_ROOT") or API_ROOT
+        self._api_root = config.get("api_root") or API_ROOT
 
-        env_token = os.getenv("NOVEM_TOKEN")
-        global did_token_warning
-
-        if config.get("token", None):
-            assert config["token"]
+        if config.get("token"):
             self.token = config["token"]
             self._session.headers["Authorization"] = f"Bearer {self.token}"
-            if env_token is not None and not did_token_warning:
+
+            # Warn if NOVEM_TOKEN is set to a different value than the resolved token
+            env_token = os.getenv("NOVEM_TOKEN")
+            global did_token_warning
+            if env_token and env_token != self.token and not did_token_warning:
                 did_token_warning = True
                 print("WARN: Both NOVEM_TOKEN and config file token are set. Using config file token.", file=sys.stderr)
-
-        elif env_token is not None:
-            self.token = env_token
-            self._session.headers["Authorization"] = f"Bearer {self.token}"
 
         elif not config_status:
             print(

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from unittest.mock import patch
 
 from novem.events import EventMessage, Events, _derive_ws_url
 
@@ -153,3 +154,40 @@ def test_example_profile_flag():
 def test_example_profile_with_pattern():
     stderr = _run_example_stderr("/u/me/p/*/e/*", "--profile", "sd")
     assert "Listening on: /u/me/p/*/e/*" in stderr
+
+
+# ---------------------------------------------------------------------------
+# Events env-var fallback tests
+# ---------------------------------------------------------------------------
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "env_token"}, clear=False)
+def test_events_token_from_env(fs):
+    """Events should resolve token from NOVEM_TOKEN when no config file exists."""
+    evt = Events(["/u/alice/p/*/e/*"], ignore_config=True)
+    assert evt._token == "env_token"
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "env_token", "NOVEM_API_ROOT": "https://custom.api.test/v1/"}, clear=False)
+def test_events_api_root_from_env(fs):
+    """Events should resolve api_root from NOVEM_API_ROOT when no config file exists."""
+    evt = Events(["/u/alice/p/*/e/*"], ignore_config=True)
+    assert evt._token == "env_token"
+    assert evt._ws_url == "https://custom.api.test"
+
+
+def test_events_config_token_over_env():
+    """Config file token should take priority over NOVEM_TOKEN for Events."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+
+    with patch.dict(os.environ, {"NOVEM_TOKEN": "env_token"}, clear=False):
+        evt = Events(["/u/alice/p/*/e/*"], config_path=config_file)
+        assert evt._token == "FAKETOKEN"
+
+
+def test_events_kwarg_token_over_env():
+    """Direct token kwarg should take priority over NOVEM_TOKEN for Events."""
+    with patch.dict(os.environ, {"NOVEM_TOKEN": "env_token"}, clear=False):
+        evt = Events(["/u/alice/p/*/e/*"], token="kwarg_token")
+        assert evt._token == "kwarg_token"

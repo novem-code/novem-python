@@ -73,7 +73,7 @@ class Events:
             kwargs["config_profile"] = kwargs.pop("profile")
 
         _, config = get_current_config(**kwargs)
-        self._token: Optional[str] = kwargs.get("token") or config.get("token")
+        self._token: Optional[str] = config.get("token")
         api_root: str = config.get("api_root", "https://api.novem.io/v1/")
         self._ws_url = _derive_ws_url(api_root)
 
