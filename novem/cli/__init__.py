@@ -570,6 +570,40 @@ novem --init --profile {args["profile"]}\
         print(f'{cl.OKGREEN} \u2713 {cl.ENDC}SSH key "{cl.OKCYAN}{key_id}{cl.ENDC}" {action} successfully')
         return
 
+    # handle raw HTTP commands (--get/--post/--put/--delete) — must run in isolation
+    if args:
+        from .http import active_http_flags, http_request, validate_isolation
+
+        if active_http_flags(args):
+            validate_isolation(args)
+
+            if args.get("http_get") is not None:
+                http_request(args, "GET", args["http_get"])
+                return
+            if args.get("http_post") is not None:
+                post_args = args["http_post"]
+                if len(post_args) == 1:
+                    http_request(args, "POST", post_args[0])
+                elif len(post_args) == 2:
+                    http_request(args, "POST", post_args[0], post_args[1])
+                else:
+                    print("Error: --post accepts 1 or 2 arguments (PATH [DATA])", file=sys.stderr)
+                    sys.exit(1)
+                return
+            if args.get("http_put") is not None:
+                put_args = args["http_put"]
+                if len(put_args) == 1:
+                    http_request(args, "PUT", put_args[0])
+                elif len(put_args) == 2:
+                    http_request(args, "PUT", put_args[0], put_args[1])
+                else:
+                    print("Error: --put accepts 1 or 2 arguments (PATH [DATA])", file=sys.stderr)
+                    sys.exit(1)
+                return
+            if args.get("http_delete") is not None:
+                http_request(args, "DELETE", args["http_delete"])
+                return
+
     # handle --gql to run a GraphQL query from stdin, file, or inline
     # Only run standalone if no other commands are specified
     if args and args.get("gql"):

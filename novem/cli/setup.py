@@ -179,6 +179,56 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         help="print info about the current user",
     )
 
+    http = parser.add_argument_group(
+        "raw http",
+        description="""\
+Issue a raw HTTP request against the novem api. PATH is everything after the
+api root (the part following /v1/), e.g. /vis/plots/my-plot/data. DATA can be
+an inline string, @filename to read from a file, or piped via stdin.""",
+    )
+
+    http.add_argument(
+        "--get",
+        dest="http_get",
+        action="store",
+        required=False,
+        default=None,
+        metavar="PATH",
+        help="GET the resource at PATH and print the response body",
+    )
+
+    http.add_argument(
+        "--post",
+        dest="http_post",
+        action="store",
+        required=False,
+        default=None,
+        nargs="+",
+        metavar=("PATH", "DATA"),
+        help="POST DATA to PATH. DATA is an inline string, @filename, or piped via stdin",
+    )
+
+    http.add_argument(
+        "--put",
+        dest="http_put",
+        action="store",
+        required=False,
+        default=None,
+        nargs="+",
+        metavar=("PATH", "DATA"),
+        help="PUT to PATH with optional DATA. DATA is an inline string, @filename, or piped via stdin",
+    )
+
+    http.add_argument(
+        "--delete",
+        dest="http_delete",
+        action="store",
+        required=False,
+        default=None,
+        metavar="PATH",
+        help="DELETE the resource at PATH",
+    )
+
     setup = parser.add_argument_group("setup")
 
     setup.add_argument(
