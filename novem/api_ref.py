@@ -132,9 +132,14 @@ or set the NOVEM_TOKEN environment variable.\
         )
 
         if not r.ok:
-            resp = r.json()
+            try:
+                resp = r.json()
+            except ValueError:
+                resp = {}
+            message = resp.get("message") or r.text or f"HTTP {r.status_code}"
             if r.status_code == 401:
-                raise Novem401(resp["message"])
+                raise Novem401(message)
+            raise NovemException(message)
 
         return r.json()
 
