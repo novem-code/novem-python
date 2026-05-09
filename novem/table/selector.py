@@ -1,3 +1,4 @@
+import sys
 from typing import Any, List, Optional, Set, Union
 
 try:
@@ -32,7 +33,7 @@ def handle_position(position: Union[slice, Any, int], used_positions: Set[int]) 
     if isinstance(position, slice):
         # Convert slice to list of positions
         start = position.start if position.start is not None else 0
-        stop = position.stop if position.stop is not None else float("inf")
+        stop = position.stop if position.stop is not None else sys.maxsize
         step = position.step if position.step is not None else 1
         positions = list(range(start, stop, step))
         # Only take first position that hasn't been used
