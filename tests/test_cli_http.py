@@ -1,3 +1,5 @@
+import pytest
+
 from novem.utils import API_ROOT
 
 from .conftest import CliExit
@@ -208,52 +210,67 @@ def test_http_delete(cli, requests_mock, fs, monkeypatch):
     assert out == ""
 
 
-def test_http_rejects_combining_with_plot(cli, requests_mock, fs, monkeypatch):
-    """--get must not be combined with -p (or any other primary command)."""
+HTTP_FLAGS = [
+    ("--get", ("/whoami",)),
+    ("--post", ("/some/path", "data")),
+    ("--put", ("/some/path", "data")),
+    ("--delete", ("/some/path",)),
+]
+
+PRIMARY_COMMANDS = [
+    ("-p", ("my-plot",)),
+    ("-g", ("my-grid",)),
+    ("-m", ("my-mail",)),
+    ("-u", ("alice",)),
+    ("--gql", ("{ me { username } }",)),
+]
+
+
+@pytest.mark.parametrize("http_flag, http_args", HTTP_FLAGS)
+@pytest.mark.parametrize("primary_flag, primary_args", PRIMARY_COMMANDS)
+def test_http_rejects_combining_with_primary(
+    cli,
+    requests_mock,
+    fs,
+    monkeypatch,
+    http_flag,
+    http_args,
+    primary_flag,
+    primary_args,
+):
+    """HTTP flags must not be combined with primary commands."""
     write_config(auth_req)
     _no_stdin(monkeypatch)
 
     try:
-        cli("--get", "/whoami", "-p", "my-plot")
+        cli(http_flag, *http_args, primary_flag, *primary_args)
         assert False, "expected SystemExit"
     except CliExit as e:
         assert e.code == 1
         assert "must be used in isolation" in e.args[1]
 
 
-def test_http_rejects_combining_with_gql(cli, requests_mock, fs, monkeypatch):
-    """--post must not be combined with --gql."""
+@pytest.mark.parametrize("a_flag, a_args", HTTP_FLAGS)
+@pytest.mark.parametrize("b_flag, b_args", HTTP_FLAGS)
+def test_http_rejects_combining_two_http_flags(
+    cli,
+    requests_mock,
+    fs,
+    monkeypatch,
+    a_flag,
+    a_args,
+    b_flag,
+    b_args,
+):
+    """Two http flags cannot be used together."""
+    if a_flag == b_flag:
+        pytest.skip("same flag combined with itself is not a meaningful pair")
+
     write_config(auth_req)
     _no_stdin(monkeypatch)
 
     try:
-        cli("--post", "/some/path", "data", "--gql", "{ me { username } }")
-        assert False, "expected SystemExit"
-    except CliExit as e:
-        assert e.code == 1
-        assert "must be used in isolation" in e.args[1]
-
-
-def test_http_rejects_combining_with_user(cli, requests_mock, fs, monkeypatch):
-    """--get must not be combined with -u (for_user)."""
-    write_config(auth_req)
-    _no_stdin(monkeypatch)
-
-    try:
-        cli("--get", "/whoami", "-u", "alice")
-        assert False, "expected SystemExit"
-    except CliExit as e:
-        assert e.code == 1
-        assert "must be used in isolation" in e.args[1]
-
-
-def test_http_rejects_combining_two_http_flags(cli, requests_mock, fs, monkeypatch):
-    """--get and --delete cannot be used together."""
-    write_config(auth_req)
-    _no_stdin(monkeypatch)
-
-    try:
-        cli("--get", "/path1", "--delete", "/path2")
+        cli(a_flag, *a_args, b_flag, *b_args)
         assert False, "expected SystemExit"
     except CliExit as e:
         assert e.code == 1
