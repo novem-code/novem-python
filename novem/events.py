@@ -79,7 +79,7 @@ class Events:
 
     def _check_deps(self) -> Any:
         try:
-            import socketio
+            import socketio  # type: ignore[import-untyped]
 
             return socketio
         except ImportError:

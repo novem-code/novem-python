@@ -144,8 +144,8 @@ def get_current_config(
     co = Config(
         {
             "token": kwargs.get("token", None),
-            "api_root": kwargs.get("api_root", None),
-            "ignore_ssl_warn": kwargs.get("ignore_ssl", False),
+            "api_root": kwargs.get("api_root") or "",
+            "ignore_ssl_warn": bool(kwargs.get("ignore_ssl", False)),
         }
     )
 
@@ -191,7 +191,7 @@ def get_current_config(
         co["username"] = uc["username"]
 
         if "ignore_ssl_warn" in uc:
-            co["ignore_ssl_warn"] = uc.getboolean("ignore_ssl_warn")
+            co["ignore_ssl_warn"] = uc.getboolean("ignore_ssl_warn", False)
 
     except KeyError:
         _apply_env_fallbacks(co)

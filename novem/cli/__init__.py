@@ -9,7 +9,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
 
-from novem.exceptions import Novem401, Novem404
+from novem.exceptions import Novem401, Novem404, NovemException
 
 if os.name == "nt":
     from pyreadline3 import Readline  # type: ignore
@@ -36,6 +36,43 @@ def _cli_excepthook(exc_type: type, exc_value: BaseException, exc_traceback: Any
     """Custom exception handler for CLI mode - suppresses tracebacks unless in debug mode."""
     # Just print the exception message without traceback
     print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
+
+
+# Server enforces ^[a-z][a-z0-9\-\._]*$ and length <= 128 on token names
+# (see mercurius.token_create in gaia/db/functions/token_create.sql).
+_TOKEN_NAME_VALID_CHARS = string.ascii_lowercase + string.digits + "-._"
+_TOKEN_NAME_LEADING_INVALID = string.digits + "-._"
+_TOKEN_NAME_MAX_LEN = 128
+_TOKEN_NAME_DEFAULT_LEN = 32
+
+
+def _sanitize_token_name(name: str) -> str:
+    """Coerce ``name`` to the server-side token name rules.
+
+    Lowercases, drops invalid characters, strips leading non-letter
+    characters, and clamps length. Returns "" if nothing usable remains.
+    """
+    cleaned = "".join(c for c in name.lower() if c in _TOKEN_NAME_VALID_CHARS)
+    cleaned = cleaned.lstrip(_TOKEN_NAME_LEADING_INVALID)
+    return cleaned[:_TOKEN_NAME_MAX_LEN]
+
+
+def _default_token_name(hostname: str) -> str:
+    """Generate ``np-<host>-<nonce>``, guaranteed to satisfy the server regex.
+
+    The hostname slice is bounded so the full name fits in
+    ``_TOKEN_NAME_DEFAULT_LEN`` characters and always starts with ``np-``.
+    """
+    nonce_chars = string.ascii_lowercase + string.digits
+    nonce = "".join(random.choice(nonce_chars) for _ in range(8))
+    host = "".join(c for c in hostname.lower() if c in _TOKEN_NAME_VALID_CHARS)
+    host = host.lstrip(_TOKEN_NAME_LEADING_INVALID)
+
+    max_host_len = _TOKEN_NAME_DEFAULT_LEN - len("np-") - len("-") - len(nonce)
+    host = host[:max_host_len].rstrip("-._")
+    if host:
+        return f"np-{host}-{nonce}"
+    return f"np-{nonce}"
 
 
 def input_with_prefill(prompt: str, text: str) -> Any:
@@ -87,25 +124,8 @@ def refresh_config(args: Dict[str, Any]) -> None:
     if "ignore_ssl_warn" in curconf:
         ignore_ssl = curconf["ignore_ssl_warn"]
 
-    valid_char_sm = string.ascii_lowercase + string.digits
-    valid_char = valid_char_sm + "-_"
     hostname: str = socket.gethostname()
-
-    token_name: Union[str, None] = None
-    if not token_name:
-        token_hostname: str = "".join([x for x in hostname.lower() if x in valid_char])
-        nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
-        token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
-
-    new_token_name = "".join([x for x in token_name if x in valid_char])
-
-    if token_name != new_token_name:
-        print(
-            f"{cl.WARNING} ! {cl.ENDC}"
-            "The supplied token name contained invalid charracters,"
-            f' token changed to "{cl.OKCYAN}{new_token_name}{cl.ENDC}"'
-        )
-        token_name = new_token_name
+    token_name = _default_token_name(hostname)
 
     print(f"Refresh token for profile: {profile}")
 
@@ -129,12 +149,18 @@ def refresh_config(args: Dict[str, Any]) -> None:
 
     try:
         res = novem.create_token(req)
-        token = res["token"]
-        token_name = res["token_name"]
-
     except Novem401:
         print("Invalid username and/or password")
         sys.exit(1)
+    except NovemException as e:
+        print(f"Failed to create token: {e}")
+        sys.exit(1)
+
+    if "token" not in res or "token_name" not in res:
+        print(f"Unexpected response from token endpoint: {res}")
+        sys.exit(1)
+    token = res["token"]
+    token_name = res["token_name"]
 
     # update token
     do_update_config(profile, username, api_root, token_name, token, None)
@@ -216,27 +242,27 @@ def _init_credentials(
     if _do_debug:
         print("INIT: starting credentials flow")
 
-    valid_char_sm = string.ascii_lowercase + string.digits
-    valid_char = valid_char_sm + "-_"
     hostname: str = socket.gethostname()
-
-    token_name: Union[str, None] = None
-    if "token-name" in args:
-        token_name = args["token-name"]
-    if not token_name:
-        token_hostname: str = "".join([x for x in hostname.lower() if x in valid_char])
-        nounce: str = "".join(random.choice(valid_char_sm) for _ in range(8))
-        token_name = f"np-{token_hostname}-{nounce}".lower()[-32:]
-
-    new_token_name = "".join([x for x in token_name if x in valid_char])
-
-    if token_name != new_token_name:
-        print(
-            f"{cl.WARNING} ! {cl.ENDC}"
-            "The supplied token name contained invalid charracters,"
-            f' token changed to "{cl.OKCYAN}{new_token_name}{cl.ENDC}"'
-        )
-        token_name = new_token_name
+    requested_name: Union[str, None] = args.get("token-name")
+    if requested_name:
+        token_name = _sanitize_token_name(requested_name)
+        if not token_name:
+            print(
+                f"{cl.WARNING} ! {cl.ENDC}"
+                f'The supplied token name "{cl.OKCYAN}{requested_name}{cl.ENDC}" '
+                "has no valid characters; token names must start with a letter "
+                "and may only contain a-z, 0-9, -, ., _."
+            )
+            sys.exit(1)
+        if token_name != requested_name:
+            print(
+                f"{cl.WARNING} ! {cl.ENDC}"
+                "The supplied token name contained invalid characters or a leading "
+                "non-letter, "
+                f'token changed to "{cl.OKCYAN}{token_name}{cl.ENDC}"'
+            )
+    else:
+        token_name = _default_token_name(hostname)
 
     # get novem username
     username = ""
@@ -260,12 +286,18 @@ def _init_credentials(
 
     try:
         res = novem.create_token(req)
-        token = res["token"]
-        token_name = res["token_name"]
-
     except Novem401:
         print("Invalid username and/or password")
         sys.exit(1)
+    except NovemException as e:
+        print(f"Failed to create token: {e}")
+        sys.exit(1)
+
+    if "token" not in res or "token_name" not in res:
+        print(f"Unexpected response from token endpoint: {res}")
+        sys.exit(1)
+    token = res["token"]
+    token_name = res["token_name"]
 
     if not profile:
         profile = username
