@@ -479,7 +479,8 @@ def migrate_config_04_to_05(path: str, config: configparser.ConfigParser, co: Co
         if "api_root" in config[section]:
             config[section]["api_root"] = config[section]["api_root"].replace("api.novem.no", "api.novem.io")
 
-    co["api_root"] = co["api_root"].replace("api.novem.no", "api.novem.io")
+    if co.get("api_root"):
+        co["api_root"] = co["api_root"].replace("api.novem.no", "api.novem.io")
 
     with open(path, "w") as configfile:
         config.write(configfile)

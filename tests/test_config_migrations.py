@@ -63,3 +63,31 @@ api_root = https://api.novem.no/v1/
     migrate_config_04_to_05(str(conf_file), cp, config)
 
     assert cp["app:cli"]["version"]
+
+
+def test_migrate_config_04_to_05_none_api_root(fs):
+    # [general] has no api_root, so co["api_root"] is still None when the
+    # migration runs (env fallbacks haven't been applied yet). The migration
+    # must not crash trying to .replace on None.
+    config: Config = {"api_root": None}  # type: ignore
+    conf_file = Path("novem.conf")
+
+    cp = configparser.ConfigParser()
+    cp.read_string(
+        """\
+[general]
+profile = demo
+
+[profile:demo]
+username = sondov
+token_name = test-token-name
+token = tok-token
+api_root = https://api.novem.no/v1/
+"""
+    )
+
+    migrate_config_04_to_05(str(conf_file), cp, config)
+
+    assert config["api_root"] is None
+    assert cp["profile:demo"]["api_root"] == "https://api.novem.io/v1/"
+    assert cp["app:cli"]["version"]
