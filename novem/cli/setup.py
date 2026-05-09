@@ -184,7 +184,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
         description="""\
 Issue a raw HTTP request against the novem api. PATH is everything after the
 api root (the part following /v1/), e.g. /vis/plots/my-plot/data. DATA can be
-an inline string or @filename to read from a file.""",
+an inline string, @filename to read from a file, or piped via stdin.""",
     )
 
     http.add_argument(
