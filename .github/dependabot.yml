@@ -10,8 +10,8 @@ updates:
       - "github-actions"
     open-pull-requests-limit: 10
 
-  # Python dependencies via pip
-  - package-ecosystem: "pip"
+  # Python dependencies via uv
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
