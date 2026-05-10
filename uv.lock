@@ -1201,7 +1201,6 @@ version = "0.5.13"
 source = { editable = "." }
 dependencies = [
     { name = "colorama" },
-    { name = "packaging" },
     { name = "pyreadline3" },
     { name = "requests" },
     { name = "typing-extensions" },
@@ -1237,7 +1236,6 @@ dev = [
 requires-dist = [
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0" },
-    { name = "packaging", specifier = "==26.2" },
     { name = "pyreadline3", specifier = ">=3.5.4" },
     { name = "python-socketio", extras = ["asyncio-client"], marker = "extra == 'events'", specifier = ">=5.11.0" },
     { name = "requests", specifier = ">=2.32.4" },
