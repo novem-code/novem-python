@@ -1,10 +1,11 @@
+import configparser
 import os
 from unittest.mock import patch
 
 import pytest
 
 from novem import Plot
-from novem.utils import API_ROOT, get_config_path, get_current_config
+from novem.utils import API_ROOT, ensure_cli_defaults, get_config_path, get_current_config
 
 
 def setup_fake_config(fs, token, api_root):
@@ -259,3 +260,109 @@ def test_get_current_config_kwargs_over_env(fs):
     _, config = get_current_config(token="kwarg_token", api_root=NOVEM_API_ROOT_TEST)
     assert config["token"] == "kwarg_token"
     assert config["api_root"] == NOVEM_API_ROOT_TEST
+
+
+# ---------------------------------------------------------------------------
+# Minimal / malformed config files should be handled gracefully
+# ---------------------------------------------------------------------------
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "env_token"})
+def test_get_current_config_no_general_section(fs):
+    """A config file without [general] should fall back to env vars and leave
+    the file untouched (no normalization runs without a usable profile)."""
+    config_dir, config_path = get_config_path()
+    fs.create_dir(config_dir)
+    contents = "[some_other_section]\nkey = value\n"
+    fs.create_file(config_path, contents=contents)
+
+    ok, config = get_current_config()
+
+    assert ok is False
+    assert config["token"] == "env_token"
+    assert config["api_root"] == API_ROOT
+    # file must not be rewritten when there's no [general]
+    assert open(config_path).read() == contents
+
+
+@patch.dict(os.environ, {"NOVEM_TOKEN": "env_token"})
+def test_get_current_config_general_without_profile_key(fs):
+    """[general] present but missing the profile key — env fallback, no write."""
+    config_dir, config_path = get_config_path()
+    fs.create_dir(config_dir)
+    contents = "[general]\napi_root = https://example.test/v1/\n"
+    fs.create_file(config_path, contents=contents)
+
+    ok, config = get_current_config()
+
+    assert ok is False
+    assert config["token"] == "env_token"
+    assert open(config_path).read() == contents
+
+
+def test_get_current_config_adds_missing_app_cli_section(fs):
+    """When [general] + profile are valid but [app:cli] is missing, the section
+    and its defaults should be written back to the file."""
+    config_dir, config_path = get_config_path()
+    fs.create_dir(config_dir)
+    fs.create_file(
+        config_path,
+        contents="""[general]
+api_root = https://example.test/v1/
+profile = demo
+
+[profile:demo]
+username = sondov
+token = tok
+""",
+    )
+
+    get_current_config()
+
+    written = configparser.ConfigParser()
+    written.read(config_path)
+    assert written.has_section("app:cli")
+    assert written["app:cli"]["striped"] == "false"
+    assert written["app:cli"]["prompt_lines"] == "1"
+
+
+def test_ensure_cli_defaults_creates_section(fs, tmp_path=None):
+    """Direct unit test: ensure_cli_defaults adds the section and defaults."""
+    path = "novem.conf"
+    fs.create_file(path, contents="[general]\nprofile = demo\n")
+    cp = configparser.ConfigParser()
+    cp.read(path)
+
+    modified = ensure_cli_defaults(path, cp)
+
+    assert modified is True
+    assert cp["app:cli"]["striped"] == "false"
+    assert cp["app:cli"]["prompt_lines"] == "1"
+
+    # second call should be a no-op
+    cp2 = configparser.ConfigParser()
+    cp2.read(path)
+    assert ensure_cli_defaults(path, cp2) is False
+
+
+def test_ensure_cli_defaults_preserves_existing_values(fs):
+    """Existing values in [app:cli] must not be overwritten."""
+    path = "novem.conf"
+    fs.create_file(
+        path,
+        contents="""[general]
+profile = demo
+
+[app:cli]
+striped = true
+prompt_lines = 5
+""",
+    )
+    cp = configparser.ConfigParser()
+    cp.read(path)
+
+    modified = ensure_cli_defaults(path, cp)
+
+    assert modified is False
+    assert cp["app:cli"]["striped"] == "true"
+    assert cp["app:cli"]["prompt_lines"] == "5"
