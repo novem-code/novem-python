@@ -1,6 +1,7 @@
+import mimetypes
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..api_ref import NovemAPI
 
@@ -63,17 +64,32 @@ def validate_isolation(args: Dict[str, Any]) -> None:
         sys.exit(1)
 
 
-def _resolve_data(value: str) -> bytes:
-    """`@filename` reads the file as bytes; otherwise treat as a literal string."""
+def _resolve_data(value: str) -> Tuple[bytes, Optional[str]]:
+    """`@filename` reads the file as bytes; otherwise treat as a literal string.
+
+    Returns (body, filename) — filename is set only for the `@filename` form
+    so the caller can guess a content-type from the extension.
+    """
     if value.startswith("@"):
         filename = os.path.expanduser(value[1:])
         try:
             with open(filename, "rb") as f:
-                return f.read()
+                return f.read(), filename
         except FileNotFoundError:
             print(f'The supplied input file "{filename}" does not exist.', file=sys.stderr)
             sys.exit(1)
-    return value.encode("utf-8")
+    return value.encode("utf-8"), None
+
+
+def _resolve_content_type(explicit: Optional[str], filename: Optional[str]) -> str:
+    """Pick content-type: explicit --type wins, else guess from filename, else text/plain."""
+    if explicit:
+        return explicit
+    if filename:
+        guessed, _ = mimetypes.guess_type(filename)
+        if guessed:
+            return guessed
+    return "text/plain"
 
 
 def _normalize_path(path: str) -> str:
@@ -107,8 +123,9 @@ def http_request(
         args["config_profile"] = args["profile"]
 
     body: Optional[bytes] = None
+    filename: Optional[str] = None
     if data is not None:
-        body = _resolve_data(data)
+        body, filename = _resolve_data(data)
     elif method in ("POST", "PUT"):
         body = _read_stdin()
 
@@ -124,7 +141,8 @@ def http_request(
 
     request_kwargs: Dict[str, Any] = {}
     if body is not None:
-        request_kwargs["headers"] = {"Content-type": "text/plain"}
+        content_type = _resolve_content_type(args.get("type"), filename)
+        request_kwargs["headers"] = {"Content-type": content_type}
         request_kwargs["data"] = body
 
     r = novem._session.request(method, url, **request_kwargs)
