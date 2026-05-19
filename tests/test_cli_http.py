@@ -72,7 +72,7 @@ def test_http_post_inline(cli, requests_mock, fs, monkeypatch):
 
 
 def test_http_post_from_file(cli, requests_mock, fs, monkeypatch):
-    """--post PATH @file reads DATA from file."""
+    """--post PATH @file reads DATA from file and guesses Content-type from extension."""
     write_config(auth_req)
     _no_stdin(monkeypatch)
 
@@ -83,6 +83,7 @@ def test_http_post_from_file(cli, requests_mock, fs, monkeypatch):
 
     def capture(request, context):
         captured["body"] = request.text
+        captured["content_type"] = request.headers.get("Content-type")
         context.status_code = 200
         return ""
 
@@ -91,6 +92,132 @@ def test_http_post_from_file(cli, requests_mock, fs, monkeypatch):
     cli("--post", "/vis/plots/my-plot/data", "@data.csv")
 
     assert captured["body"] == "a,b,c\n1,2,3\n"
+    assert captured["content_type"] == "text/csv"
+
+
+def test_http_post_from_json_file(cli, requests_mock, fs, monkeypatch):
+    """@file with .json extension sets Content-type to application/json."""
+    write_config(auth_req)
+    _no_stdin(monkeypatch)
+
+    with open("payload.json", "w") as f:
+        f.write('{"a": 1}')
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("POST", f"{API_ROOT}vis/plots/my-plot/config", text=capture)
+
+    cli("--post", "/vis/plots/my-plot/config", "@payload.json")
+
+    assert captured["content_type"] == "application/json"
+
+
+def test_http_post_unknown_extension_defaults_to_text_plain(cli, requests_mock, fs, monkeypatch):
+    """@file with an extension mimetypes can't guess falls back to text/plain."""
+    write_config(auth_req)
+    _no_stdin(monkeypatch)
+
+    with open("blob.weirdext", "w") as f:
+        f.write("anything")
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("POST", f"{API_ROOT}whatever", text=capture)
+
+    cli("--post", "/whatever", "@blob.weirdext")
+
+    assert captured["content_type"] == "text/plain"
+
+
+def test_http_post_type_overrides_filename_guess(cli, requests_mock, fs, monkeypatch):
+    """--type explicitly set wins over the extension-based guess."""
+    write_config(auth_req)
+    _no_stdin(monkeypatch)
+
+    with open("data.csv", "w") as f:
+        f.write("a,b\n1,2\n")
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("POST", f"{API_ROOT}vis/plots/my-plot/data", text=capture)
+
+    cli("--type", "application/octet-stream", "--post", "/vis/plots/my-plot/data", "@data.csv")
+
+    assert captured["content_type"] == "application/octet-stream"
+
+
+def test_http_post_type_with_inline_data(cli, requests_mock, fs, monkeypatch):
+    """--type sets Content-type even when DATA is an inline string (no filename to guess)."""
+    write_config(auth_req)
+    _no_stdin(monkeypatch)
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("POST", f"{API_ROOT}some/path", text=capture)
+
+    cli("--type", "application/json", "--post", "/some/path", '{"k": "v"}')
+
+    assert captured["content_type"] == "application/json"
+
+
+def test_http_post_type_with_stdin(cli, requests_mock, fs):
+    """--type applies to stdin-piped bodies too."""
+    write_config(auth_req)
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("POST", f"{API_ROOT}some/path", text=capture)
+
+    cli("--type", "text/csv", "--post", "/some/path", stdin="a,b\n1,2\n")
+
+    assert captured["content_type"] == "text/csv"
+
+
+def test_http_put_type_with_file(cli, requests_mock, fs, monkeypatch):
+    """--put with @file guesses Content-type from extension."""
+    write_config(auth_req)
+    _no_stdin(monkeypatch)
+
+    with open("doc.html", "w") as f:
+        f.write("<p>hi</p>")
+
+    captured = {}
+
+    def capture(request, context):
+        captured["content_type"] = request.headers.get("Content-type")
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("PUT", f"{API_ROOT}vis/docs/my-doc/content", text=capture)
+
+    cli("--put", "/vis/docs/my-doc/content", "@doc.html")
+
+    assert captured["content_type"] == "text/html"
 
 
 def test_http_post_missing_file(cli, requests_mock, fs, monkeypatch):

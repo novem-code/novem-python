@@ -205,7 +205,9 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         default=None,
         nargs="+",
         metavar=("PATH", "DATA"),
-        help="POST DATA to PATH. DATA is an inline string, @filename, or piped via stdin",
+        help="POST DATA to PATH. DATA is an inline string, @filename, or piped via stdin. "
+        "Content-type is taken from --type when set, otherwise guessed from the @filename "
+        "extension, falling back to text/plain",
     )
 
     http.add_argument(
@@ -216,7 +218,9 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         default=None,
         nargs="+",
         metavar=("PATH", "DATA"),
-        help="PUT to PATH with optional DATA. DATA is an inline string, @filename, or piped via stdin",
+        help="PUT to PATH with optional DATA. DATA is an inline string, @filename, or piped "
+        "via stdin. Content-type is taken from --type when set, otherwise guessed from the "
+        "@filename extension, falling back to text/plain",
     )
 
     http.add_argument(
@@ -448,7 +452,8 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         action="store",
         required=False,
         default=None,
-        help="shorthand for setting the type of the plot, identical to doing -w config/type TYPE",
+        help="shorthand for setting the type of the plot, identical to doing -w config/type TYPE. "
+        "When combined with --post or --put, sets the request Content-type instead",
     )
 
     grid = parser.add_argument_group("grid")
