@@ -155,7 +155,7 @@ class VisBase:
             path = args["load"]
 
             print(f'Loading api tree structure from "{path}"')
-            vis.api_load(inpath=path)
+            vis.api_load(inpath=path, dry_run=args.get("dry_run", False))
             return
 
         # if we detect a tree query then we'll discard all other IO
@@ -405,7 +405,7 @@ def job(args: Dict[str, Any]) -> None:
     if "load" in args and args["load"]:
         path = args["load"]
         print(f'Loading api tree structure from "{path}"')
-        j.api_load(inpath=path)
+        j.api_load(inpath=path, dry_run=args.get("dry_run", False))
         return
 
     # --tree: print API tree structure
