@@ -114,6 +114,15 @@ def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
     )
 
     parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        required=False,
+        default=False,
+        help=ap.SUPPRESS,
+    )
+
+    parser.add_argument(
         "--version",
         dest="version",
         action="store_true",

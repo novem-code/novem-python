@@ -163,3 +163,6 @@ CLAUDE.md
 # Direnv
 .envrc
 .direnv
+
+# Local scratch / experiment dirs
+scratch/
