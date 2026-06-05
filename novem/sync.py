@@ -52,7 +52,7 @@ class NovemTreeSync:
             if not fp.parent.exists():
                 fp.parent.mkdir(parents=True, exist_ok=True)
                 print(f"Creating folder: {fp.parent}")
-            fp.write_text(content)
+            fp.write_text(content, encoding="utf-8")
             print(f"Writing file:    {fp}")
 
         def rec_tree(path: str) -> None:
@@ -107,7 +107,7 @@ class NovemTreeSync:
                 return
 
             if full.is_file():
-                files[api_path] = full.read_text()
+                files[api_path] = full.read_text(encoding="utf-8")
             elif full.is_dir():
                 for name in sorted(p.name for p in full.iterdir()):
                     walk(full / name, f"{api_path}/{name}")
