@@ -12,17 +12,35 @@ class Doc(NovemVisAPI):
     Novem doc class
     """
 
-    def __init__(self, id: str, **kwargs: Any) -> None:
+    _content_props = ("name", "description", "summary", "content", "theme", "type", "title", "toc")
+    _content_deferred = ("content",)
+
+    def __init__(
+        self,
+        id: str,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        summary: Optional[str] = None,
+        content: Optional[str] = None,
+        theme: Optional[str] = None,
+        type: Optional[str] = None,
+        title: Optional[str] = None,
+        toc: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         :id doc name, duplicate entry will update the doc
+
+        Connection options and behaviour flags are accepted via **kwargs and
+        resolved by the super chain. Unknown extras are warned and ignored.
         """
 
         # if we have an @ name we will override id and user
         if id[0] == "@":
             cand = id[1:].split("~")
             id = cand[1]
-            uname = cand[0]
-            kwargs["user"] = uname
+            kwargs["user"] = cand[0]
 
         self.id = id
 
@@ -37,7 +55,17 @@ class Doc(NovemVisAPI):
 
         self._sections: List[NovemDocSection] = []
 
-        self._parse_kwargs(**kwargs)
+        self._parse_kwargs(
+            name=name,
+            description=description,
+            summary=summary,
+            content=content,
+            theme=theme,
+            type=type,
+            title=title,
+            toc=toc,
+            **kwargs,
+        )
 
     def __call__(self, content: Any, **kwargs: Any) -> Any:
         """
@@ -60,29 +88,6 @@ class Doc(NovemVisAPI):
 
         # return the original object so users can chain
         return content
-
-    def _parse_kwargs(self, **kwargs: Any) -> None:
-
-        # first let our super do it's thing
-        super()._parse_kwargs(**kwargs)
-
-        # get a list of valid properties
-        # exclude content as it needs to be run last
-        props = [x for x in dir(self) if x[0] != "_" and x not in ["content", "read", "delete", "write", "create"]]
-
-        do_content = False
-        for k, v in kwargs.items():
-            if k == "content":
-                do_content = True
-
-            if k not in props:
-                continue
-
-            setattr(self, k, v)
-
-        if do_content:
-            content = kwargs["content"]
-            setattr(self, "content", content)
 
     # --- Sections ---
 

@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from .config import config, resolve
+from .config import ConfigManager, config, resolve
 from .version import __version__
 
 did_token_warning = False
@@ -80,6 +80,7 @@ class NovemAPI(object):
         ignore_ssl: bool = False,
         ignore_config: bool = False,
         is_cli: bool = False,
+        config_manager: Optional[ConfigManager] = None,
         **kwargs: Any,
     ) -> None:
         """Initialise the API client.
@@ -88,6 +89,10 @@ class NovemAPI(object):
         supplied value wins over the globally configured defaults
         (``novem.config``).  Extra ``**kwargs`` (content/behaviour options
         consumed by subclasses) are accepted and ignored at this layer.
+
+        ``config_manager`` lets a caller resolve against a specific (bound)
+        ConfigManager instead of the process-wide ``novem.config`` default —
+        the foundation for per-profile factories. Defaults to the global one.
         """
 
         # only forward connection options that were actually supplied so the
@@ -108,7 +113,7 @@ class NovemAPI(object):
         if ignore_config:
             conn["ignore_config"] = ignore_config
 
-        config_status, cfg = resolve(default=config, **conn)
+        config_status, cfg = resolve(default=config_manager or config, **conn)
 
         self._config = cfg
         self._session = requests.Session()

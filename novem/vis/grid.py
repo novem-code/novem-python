@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from novem.vis import NovemVisAPI
 
@@ -12,18 +12,35 @@ class Grid(NovemVisAPI):
     Novem grid class
     """
 
-    def __init__(self, id: str, **kwargs: Any) -> None:
+    _content_props = ("name", "description", "summary", "mapping", "layout", "theme", "type")
+    # mapping first, layout last (layout depends on mapping)
+    _content_deferred = ("mapping", "layout")
+
+    def __init__(
+        self,
+        id: str,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        summary: Optional[str] = None,
+        mapping: Optional[str] = None,
+        layout: Optional[str] = None,
+        theme: Optional[str] = None,
+        type: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         :id grid name, duplicate entry will update the grid
 
+        Connection options and behaviour flags are accepted via **kwargs and
+        resolved by the super chain. Unknown extras are warned and ignored.
         """
 
         # if we have an @ name we will override id and user
         if id[0] == "@":
             cand = id[1:].split("~")
             id = cand[1]
-            uname = cand[0]
-            kwargs["user"] = uname
+            kwargs["user"] = cand[0]
 
         self.id = id
 
@@ -32,7 +49,16 @@ class Grid(NovemVisAPI):
 
         super().__init__(**kwargs)
 
-        self._parse_kwargs(**kwargs)
+        self._parse_kwargs(
+            name=name,
+            description=description,
+            summary=summary,
+            mapping=mapping,
+            layout=layout,
+            theme=theme,
+            type=type,
+            **kwargs,
+        )
 
     def __call__(self, content: Any, **kwargs: Any) -> Any:
         """
@@ -52,43 +78,6 @@ class Grid(NovemVisAPI):
 
         # return the original object so users can chain the contentframe
         return content
-
-    def _parse_kwargs(self, **kwargs: Any) -> None:
-
-        # first let our super do it's thing
-        super()._parse_kwargs(**kwargs)
-
-        # get a list of valid properties
-        # exclude mapping and layout as they needs to be run last
-        props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["layout", "mapping", "read", "delete", "write", "create"]
-        ]
-
-        do_layout = False
-        do_mapping = False
-        for k, v in kwargs.items():
-            if k == "layout":
-                do_layout = True
-
-            if k == "mapping":
-                do_mapping = True
-
-            if k not in props:
-                continue
-
-            # print(f"{k} :: {v}")
-            # set our value
-            setattr(self, k, v)
-
-        # mapping first
-        if do_mapping:
-            mapping = kwargs["mapping"]
-            setattr(self, "mapping", mapping)
-
-        # layout last, as it depends on mapping
-        if do_layout:
-            layout = kwargs["layout"]
-            setattr(self, "layout", layout)
 
     @property
     def name(self) -> str:
