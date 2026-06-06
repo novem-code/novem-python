@@ -56,6 +56,17 @@ class Novem401(NovemException):
     pass
 
 
+class NovemAuthError(NovemException):
+    """No usable credentials could be resolved for a novem connection.
+
+    Raised when neither an explicit token, the environment, nor a config file
+    yields a token. Distinct from :class:`Novem401`, which is a server-side
+    rejection of a token that *was* supplied.
+    """
+
+    pass
+
+
 class NovemAPI(object):
     """
     Novem API class
@@ -143,13 +154,11 @@ class NovemAPI(object):
                 print("WARN: Both NOVEM_TOKEN and config file token are set. Using config file token.", file=sys.stderr)
 
         elif not config_status:
-            print("""\
-Novem config file is missing.  Either specify config file location with
-the config_path parameter, setup a new token using
-$ python -m novem --init
-or set the NOVEM_TOKEN environment variable.\
-""")
-            sys.exit(0)
+            raise NovemAuthError(
+                "No novem credentials found. Pass a token (token=...), set the "
+                "NOVEM_TOKEN environment variable, run `python -m novem --init` "
+                "to create a config file, or point config_path at one."
+            )
 
         if self._api_root[-1] != "/":
             # our code assumes that the api_root ends with a /

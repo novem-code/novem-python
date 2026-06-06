@@ -5,6 +5,7 @@ import pytest
 
 from novem import NovemConfig, Plot, config
 from novem.config import resolve
+from novem.exceptions import NovemAuthError
 from novem.utils import API_ROOT
 
 from .test_config import setup_fake_config
@@ -40,11 +41,11 @@ def test_global_api_root(requests_mock, fs):
 
 
 def test_reset_clears_overrides(requests_mock, fs):
-    """After reset() a naked constructor has no token and exits."""
+    """After reset() a naked constructor has no token and raises."""
     config.set_token("global_token")
     config.reset()
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(NovemAuthError):
         Plot(id="foo", create=False)
 
 
