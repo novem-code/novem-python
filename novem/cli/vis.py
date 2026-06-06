@@ -8,6 +8,7 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, colors, format_datetime_local, get_current_config, parse_api_datetime, pretty_format
+from .args import CliArgs
 from .config import config_from_args
 from .filter import apply_filters
 from .gql import (
@@ -89,13 +90,13 @@ def _format_views(plist: List[Dict[str, Any]]) -> None:
         p["_views_fmt"] = r.rjust(mw)
 
 
-def list_vis(args: Dict[str, Any], type: str) -> None:
+def list_vis(args: CliArgs, type: str) -> None:
     colors()
     # get current plot list
 
     pfx = type[0].lower()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     plist: List[Dict[str, Any]] = []
 
@@ -104,7 +105,7 @@ def list_vis(args: Dict[str, Any], type: str) -> None:
         usr = args["for_user"]
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
 
     if "group" in args and args["group"]:
         # Group listing not yet supported via GraphQL, fall back to REST
@@ -352,14 +353,14 @@ def share_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> N
     print(ppl)
 
 
-def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
+def list_vis_shares(vis_name: str, args: CliArgs, type: str) -> None:
 
     novem = NovemAPI(**config_from_args(args), is_cli=True)
     # see if list flag is set
 
     pth = type.lower()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     plist = []
 
@@ -385,11 +386,11 @@ def list_vis_shares(vis_name: str, args: Dict[str, str], type: str) -> None:
     return
 
 
-def list_job_shares(job_name: str, args: Dict[str, str]) -> None:
+def list_job_shares(job_name: str, args: CliArgs) -> None:
 
     novem = NovemAPI(**config_from_args(args), is_cli=True)
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     plist = []
 
@@ -491,14 +492,14 @@ def tag_pretty_print(iplist: List[Dict[str, str]], striped: bool = False) -> Non
     print(ppl)
 
 
-def list_vis_tags(vis_name: str, args: Dict[str, str], type: str) -> None:
+def list_vis_tags(vis_name: str, args: CliArgs, type: str) -> None:
     """List tags for a visualization."""
 
     novem = NovemAPI(**config_from_args(args), is_cli=True)
 
     pth = type.lower()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     plist = []
 
@@ -524,12 +525,12 @@ def list_vis_tags(vis_name: str, args: Dict[str, str], type: str) -> None:
     return
 
 
-def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
+def list_job_tags(job_name: str, args: CliArgs) -> None:
     """List tags for a job."""
 
     novem = NovemAPI(**config_from_args(args), is_cli=True)
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     plist = []
 
@@ -555,14 +556,14 @@ def list_job_tags(job_name: str, args: Dict[str, str]) -> None:
     return
 
 
-def list_users(args: Dict[str, Any]) -> None:
+def list_users(args: CliArgs) -> None:
     """List connected users with custom formatting."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_users_gql(gql)
 
     # Apply filters
@@ -758,18 +759,18 @@ def list_users(args: Dict[str, Any]) -> None:
     print(ppl)
 
 
-def list_jobs(args: Dict[str, Any]) -> None:
+def list_jobs(args: CliArgs) -> None:
     """List jobs with custom formatting."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     usr = config["username"]
     if "for_user" in args and args["for_user"]:
         usr = args["for_user"]
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_jobs_gql(gql, author=usr)
 
     # Apply filters
@@ -1095,14 +1096,14 @@ def _format_time_ago(date_str: str) -> str:
         return date_str
 
 
-def list_orgs(args: Dict[str, Any]) -> None:
+def list_orgs(args: CliArgs) -> None:
     """List organizations with custom formatting."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_orgs_gql(gql)
 
     # Apply filters
@@ -1244,11 +1245,11 @@ def list_orgs(args: Dict[str, Any]) -> None:
     print(ppl)
 
 
-def list_org_users(args: Dict[str, Any]) -> None:
+def list_org_users(args: CliArgs) -> None:
     """List org members with roles and content shared with org groups."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     org_id = args.get("org", "")
     if not org_id:
@@ -1258,7 +1259,7 @@ def list_org_users(args: Dict[str, Any]) -> None:
     current_user = config.get("username", "")
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_org_members_gql(gql, org_id, current_user)
 
     # Apply filters
@@ -1423,11 +1424,11 @@ def list_org_users(args: Dict[str, Any]) -> None:
     print(ppl)
 
 
-def list_org_groups(args: Dict[str, Any]) -> None:
+def list_org_groups(args: CliArgs) -> None:
     """List groups within an org."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     org_id = args.get("org", "")
     if not org_id:
@@ -1437,7 +1438,7 @@ def list_org_groups(args: Dict[str, Any]) -> None:
     current_user = config.get("username", "")
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_org_groups_gql(gql, org_id, current_user)
 
     # Apply filters
@@ -1585,11 +1586,11 @@ def list_org_groups(args: Dict[str, Any]) -> None:
     print(ppl)
 
 
-def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
+def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
     """List visualizations shared with a specific org group."""
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     org_id = args.get("org", "")
     group_id = args.get("group", "")
@@ -1612,7 +1613,7 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
     gql_vis_type = vis_type_map.get(vis_type, vis_type.lower() + "s")
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_org_group_vis_gql(gql, org_id, group_id, gql_vis_type)
 
     # Apply filters
@@ -1767,12 +1768,12 @@ def list_org_group_vis(args: Dict[str, Any], vis_type: str) -> None:
     print(ppl)
 
 
-def list_org_group_users(args: Dict[str, Any]) -> None:
+def list_org_group_users(args: CliArgs) -> None:
     """List members of a specific org group with roles and content shared with that group."""
     # Called from: novem -O <org> -G <group> -u
     colors()
 
-    config_status, config = get_current_config(**args)
+    config_status, config = get_current_config(**config_from_args(args))
 
     org_id = args.get("org", "")
     group_id = args.get("group", "")
@@ -1786,7 +1787,7 @@ def list_org_group_users(args: Dict[str, Any]) -> None:
     current_user = config.get("username", "")
 
     # Use GraphQL for listing
-    gql = NovemGQL(**args)
+    gql = NovemGQL.from_args(args)
     plist = list_org_group_members_gql(gql, org_id, group_id, current_user)
 
     # Apply filters

@@ -1,7 +1,9 @@
 import argparse as ap
 import shutil
 from enum import Enum
-from typing import Any, Dict, Tuple
+from typing import Any, Tuple, cast
+
+from .args import CliArgs
 
 width = min(120, shutil.get_terminal_size().columns - 2)
 
@@ -24,7 +26,7 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
     return ap.RawDescriptionHelpFormatter(prog, width=width)
 
 
-def setup(raw_args: Any = None) -> Tuple[Any, Dict[str, str]]:
+def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
     parser = ap.ArgumentParser(
         prog="novem",
         description="Novem commandline interface.",
@@ -718,4 +720,4 @@ No parameter will list all organisations groups of which you are a member""",
     else:
         args["tag"] = None
 
-    return (parser, args)
+    return (parser, cast(CliArgs, args))

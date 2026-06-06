@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, cast
 
 from novem import Doc, Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
@@ -19,6 +19,8 @@ from novem.cli.vis import (
 )
 from novem.utils import API_ROOT, data_on_stdin
 from novem.vis import NovemVisAPI
+
+from .args import CliArgs
 
 
 class VisBase:
@@ -41,7 +43,7 @@ class VisBase:
         else:
             nva.data = data
 
-    def mk(self, name: str, user: Optional[str], ignore_ssl: bool, create: bool, args: Dict[str, Any]) -> NovemVisAPI:
+    def mk(self, name: str, user: Optional[str], ignore_ssl: bool, create: bool, args: CliArgs) -> NovemVisAPI:
         if self.type == "mail":
             return Mail(
                 name,
@@ -98,9 +100,9 @@ class VisBase:
         else:
             assert False, "Invalid type"
 
-    def __call__(self, args: Dict[str, Any]) -> None:
-        # we are invoked so vis must exist
-        name = args[self.type]
+    def __call__(self, args: CliArgs) -> None:
+        # we are invoked so vis must exist; self.type is a dynamic resource key
+        name = cast(Dict[str, Any], args)[self.type]
 
         if name is None:
             # we need to list plots
@@ -161,17 +163,16 @@ class VisBase:
 
         # if we detect a tree query then we'll discard all other IO
         if "tree" in args and args["tree"] != -1:
-            path = args["tree"]
-            if not path:
-                path = "/"
+            tree_arg = args["tree"]
+            rel = tree_arg if isinstance(tree_arg, str) and tree_arg else "/"
 
-            ts = vis.api_tree(colors=True, relpath=path)
+            ts = vis.api_tree(colors=True, relpath=rel)
             print(ts)
             return
 
         # --comments: show topics and comment threads
         if args.get("comments"):
-            gql = NovemGQL(**args)
+            gql = NovemGQL.from_args(args)
             topics, vde_vars = fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
             me = gql._config.get("username", "")
             var_lookup = _build_var_lookup(vde_vars, usr or "", self.fragment, name) if vde_vars else None
@@ -317,27 +318,27 @@ class VisBase:
             print(outp, end="")
 
 
-def mail(args: Dict[str, Any]) -> None:
+def mail(args: CliArgs) -> None:
     mail = VisBase("mail")
     mail(args)
 
 
-def grid(args: Dict[str, Any]) -> None:
+def grid(args: CliArgs) -> None:
     grid = VisBase("grid")
     grid(args)
 
 
-def doc(args: Dict[str, Any]) -> None:
+def doc(args: CliArgs) -> None:
     d = VisBase("doc")
     d(args)
 
 
-def plot(args: Dict[str, Any]) -> None:
+def plot(args: CliArgs) -> None:
     plot = VisBase("plot")
     plot(args)
 
 
-def job(args: Dict[str, Any]) -> None:
+def job(args: CliArgs) -> None:
     name = args["job"]
 
     # List all jobs
@@ -409,10 +410,9 @@ def job(args: Dict[str, Any]) -> None:
 
     # --tree: print API tree structure
     if "tree" in args and args["tree"] != -1:
-        path = args["tree"]
-        if not path:
-            path = "/"
-        ts = j.api_tree(colors=True, relpath=path)
+        tree_arg = args["tree"]
+        rel = tree_arg if isinstance(tree_arg, str) and tree_arg else "/"
+        ts = j.api_tree(colors=True, relpath=rel)
         print(ts)
         return
 
@@ -506,7 +506,7 @@ def job(args: Dict[str, Any]) -> None:
         print(outp, end="")
 
 
-def user(args: Dict[str, Any]) -> None:
+def user(args: CliArgs) -> None:
     """Handle -u flag: list users if no username specified, otherwise pass through."""
     username = args.get("for_user")
 

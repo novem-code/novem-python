@@ -2,9 +2,11 @@ import asyncio
 import json
 import sys
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from ..utils import get_current_config
+from .args import CliArgs
+from .config import config_from_args
 
 # ANSI color codes — disabled when output is not a tty
 _USE_COLOR = sys.stdout.isatty()
@@ -36,8 +38,10 @@ def _yellow(text: str) -> str:
     return _c("33", text)
 
 
-def parse_events_arg(events_arg: List[str]) -> List[str]:
+def parse_events_arg(events_arg: Optional[List[str]]) -> List[str]:
     """Validate FQNP patterns from --events args."""
+    if not events_arg:
+        return []
     return [p.strip() for p in events_arg if p.strip()]
 
 
@@ -66,7 +70,7 @@ def _format_event(data: Dict[str, Any]) -> str:
     return "  ".join(parts)
 
 
-async def _subscribe_events(args: Dict[str, Any], patterns: List[str]) -> None:
+async def _subscribe_events(args: CliArgs, patterns: List[str]) -> None:
     try:
         import socketio  # type: ignore[import-untyped]
     except ImportError:
@@ -79,7 +83,7 @@ async def _subscribe_events(args: Dict[str, Any], patterns: List[str]) -> None:
     json_output = args.get("json_output", False)
 
     # Resolve auth config
-    _, config = get_current_config(**args)
+    _, config = get_current_config(**config_from_args(args))
 
     token = args.get("token") or config.get("token")
     if not token:
@@ -146,7 +150,7 @@ async def _subscribe_events(args: Dict[str, Any], patterns: List[str]) -> None:
         await sio.disconnect()
 
 
-def run_events(args: Dict[str, Any]) -> None:
+def run_events(args: CliArgs) -> None:
     """Entry point for --events from the CLI."""
     patterns = parse_events_arg(args["events"])
     if not patterns:

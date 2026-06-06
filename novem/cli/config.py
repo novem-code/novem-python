@@ -3,13 +3,13 @@ import os
 import stat
 from os import path
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from ..utils import API_ROOT, get_config_path
 from ..version import __version__
 
 
-def config_from_args(args: Dict[str, Any]) -> Dict[str, Any]:
+def config_from_args(args: Mapping[str, Any]) -> Dict[str, Any]:
     """Extract connection-config kwargs from a CLI argparse namespace dict.
 
     Replaces the old ``NovemAPI(**args)`` splat, which forwarded the entire
@@ -115,7 +115,7 @@ def update_config(
     return (True, novem_config)
 
 
-def check_if_profile_exists(profile: str, config_path: str) -> bool:
+def check_if_profile_exists(profile: str, config_path: Optional[str]) -> bool:
     """
     Check if config dir already contains a valid token for the profile
     """

@@ -15,6 +15,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import requests
 
 from ..utils import API_ROOT, cl, colors, get_current_config, parse_api_datetime
+from .args import CliArgs
+from .config import config_from_args
 
 
 def _get_gql_endpoint(api_root: str) -> str:
@@ -27,14 +29,15 @@ def _get_gql_endpoint(api_root: str) -> str:
 class NovemGQL:
     """GraphQL client for novem CLI operations."""
 
-    def __init__(self, **kwargs: Any) -> None:
-        _, config = get_current_config(**kwargs)
+    def __init__(self, *, debug: bool = False, gql: Any = False, **connection: Any) -> None:
+        # ``connection`` is the curated set of connection options (token,
+        # api_root, profile, config_path, …); debug/gql are CLI behaviour
+        _, config = get_current_config(**connection)
         self._config = config
         self._session = requests.Session()
-        self._debug = kwargs.get("debug", False)
+        self._debug = debug
         # Support both old gql_debug and new gql parameter for debug mode
-        gql_param = kwargs.get("gql", False)
-        self._gql_debug = gql_param is True  # True when --gql with no argument
+        self._gql_debug = gql is True  # True when --gql with no argument
 
         token = config.get("token")
         if token:
@@ -45,6 +48,19 @@ class NovemGQL:
 
         if self._debug:
             print(f"GQL endpoint: {self._endpoint}")
+
+    @classmethod
+    def from_args(cls, args: CliArgs) -> "NovemGQL":
+        """Build from a CLI argparse namespace dict.
+
+        Extracts the connection options via config_from_args and threads the
+        debug/gql behaviour flags — instead of splatting the whole namespace.
+        """
+        return cls(
+            debug=args.get("debug", False),
+            gql=args.get("gql", False),
+            **config_from_args(args),
+        )
 
     def run_raw_query(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute a GraphQL query and return the raw result (for CLI --gql @filename)."""

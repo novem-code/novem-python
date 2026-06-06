@@ -7,7 +7,7 @@ import string
 import sys
 import urllib.request
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any, Mapping, Optional, Union
 
 from novem.exceptions import Novem401, Novem404, NovemException
 
@@ -101,8 +101,8 @@ def do_update_config(
     # save file
 
 
-def refresh_config(args: Dict[str, Any]) -> None:
-    hasconf, curconf = get_current_config(**args)
+def refresh_config(args: Mapping[str, Any]) -> None:
+    hasconf, curconf = get_current_config(**config_from_args(args))
 
     if not hasconf:
         print("Configuration not found, please use --init to create it")
@@ -164,7 +164,7 @@ def refresh_config(args: Dict[str, Any]) -> None:
     do_update_config(profile, username, api_root, token_name, token, None)
 
 
-def init_config(args: Dict[str, Any]) -> None:
+def init_config(args: Mapping[str, Any]) -> None:
     """
     Initialize user and config.
 
@@ -208,7 +208,7 @@ def init_config(args: Dict[str, Any]) -> None:
 
     # resolve api_root early (needed for all flows)
     if not api_root:
-        _, curconf = get_current_config(**args)
+        _, curconf = get_current_config(**config_from_args(args))
         api_root = curconf["api_root"]
 
     # ensure api_root ends with /v1/ (user may pass bare domain like https://api.novem.io)
@@ -228,7 +228,7 @@ def init_config(args: Dict[str, Any]) -> None:
 
 
 def _init_credentials(
-    args: Dict[str, Any],
+    args: Mapping[str, Any],
     api_root: str,
     profile: str,
     config_path: str,
@@ -304,7 +304,7 @@ def _init_credentials(
 
 
 def _init_token(
-    args: Dict[str, Any],
+    args: Mapping[str, Any],
     api_root: str,
     profile: str,
     config_path: str,
@@ -348,7 +348,7 @@ def _init_token(
 
 
 def _init_oauth(
-    args: Dict[str, Any],
+    args: Mapping[str, Any],
     api_root: str,
     profile: str,
     config_path: str,
@@ -466,13 +466,15 @@ def run_cli_wrapped() -> None:
 
     # verify profile
     if args and args["profile"]:
-        config_path: str = args["config_path"]
+        config_path: Optional[str] = args["config_path"]
         profile_exists: bool = check_if_profile_exists(args["profile"], config_path)
         if not profile_exists:
-            print(f"""\
+            print(
+                f"""\
 Profile "{args["profile"]}" doesn't exist in your config. Please add it using:
 novem --init --profile {args["profile"]}\
-""")
+"""
+            )
 
             sys.exit(1)
 
@@ -601,11 +603,12 @@ novem --init --profile {args["profile"]}\
         if active_http_flags(args):
             validate_isolation(args)
 
-            if args.get("http_get") is not None:
-                http_request(args, "GET", args["http_get"])
+            get_path = args["http_get"]
+            if get_path is not None:
+                http_request(args, "GET", get_path)
                 return
-            if args.get("http_post") is not None:
-                post_args = args["http_post"]
+            post_args = args["http_post"]
+            if post_args is not None:
                 if len(post_args) == 1:
                     http_request(args, "POST", post_args[0])
                 elif len(post_args) == 2:
@@ -614,8 +617,8 @@ novem --init --profile {args["profile"]}\
                     print("Error: --post accepts 1 or 2 arguments (PATH [DATA])", file=sys.stderr)
                     sys.exit(1)
                 return
-            if args.get("http_put") is not None:
-                put_args = args["http_put"]
+            put_args = args["http_put"]
+            if put_args is not None:
                 if len(put_args) == 1:
                     http_request(args, "PUT", put_args[0])
                 elif len(put_args) == 2:
@@ -624,8 +627,9 @@ novem --init --profile {args["profile"]}\
                     print("Error: --put accepts 1 or 2 arguments (PATH [DATA])", file=sys.stderr)
                     sys.exit(1)
                 return
-            if args.get("http_delete") is not None:
-                http_request(args, "DELETE", args["http_delete"])
+            delete_path = args["http_delete"]
+            if delete_path is not None:
+                http_request(args, "DELETE", delete_path)
                 return
 
     # handle --gql to run a GraphQL query from stdin, file, or inline
@@ -659,7 +663,7 @@ novem --init --profile {args["profile"]}\
                 # Treat as inline query
                 query = gql_arg
 
-            gql = NovemGQL(**args)
+            gql = NovemGQL.from_args(args)
             result = gql.run_raw_query(query)
             print(json.dumps(result, indent=2))
             return
@@ -672,7 +676,7 @@ novem --init --profile {args["profile"]}\
             qpr = f"{args['qpr']},"
 
         # Get prompt_lines from config (default 1)
-        _, config = get_current_config(**args)
+        _, config = get_current_config(**config_from_args(args))
         prompt_lines = config.get("cli_prompt_lines", 1)
 
         qpr = f"{qpr}cols={sz.columns},rows={sz.lines - prompt_lines}"
