@@ -81,13 +81,15 @@ class NovemAPI(object):
         ignore_config: bool = False,
         is_cli: bool = False,
         config_manager: Optional[ConfigManager] = None,
-        **kwargs: Any,
+        # absorbs content/behaviour kwargs handled by subclasses; intentionally
+        # unused here (underscore-named so it is not flagged or "cleaned up")
+        **_kwargs: Any,
     ) -> None:
         """Initialise the API client.
 
         Connection settings are explicit keyword arguments; any explicitly
         supplied value wins over the globally configured defaults
-        (``novem.config``).  Extra ``**kwargs`` (content/behaviour options
+        (``novem.config``).  Extra keyword arguments (content/behaviour options
         consumed by subclasses) are accepted and ignored at this layer.
 
         ``config_manager`` lets a caller resolve against a specific (bound)
@@ -153,12 +155,13 @@ or set the NOVEM_TOKEN environment variable.\
             # our code assumes that the api_root ends with a /
             self._api_root = f"{self._api_root}/"
 
-    def _parse_kwargs(self, **kwargs: Any) -> None:
+    def _parse_kwargs(self, **_kwargs: Any) -> None:
         """Terminator for the cooperative ``_parse_kwargs`` chain.
 
         Connection settings (including ``api_root``) are resolved once in
         ``__init__``; subclasses override this to apply their own content
-        properties.
+        properties. The kwargs are intentionally unused here (underscore-named
+        so editors do not flag the parameter as dead).
         """
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
