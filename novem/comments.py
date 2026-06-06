@@ -659,7 +659,7 @@ class Context(NovemAPI):
 
 def _check_mcp_deps() -> Any:
     try:
-        from mcp.server.fastmcp import FastMCP
+        from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped,import-not-found]
 
         return FastMCP
     except ImportError:
@@ -880,7 +880,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         are looking at.  Only available when the FQNP points to a
         visualization (plot, grid, mail, …).
         """
-        from mcp.server.fastmcp import Image
+        from mcp.server.fastmcp import Image  # type: ignore[import-untyped,import-not-found]
 
         if not parsed.is_vis:
             return "This FQNP does not reference a visualization."

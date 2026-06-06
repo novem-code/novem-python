@@ -76,17 +76,20 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
             setattr(self, k, v)
 
     def __setattr__(self, name: str, value: Any) -> None:
+        # nested isinstance checks (rather than a chain) so a type checker does
+        # not narrow `value` across branches; see NovemVisAPI.__setattr__
         if name == "config" and hasattr(self, "config") and self.config:
             self.config.set(value)
-        elif (
-            name == "shared"
-            and hasattr(self, "shared")
-            and self.shared is not None
-            and not isinstance(value, NovemShare)
-        ):
-            self.shared.set(value)
-        elif name == "tags" and hasattr(self, "tags") and self.tags is not None and not isinstance(value, NovemTags):
-            self.tags.set(value)
+        elif name == "shared" and hasattr(self, "shared") and self.shared is not None:
+            if isinstance(value, NovemShare):
+                super().__setattr__(name, value)
+            else:
+                self.shared.set(value)
+        elif name == "tags" and hasattr(self, "tags") and self.tags is not None:
+            if isinstance(value, NovemTags):
+                super().__setattr__(name, value)
+            else:
+                self.tags.set(value)
         else:
             super().__setattr__(name, value)
 

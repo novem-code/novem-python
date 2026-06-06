@@ -72,7 +72,7 @@ def _format_event(data: Dict[str, Any]) -> str:
 
 async def _subscribe_events(args: CliArgs, patterns: List[str]) -> None:
     try:
-        import socketio  # type: ignore[import-untyped]
+        import socketio  # type: ignore[import-untyped,import-not-found]
     except ImportError:
         print(
             'Error: The "events" extra is required for --events.\n' "Install it with: pip install novem[events]",

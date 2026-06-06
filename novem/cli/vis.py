@@ -100,7 +100,7 @@ def list_vis(args: CliArgs, type: str) -> None:
 
     plist: List[Dict[str, Any]] = []
 
-    usr = config["username"]
+    usr = config.get("username")
     if "for_user" in args and args["for_user"]:
         usr = args["for_user"]
 
@@ -765,7 +765,7 @@ def list_jobs(args: CliArgs) -> None:
 
     config_status, config = get_current_config(**config_from_args(args))
 
-    usr = config["username"]
+    usr = config.get("username")
     if "for_user" in args and args["for_user"]:
         usr = args["for_user"]
 

@@ -128,10 +128,21 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
                 setattr(self, key, deferred[key])
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "shared" and hasattr(self, "shared") and not isinstance(value, NovemShare):
-            self.shared.set(value)
-        elif name == "tags" and hasattr(self, "tags") and not isinstance(value, NovemTags):
-            self.tags.set(value)
+        # Assigning a bare value to `shared`/`tags` is sugar for `.set(value)`;
+        # assigning the wrapper object itself (as __init__ does) is a real set.
+        # The isinstance checks are nested rather than chained so a type
+        # checker does not narrow `value` across the branches (pyright would
+        # otherwise widen it to `Any | NovemShare` in the tags branch).
+        if name == "shared" and hasattr(self, "shared"):
+            if isinstance(value, NovemShare):
+                super().__setattr__(name, value)
+            else:
+                self.shared.set(value)
+        elif name == "tags" and hasattr(self, "tags"):
+            if isinstance(value, NovemTags):
+                super().__setattr__(name, value)
+            else:
+                self.tags.set(value)
         else:
             super().__setattr__(name, value)
 
