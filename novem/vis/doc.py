@@ -8,8 +8,12 @@ from .doc_sections import FrontmatterSection, NovemDocSection
 
 
 class Doc(NovemVisAPI):
-    """
-    Novem doc class
+    """A novem document, addressed by name.
+
+    Content properties (``content``, ``title``, ``theme``, ``type``, ``toc``,
+    …) may be passed to the constructor or set as attributes; changes are
+    written live. Connection options are resolved from the arguments,
+    ``novem.config``, the environment, or the config file — see the README.
     """
 
     _content_props = ("name", "description", "summary", "content", "theme", "type", "title", "toc")

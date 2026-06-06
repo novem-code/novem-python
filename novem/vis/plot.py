@@ -19,8 +19,14 @@ else:
 
 
 class Plot(NovemVisAPI):
-    """
-    Novem plot class
+    """A novem plot (chart), addressed by name.
+
+    Content properties (``type``, ``title``, ``caption``, ``data``, …) may be
+    passed to the constructor or set as attributes afterwards; either way the
+    change is written to the platform immediately (all operations are live).
+    Connection options (``token``, ``api_root``, ``profile``) are resolved from
+    the arguments, ``novem.config``, the environment, or the config file — see
+    the README. Unknown keyword arguments are ignored with a warning.
     """
 
     colors: Optional[NovemColors] = None

@@ -9,8 +9,14 @@ from .mail_sections import NovemEmailSection, PreviewSection
 
 
 class Mail(NovemVisAPI):
-    """
-    Novem mail class
+    """A novem e-mail, addressed by name.
+
+    Content and delivery fields (``content``, ``to``, ``cc``, ``bcc``,
+    ``subject``, ``status``, …) may be passed to the constructor or set as
+    attributes; changes are written live. Note that setting ``status`` can
+    send the e-mail, so it is always applied last. Connection options are
+    resolved from the arguments, ``novem.config``, the environment, or the
+    config file — see the README.
     """
 
     _content_props = (

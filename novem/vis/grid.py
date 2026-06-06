@@ -8,8 +8,13 @@ from .grid_helpers import GridMap
 
 
 class Grid(NovemVisAPI):
-    """
-    Novem grid class
+    """A novem grid (dashboard layout), addressed by name.
+
+    Content properties (``layout``, ``mapping``, ``theme``, ``type``, …) may be
+    passed to the constructor or set as attributes; changes are written live.
+    ``layout`` depends on ``mapping``, so it is always applied last. Connection
+    options are resolved from the arguments, ``novem.config``, the environment,
+    or the config file — see the README.
     """
 
     _content_props = ("name", "description", "summary", "mapping", "layout", "theme", "type")

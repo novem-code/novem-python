@@ -1,40 +1,43 @@
 
 # novem - data visualisation for coders
 
-A wrapper library for the novem.no data visualisation platform. Create charts,
+A wrapper library for the novem.io data visualisation platform. Create charts,
 documents, e-mails and dashboards through one simple API.
 
 **NB:** novem is currently in closed alpha, if you want to try it out please
-reach out to hello@novem.no
+reach out to hello@novem.io
 
 
-## Exampels
+## Examples
 
-Create a linechart from a dataframe using pandas data reader
+Create a linechart from a pandas dataframe (assumes a configured profile —
+see "Getting started" below).
 
 ```python
-from pandas_datareader import data
+import numpy as np
+import pandas as pd
 from novem import Plot
 
-line = Plot("aapl_price_hist", type="line", name="Apple price history")
+# a sample price-like series; swap in your own dataframe. Name the index and
+# series so the CSV has a proper "Date,Price" header.
+dates = pd.date_range("2015-01-01", "2021-12-31", freq="B", name="Date")
+prices = pd.Series(
+    100 + np.random.randn(len(dates)).cumsum(), index=dates, name="Price"
+)
 
-# Only get the adjusted close.
-aapl = data.DataReader("AAPL",
-                       start="2015-1-1",
-                       end="2021-12-31",
-                       data_source="yahoo")["Adj Close"]
+line = Plot("price_hist", type="line", name="Sample price history")
 
 # send data to the plot
-aapl.pipe(line)
+prices.pipe(line)
 
-# url to view plot
+# url to view the plot
 print(line.url)
 ```
 
 
 ## Getting started
 To get started with novem you will have to register an account. Please
-[reach out](mailto:hello@novem.no) to us!
+[reach out](mailto:hello@novem.io) to us!
 
 Once you have a username and password you can setup your environment using:
 ```bash
@@ -44,6 +47,54 @@ Once you have a username and password you can setup your environment using:
 In addition to invoking the novem module as shown above, the novem package also
 includes an extensive command-line interface (cli). Check out CLI.md in this
 repository or [novem.io](https://novem.io) for more details.
+
+
+## Configuration and authentication
+Every novem object needs a token and an API root to talk to the platform.
+These are resolved, in order of precedence, from:
+
+ 1. explicit keyword arguments on the object (or a `Session`, see below)
+ 2. values set programmatically via `novem.config`
+ 3. the `NOVEM_TOKEN` / `NOVEM_API_ROOT` environment variables
+ 4. the config file written by `python -m novem --init`
+
+The simplest setup is the config file (`--init` above). To configure novem
+programmatically instead — handy in notebooks, scripts or CI — set a token on
+the global `novem.config` object once, and objects created afterwards pick it
+up automatically:
+
+```python
+import novem
+
+novem.config.set_token("your-token")
+
+plot = novem.Plot("my-plot")
+```
+
+`novem.config` also exposes `set_api_root(...)` (to point at a non-default API)
+and `use_profile(...)` (to select a profile from the config file).
+
+Alternatively, pass the token straight to the object. An explicit argument
+always wins over whatever is on `novem.config`:
+
+```python
+plot = novem.Plot("my-plot", token="your-token")
+```
+
+### Multiple accounts / profiles
+A `Session` captures connection settings (token, api_root or a config-file
+profile) and constructs objects bound to them, without touching the global
+defaults — useful when working against several accounts at once:
+
+```python
+import novem
+
+work = novem.Session(profile="work")
+personal = novem.Session(profile="personal")
+
+# copy a plot's data from one account to the other
+personal.Plot("earnings").data = work.Plot("earnings").data
+```
 
 
 
