@@ -25,10 +25,13 @@ or override per call (explicit always wins over the global default)::
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from .types import Config
 from .utils import API_ROOT, get_current_config
+
+if TYPE_CHECKING:
+    from .session import Session
 
 __all__ = ["NovemConfig", "ConfigManager", "resolve", "config"]
 
@@ -97,6 +100,32 @@ class ConfigManager:
     def reset(self) -> None:
         """Clear all programmatically set overrides."""
         self._overrides.clear()
+
+    def session(
+        self,
+        *,
+        profile: Optional[str] = None,
+        token: Optional[str] = None,
+        api_root: Optional[str] = None,
+        config_path: Optional[str] = None,
+    ) -> "Session":
+        """Create a connection-bound :class:`Session` from these defaults.
+
+        The session inherits a snapshot of the current overrides and layers
+        the supplied profile/token/api_root on top — without mutating this
+        manager. See :class:`novem.session.Session`.
+        """
+        from .session import Session
+
+        cm = ConfigManager()
+        cm._overrides = dict(self._overrides)
+        return Session(
+            profile=profile,
+            token=token,
+            api_root=api_root,
+            config_path=config_path,
+            _config_manager=cm,
+        )
 
     # -- internal ---------------------------------------------------------
     def merge(self, explicit: Dict[str, Any]) -> Dict[str, Any]:

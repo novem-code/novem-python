@@ -6,6 +6,7 @@ from .group.org import Org
 from .job import Job
 from .profile import Profile
 from .repo import Repo
+from .session import Session
 from .version import __version__
 from .vis.doc import Doc
 from .vis.grid import Grid
@@ -30,5 +31,6 @@ __all__ = [
     "Message",
     "config",
     "NovemConfig",
+    "Session",
     "__version__",
 ]
