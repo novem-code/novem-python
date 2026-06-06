@@ -35,10 +35,7 @@ class Profile(NovemAPI):
         :param api_root: Override the API root URL
         :param config_path: Override the config file path
         """
-        # Map 'profile' to 'config_profile' for user convenience
-        if "profile" in kwargs and "config_profile" not in kwargs:
-            kwargs["config_profile"] = kwargs.pop("profile")
-
+        # `profile`/`config_profile` aliasing is handled centrally in resolve()
         if "debug" in kwargs and kwargs["debug"]:
             self._debug = True
 

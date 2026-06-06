@@ -1,5 +1,6 @@
 from .claim import Claim
 from .comments import Comment, Context, Message, Topic
+from .config import NovemConfig, config
 from .events import EventMessage, Events
 from .group.org import Org
 from .job import Job
@@ -27,5 +28,7 @@ __all__ = [
     "Comment",
     "Topic",
     "Message",
+    "config",
+    "NovemConfig",
     "__version__",
 ]

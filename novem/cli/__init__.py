@@ -23,7 +23,7 @@ from ..api_ref import NovemAPI
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .common import doc, grid, job, mail, plot, user
-from .config import check_if_profile_exists, update_config
+from .config import check_if_profile_exists, config_from_args, update_config
 from .events import run_events
 from .gql import NovemGQL
 from .group import group
@@ -94,7 +94,7 @@ def do_update_config(
     token: str,
     path: Optional[str],
 ) -> None:
-    (status, path) = update_config(profile, username, api_root, token_name, token, path)
+    status, path = update_config(profile, username, api_root, token_name, token, path)
 
     print(f'{cl.OKGREEN} \u2713 {cl.ENDC}new token {cl.OKCYAN}"{token_name}"{cl.ENDC} created and saved to {path}')
 
@@ -102,9 +102,7 @@ def do_update_config(
 
 
 def refresh_config(args: Dict[str, Any]) -> None:
-    if "profile" in args:
-        args["config_profile"] = args["profile"]
-    (hasconf, curconf) = get_current_config(**args)
+    hasconf, curconf = get_current_config(**args)
 
     if not hasconf:
         print("Configuration not found, please use --init to create it")
@@ -410,7 +408,7 @@ def run_cli_wrapped() -> None:
 
     # Gather the provided arguements as an array.
     # (parser:Any, args:Dict[str, str]) = setup(raw_args)
-    (parser, args) = setup(raw_args)
+    parser, args = setup(raw_args)
 
     # Install custom exception handler unless in debug mode
     if not ("debug" in args and args["debug"]):
@@ -471,12 +469,10 @@ def run_cli_wrapped() -> None:
         config_path: str = args["config_path"]
         profile_exists: bool = check_if_profile_exists(args["profile"], config_path)
         if not profile_exists:
-            print(
-                f"""\
+            print(f"""\
 Profile "{args["profile"]}" doesn't exist in your config. Please add it using:
 novem --init --profile {args["profile"]}\
-"""
-            )
+""")
 
             sys.exit(1)
 
@@ -487,9 +483,7 @@ novem --init --profile {args["profile"]}\
 
     # check info and if present get info
     if args and args["info"]:
-        if args.get("profile"):
-            args["config_profile"] = args["profile"]
-        novem = NovemAPI(**args, is_cli=True)
+        novem = NovemAPI(**config_from_args(args), is_cli=True)
         info = novem.read("/admin/profile/overview")
         print(info)
         return
@@ -501,8 +495,6 @@ novem --init --profile {args["profile"]}\
 
     # handle --add-ssh-key to add an SSH key for git access
     if args and args.get("add_ssh_key"):
-        if args.get("profile"):
-            args["config_profile"] = args["profile"]
 
         key_arg = args["add_ssh_key"]
         hostname = socket.gethostname()
@@ -550,7 +542,7 @@ novem --init --profile {args["profile"]}\
             key_id = key_id.replace("--", "-")
         key_id = key_id.strip("-")
 
-        novem = NovemAPI(**args, is_cli=True)
+        novem = NovemAPI(**config_from_args(args), is_cli=True)
 
         # Create the key entry - use session directly to check response
         api_root = novem._api_root
@@ -639,10 +631,6 @@ novem --init --profile {args["profile"]}\
     # handle --gql to run a GraphQL query from stdin, file, or inline
     # Only run standalone if no other commands are specified
     if args and args.get("gql"):
-        # Map profile to config_profile for get_current_config
-        if args.get("profile"):
-            args["config_profile"] = args["profile"]
-
         gql_arg = args["gql"]
         has_other_cmd = (
             args.get("plot") != ""

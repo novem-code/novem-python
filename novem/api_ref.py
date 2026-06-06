@@ -5,9 +5,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from novem.utils import API_ROOT
-
-from .utils import get_current_config
+from .config import config, resolve
 from .version import __version__
 
 did_token_warning = False
@@ -71,27 +69,63 @@ class NovemAPI(object):
     _type: Optional[str] = None
     _qpr: Optional[str] = None
 
-    def __init__(self, **kwargs: Any) -> None:
-        """ """
+    def __init__(
+        self,
+        *,
+        token: Optional[str] = None,
+        api_root: Optional[str] = None,
+        config_path: Optional[str] = None,
+        profile: Optional[str] = None,
+        config_profile: Optional[str] = None,
+        ignore_ssl: bool = False,
+        ignore_config: bool = False,
+        is_cli: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Initialise the API client.
 
-        config_status, config = get_current_config(**kwargs)
+        Connection settings are explicit keyword arguments; any explicitly
+        supplied value wins over the globally configured defaults
+        (``novem.config``).  Extra ``**kwargs`` (content/behaviour options
+        consumed by subclasses) are accepted and ignored at this layer.
+        """
 
-        self._config = config
+        # only forward connection options that were actually supplied so the
+        # global defaults can fill in the rest
+        conn: Dict[str, Any] = {}
+        if token is not None:
+            conn["token"] = token
+        if api_root is not None:
+            conn["api_root"] = api_root
+        if config_path is not None:
+            conn["config_path"] = config_path
+        if profile is not None:
+            conn["profile"] = profile
+        if config_profile is not None:
+            conn["config_profile"] = config_profile
+        if ignore_ssl:
+            conn["ignore_ssl"] = ignore_ssl
+        if ignore_config:
+            conn["ignore_config"] = ignore_config
+
+        config_status, cfg = resolve(default=config, **conn)
+
+        self._config = cfg
         self._session = requests.Session()
-        self._session.headers.update(get_ua(kwargs.get("is_cli", False)))
+        self._session.headers.update(get_ua(is_cli))
         self._session.proxies = urllib.request.getproxies()
 
-        if self._config["ignore_ssl_warn"]:
+        if cfg.ignore_ssl:
             # supress ssl warnings
             self._session.verify = False
             import urllib3
 
             urllib3.disable_warnings()
 
-        self._api_root = config.get("api_root") or API_ROOT
+        self._api_root = cfg.api_root
 
-        if config.get("token"):
-            self.token = config["token"]
+        if cfg.token:
+            self.token = cfg.token
             self._session.headers["Authorization"] = f"Bearer {self.token}"
 
             # Warn if NOVEM_TOKEN is set to a different value than the resolved token
@@ -102,14 +136,12 @@ class NovemAPI(object):
                 print("WARN: Both NOVEM_TOKEN and config file token are set. Using config file token.", file=sys.stderr)
 
         elif not config_status:
-            print(
-                """\
+            print("""\
 Novem config file is missing.  Either specify config file location with
 the config_path parameter, setup a new token using
 $ python -m novem --init
 or set the NOVEM_TOKEN environment variable.\
-"""
-            )
+""")
             sys.exit(0)
 
         if self._api_root[-1] != "/":
@@ -117,12 +149,12 @@ or set the NOVEM_TOKEN environment variable.\
             self._api_root = f"{self._api_root}/"
 
     def _parse_kwargs(self, **kwargs: Any) -> None:
-        """
-        Parse the arguments and invoke the novem api
-        """
+        """Terminator for the cooperative ``_parse_kwargs`` chain.
 
-        if "api_root" in kwargs:
-            self._api_root = kwargs["api_root"]
+        Connection settings (including ``api_root``) are resolved once in
+        ``__init__``; subclasses override this to apply their own content
+        properties.
+        """
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
         r = requests.post(

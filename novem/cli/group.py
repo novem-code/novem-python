@@ -6,6 +6,7 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, format_datetime_local, parse_api_datetime, pretty_format
+from .config import config_from_args
 
 
 def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
@@ -252,7 +253,7 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
 # TODO: shift this logic to a group class
 # and make it available from python as well
 def group(args: Dict[str, Any]) -> None:
-    novem = NovemAPI(**args, is_cli=True)
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
 
     has_org = "org" in args and args["org"] != ""
     has_group = "group" in args and args["group"] != ""
@@ -328,9 +329,6 @@ def group(args: Dict[str, Any]) -> None:
             return
 
         from .gql import NovemGQL, fetch_group_topics_gql, render_topics
-
-        if "profile" in args and args["profile"]:
-            args["config_profile"] = args["profile"]
 
         gql = NovemGQL(**args)
 

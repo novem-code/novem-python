@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from .api_ref import NovemAPI
-from .utils import API_ROOT
 
 # Single-letter FQNP type codes to API path plurals
 _TYPE_MAP: Dict[str, str] = {
@@ -344,7 +343,7 @@ class Context(NovemAPI):
     def _threads_base(self) -> str:
         """REST API base path for threads on this resource."""
         p = self._parsed
-        me = self._config.get("username", "")
+        me = self._config.username or ""
 
         # Org group: orgs/{org}/groups/{group}/threads
         if p.group_type == "org_group":
@@ -541,8 +540,8 @@ class Context(NovemAPI):
         from .cli.gql import render_topics
 
         self._load()
-        username = self._config.get("username", "")
-        api_root = self._config.get("api_root") or API_ROOT
+        username = self._config.username or ""
+        api_root = self._config.api_root
         session = self._session if hasattr(self, "_session") else None
         return render_topics(
             self._raw_topics or [],
@@ -577,8 +576,8 @@ class Context(NovemAPI):
         from .cli.gql import render_topics
 
         await self.aload()
-        username = self._config.get("username", "")
-        api_root = self._config.get("api_root") or API_ROOT
+        username = self._config.username or ""
+        api_root = self._config.api_root
         session = self._session if hasattr(self, "_session") else None
         return render_topics(
             self._raw_topics or [],

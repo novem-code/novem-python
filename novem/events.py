@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, AsyncIterator, List, Optional
 from urllib.parse import urlparse
 
-from .utils import get_current_config
+from .config import config, resolve
 
 
 @dataclass
@@ -69,13 +69,9 @@ class Events:
     def __init__(self, patterns: List[str], **kwargs: Any) -> None:
         self._patterns = patterns
 
-        if "profile" in kwargs:
-            kwargs["config_profile"] = kwargs.pop("profile")
-
-        _, config = get_current_config(**kwargs)
-        self._token: Optional[str] = config.get("token")
-        api_root: str = config.get("api_root", "https://api.novem.io/v1/")
-        self._ws_url = _derive_ws_url(api_root)
+        _, cfg = resolve(default=config, **kwargs)
+        self._token: Optional[str] = cfg.token
+        self._ws_url = _derive_ws_url(cfg.api_root)
 
     def _check_deps(self) -> Any:
         try:

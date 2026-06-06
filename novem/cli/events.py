@@ -79,8 +79,6 @@ async def _subscribe_events(args: Dict[str, Any], patterns: List[str]) -> None:
     json_output = args.get("json_output", False)
 
     # Resolve auth config
-    if args.get("profile"):
-        args["config_profile"] = args["profile"]
     _, config = get_current_config(**args)
 
     token = args.get("token") or config.get("token")

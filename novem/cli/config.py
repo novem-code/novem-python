@@ -3,10 +3,33 @@ import os
 import stat
 from os import path
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from ..utils import API_ROOT, get_config_path
 from ..version import __version__
+
+
+def config_from_args(args: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract connection-config kwargs from a CLI argparse namespace dict.
+
+    Replaces the old ``NovemAPI(**args)`` splat, which forwarded the entire
+    parsed namespace into the constructor.  Only the keys that describe *how
+    to connect* are pulled out; everything else stays in the CLI layer.
+    """
+    conn: Dict[str, Any] = {}
+    for key in ("token", "api_root", "config_path"):
+        if args.get(key) is not None:
+            conn[key] = args[key]
+
+    # the CLI exposes the profile selector as `profile`
+    profile = args.get("config_profile") or args.get("profile")
+    if profile is not None:
+        conn["config_profile"] = profile
+
+    if args.get("ignore_ssl"):
+        conn["ignore_ssl"] = True
+
+    return conn
 
 
 def update_config(
@@ -23,7 +46,7 @@ def update_config(
 
     novem_config: str = ""
     if not path:
-        (novem_dir, novem_config) = get_config_path()
+        novem_dir, novem_config = get_config_path()
 
         # create path and file if not exist
         Path(novem_dir).mkdir(parents=True, exist_ok=True)
@@ -98,7 +121,7 @@ def check_if_profile_exists(profile: str, config_path: str) -> bool:
     """
 
     if not config_path:
-        (novem_dir, novem_config) = get_config_path()
+        novem_dir, novem_config = get_config_path()
     else:
         novem_config = config_path
 

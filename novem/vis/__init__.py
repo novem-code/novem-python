@@ -20,24 +20,31 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
     _vispath: Optional[str] = None
     _debug: bool = False
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        user: Optional[str] = None,
+        create: bool = True,
+        qpr: Optional[str] = None,
+        debug: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        # connection + content kwargs are resolved by the super chain; the
+        # behaviour flags below are the vis layer's own concern
         super().__init__(**kwargs)
 
-        self.user = None
+        self.user = user or None
 
-        if "debug" in kwargs and kwargs["debug"]:
+        if debug:
             self._debug = True
 
-        if "user" in kwargs and kwargs["user"]:
-            self.user = kwargs["user"]
-
-        if "create" not in kwargs or kwargs["create"]:
-            # let's create our plot if -C specified, always
-            # create when used as an api unless specifically told not to
+        if create:
+            # always create when used as an api unless specifically told not
+            # to (the CLI passes create=False to avoid spurious creation)
             self.api_create("")
 
-        if "qpr" in kwargs and kwargs["qpr"]:
-            self._qpr = kwargs["qpr"].replace(",", "&")
+        if qpr:
+            self._qpr = qpr.replace(",", "&")
 
         if self.user:
             base_path = f"users/{self.user}/vis/{self._vispath}/{self.id}"

@@ -4,6 +4,7 @@ from typing import Any, Dict, Literal, Optional
 
 from novem import Doc, Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
+from novem.cli.config import config_from_args
 from novem.cli.editor import edit
 from novem.cli.gql import NovemGQL, _build_var_lookup, fetch_vde_topics_gql, render_topics
 from novem.cli.setup import Share, Tag
@@ -110,7 +111,7 @@ class VisBase:
         if args["delete"]:
             # creating a plot just to delete it seems wasteful
             # We'll just use the raw api
-            novem = NovemAPI(**args, is_cli=True)
+            novem = NovemAPI(**config_from_args(args), is_cli=True)
 
             usr_for_path = args.get("for_user") or None
             if usr_for_path:
@@ -170,8 +171,6 @@ class VisBase:
 
         # --comments: show topics and comment threads
         if args.get("comments"):
-            if "profile" in args and args["profile"]:
-                args["config_profile"] = args["profile"]
             gql = NovemGQL(**args)
             topics, vde_vars = fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
             me = gql._config.get("username", "")
@@ -348,7 +347,7 @@ def job(args: Dict[str, Any]) -> None:
 
     # Delete job
     if args["delete"]:
-        novem = NovemAPI(**args, is_cli=True)
+        novem = NovemAPI(**config_from_args(args), is_cli=True)
         usr_for_path = args.get("for_user") or None
         api_path = f"users/{usr_for_path}/code/jobs/{name}" if usr_for_path else f"code/jobs/{name}"
         try:

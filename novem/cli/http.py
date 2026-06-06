@@ -4,6 +4,7 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..api_ref import NovemAPI
+from .config import config_from_args
 
 
 def active_http_flags(args: Dict[str, Any]) -> List[str]:
@@ -119,8 +120,6 @@ def http_request(
     path: str,
     data: Optional[str] = None,
 ) -> None:
-    if args.get("profile"):
-        args["config_profile"] = args["profile"]
 
     body: Optional[bytes] = None
     filename: Optional[str] = None
@@ -136,7 +135,7 @@ def http_request(
         )
         sys.exit(1)
 
-    novem = NovemAPI(**args, is_cli=True)
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
     url = f"{novem._api_root}{_normalize_path(path)}"
 
     request_kwargs: Dict[str, Any] = {}

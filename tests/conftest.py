@@ -3,7 +3,16 @@ import sys
 
 import pytest
 
+from novem import config
 from novem.cli import run_cli
+
+
+@pytest.fixture(autouse=True)
+def reset_global_config():
+    """Ensure global connection-config overrides never leak between tests."""
+    config.reset()
+    yield
+    config.reset()
 
 
 class CliExit(RuntimeError):
