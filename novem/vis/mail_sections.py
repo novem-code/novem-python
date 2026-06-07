@@ -55,9 +55,8 @@ class NovemEmailSectionApi(NovemEmailSection):
                     self._kwparams.append(ts)
 
             elif p.annotation is bool:
-                if v:
-                    ts = f"{k.replace('_', ' ')}: true"
-                    self._kwparams.append(ts)
+                ts = f"{k.replace('_', ' ')}: {'true' if v else 'false'}"
+                self._kwparams.append(ts)
 
             elif p.annotation is List[str]:
                 print("Treat as list of str")
@@ -184,7 +183,7 @@ class NovemEmailSectionApi(NovemEmailSection):
 
         plist = self._params + self._kwparams + self._cparams
 
-        # Add section controleld params first
+        # Add section controlled params first
         for p in plist:
             if not len(p):
                 continue
@@ -413,7 +412,7 @@ class AuthorSection(NovemEmailSectionApi):
         username: str,
         /,
         include_bio: bool = True,
-        include_pciture: bool = True,
+        include_picture: bool = True,
         override_bio: Optional[str] = None,
         **kwargs: str,
     ) -> None:

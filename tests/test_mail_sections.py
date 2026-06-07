@@ -70,6 +70,8 @@ def test_mail_section_visualisation(requests_mock):
   ref: {plot_shortname}
   width: 100%
   align: center
+  include caption: false
+  include title: false
   include link: true
   override title: New title
   b: [l2 gray-300 purple, r1 red]
@@ -110,7 +112,7 @@ def test_mail_section_author(requests_mock):
     rest = """{{ author
   username: demo
   include bio: true
-  include pciture: true
+  include picture: true
 }}
 
 {{ /author }}"""
