@@ -55,9 +55,8 @@ class NovemEmailSectionApi(NovemEmailSection):
                     self._kwparams.append(ts)
 
             elif p.annotation is bool:
-                if v:
-                    ts = f"{k.replace('_', ' ')}: true"
-                    self._kwparams.append(ts)
+                ts = f"{k.replace('_', ' ')}: {'true' if v else 'false'}"
+                self._kwparams.append(ts)
 
             elif p.annotation is List[str]:
                 print("Treat as list of str")
