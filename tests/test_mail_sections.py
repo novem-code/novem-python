@@ -110,7 +110,7 @@ def test_mail_section_author(requests_mock):
     rest = """{{ author
   username: demo
   include bio: true
-  include pciture: true
+  include picture: true
 }}
 
 {{ /author }}"""

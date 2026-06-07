@@ -69,7 +69,7 @@ class Grid(NovemVisAPI):
         """
         Set's the layout of the grid
 
-        This paramter is expected to be one of the valid layout
+        This parameter is expected to be one of the valid layout
         strings or formats
         """
 
