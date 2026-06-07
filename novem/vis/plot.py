@@ -19,8 +19,14 @@ else:
 
 
 class Plot(NovemVisAPI):
-    """
-    Novem plot class
+    """A novem plot (chart), addressed by name.
+
+    Content properties (``type``, ``title``, ``caption``, ``data``, …) may be
+    passed to the constructor or set as attributes afterwards; either way the
+    change is written to the platform immediately (all operations are live).
+    Connection options (``token``, ``api_root``, ``profile``) are resolved from
+    the arguments, ``novem.config``, the environment, or the config file — see
+    the README. Unknown keyword arguments are ignored with a warning.
     """
 
     colors: Optional[NovemColors] = None
@@ -28,21 +34,40 @@ class Plot(NovemVisAPI):
     cell: Optional[NovemCellConfig] = None
     config: Optional[NovemPlotConfig] = None
 
-    def __init__(self, id: str, **kwargs: Any) -> None:
+    _content_props = ("type", "name", "description", "summary", "caption", "title", "colors", "data")
+    _content_deferred = ("data",)
+
+    def __init__(
+        self,
+        id: str,
+        *,
+        type: Optional[str] = None,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        summary: Optional[str] = None,
+        caption: Optional[str] = None,
+        title: Optional[str] = None,
+        colors: Optional[Any] = None,
+        data: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         :id plot name, duplicate entry will update the plot
 
         :type the type of plot
         :caption caption of the plot
         :title title of the plot
+
+        Connection options (token, api_root, profile, …) and behaviour flags
+        (user, create, qpr, debug) are accepted via **kwargs and resolved by
+        the super chain. Unknown extras are warned about and ignored.
         """
 
         # if we have an @ name we will override id and user
         if id[0] == "@":
             cand = id[1:].split("~")
             id = cand[1]
-            uname = cand[0]
-            kwargs["user"] = uname
+            kwargs["user"] = cand[0]
 
         self.id = id
 
@@ -61,7 +86,17 @@ class Plot(NovemVisAPI):
 
         super().__init__(**kwargs)
 
-        self._parse_kwargs(**kwargs)
+        self._parse_kwargs(
+            type=type,
+            name=name,
+            description=description,
+            summary=summary,
+            caption=caption,
+            title=title,
+            colors=colors,
+            data=data,
+            **kwargs,
+        )
 
     def _set_data(self, data: Any, **kwargs: Any) -> Any:
         """
@@ -95,33 +130,6 @@ class Plot(NovemVisAPI):
 
     def __call__(self, data: Any, **kwargs: Any) -> Any:
         return self._set_data(data, **kwargs)
-
-    def _parse_kwargs(self, **kwargs: Any) -> None:
-
-        # first let our super do it's thing
-        super()._parse_kwargs(**kwargs)
-
-        # get a list of valid properties
-        # exclude data as it needs to be run last
-        props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "create"]
-        ]
-
-        do_data = False
-        for k, v in kwargs.items():
-            if k == "data":
-                do_data = True
-
-            if k not in props:
-                continue
-
-            # print(f"{k} :: {v}")
-            # set our value
-            setattr(self, k, v)
-
-        if do_data:
-            data = kwargs["data"]
-            setattr(self, "data", data)
 
     def _read(self, path: str) -> str:
         if self._freeze:

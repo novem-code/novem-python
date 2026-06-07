@@ -4,9 +4,11 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..api_ref import NovemAPI
+from .args import CliArgs
+from .config import config_from_args
 
 
-def active_http_flags(args: Dict[str, Any]) -> List[str]:
+def active_http_flags(args: CliArgs) -> List[str]:
     """Return the http flag names (e.g. ['--get']) that the user supplied."""
     return [
         name
@@ -20,7 +22,7 @@ def active_http_flags(args: Dict[str, Any]) -> List[str]:
     ]
 
 
-def _has_other_primary_command(args: Dict[str, Any]) -> bool:
+def _has_other_primary_command(args: CliArgs) -> bool:
     """True when any non-http primary command/dispatch flag is set."""
     if args.get("init"):
         return True
@@ -45,7 +47,7 @@ def _has_other_primary_command(args: Dict[str, Any]) -> bool:
     return False
 
 
-def validate_isolation(args: Dict[str, Any]) -> None:
+def validate_isolation(args: CliArgs) -> None:
     """Reject combining http flags with each other or with other commands."""
     active = active_http_flags(args)
     if not active:
@@ -114,13 +116,11 @@ def _emit(r: Any) -> None:
 
 
 def http_request(
-    args: Dict[str, Any],
+    args: CliArgs,
     method: str,
     path: str,
     data: Optional[str] = None,
 ) -> None:
-    if args.get("profile"):
-        args["config_profile"] = args["profile"]
 
     body: Optional[bytes] = None
     filename: Optional[str] = None
@@ -136,7 +136,7 @@ def http_request(
         )
         sys.exit(1)
 
-    novem = NovemAPI(**args, is_cli=True)
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
     url = f"{novem._api_root}{_normalize_path(path)}"
 
     request_kwargs: Dict[str, Any] = {}

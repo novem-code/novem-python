@@ -153,7 +153,7 @@ def get_current_config(
 
     # config path can be supplied as an option, if it is use that
     if "config_path" not in kwargs or not kwargs["config_path"]:
-        (novem_dir, config_path) = get_config_path()
+        novem_dir, config_path = get_config_path()
     else:
         config_path = kwargs["config_path"]
 
@@ -175,8 +175,9 @@ def get_current_config(
     else:
         ensure_cli_defaults(config_path, config)
 
-    # override profile
-    profile = kwargs.get("config_profile") or profile
+    # override profile; `profile` is the public-facing alias for the internal
+    # `config_profile` selector
+    profile = kwargs.get("config_profile") or kwargs.get("profile") or profile
 
     # get our config
     try:
@@ -227,7 +228,7 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]], str
 
     # lets' get total terminal width (we use 120 as default)
     try:
-        (col, row) = os.get_terminal_size()
+        col, row = os.get_terminal_size()
     except OSError:
         col = 120
 

@@ -1,0 +1,6 @@
+{
+  "include": ["novem"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportIncompatibleVariableOverride": "none"
+}

@@ -1,12 +1,17 @@
 import sys
-from typing import Any, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Set, Union
 
-try:
-    import numpy as np  # type: ignore
+if TYPE_CHECKING:
+    # give type checkers the real modules so pd./np. attributes resolve
+    import numpy as np
     import pandas as pd
-except ImportError:
-    pd = None  # type: ignore
-    np = None  # type: ignore
+else:
+    try:
+        import numpy as np
+        import pandas as pd
+    except ImportError:
+        pd = None
+        np = None
 
 from novem.exceptions import NovemException
 

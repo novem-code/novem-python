@@ -1,9 +1,13 @@
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
-try:
+if TYPE_CHECKING:
+    # give type checkers the real module so pd.DataFrame etc. resolve
     import pandas as pd
-except ImportError:
-    pd = None  # type: ignore
+else:
+    try:
+        import pandas as pd
+    except ImportError:
+        pd = None
 
 
 def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = None) -> str:
@@ -73,6 +77,7 @@ def merge_from_index(src: Union[pd.DataFrame, pd.Index], io: Optional[int] = Non
     for level in range(index.nlevels):
         current_label = None
         start_row = 0
+        row = 0  # bound even if the level has no values
 
         for row, label in enumerate(index.get_level_values(level)):
             if label == current_label:

@@ -6,9 +6,11 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, format_datetime_local, parse_api_datetime, pretty_format
+from .args import CliArgs
+from .config import config_from_args
 
 
-def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
+def list_orgs(args: CliArgs, novem: NovemAPI, path: str) -> None:
     ilist = []
 
     try:
@@ -19,7 +21,9 @@ def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
     ilist = sorted(ilist, key=lambda x: x["name"])
 
     if "filter" in args and args["filter"]:
-        fv = args["filter"]
+        # legacy filter handling predates `-f` becoming append (list); treated
+        # as a scalar pattern here, so type loosely
+        fv: Any = args["filter"]
         if fv[0] != "^":
             fv = f".*{fv}"
         if fv[-1] != "$":
@@ -113,7 +117,7 @@ def list_orgs(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
     print(ppl)
 
 
-def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
+def list_groups(args: CliArgs, novem: NovemAPI, path: str) -> None:
     """
     List pending invites
     """
@@ -130,7 +134,9 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
     ilist = sorted(ilist, key=lambda x: x["name"])
 
     if "filter" in args and args["filter"]:
-        fv = args["filter"]
+        # legacy filter handling predates `-f` becoming append (list); treated
+        # as a scalar pattern here, so type loosely
+        fv: Any = args["filter"]
         if fv[0] != "^":
             fv = f".*{fv}"
         if fv[-1] != "$":
@@ -251,8 +257,8 @@ def list_groups(args: Dict[str, Any], novem: NovemAPI, path: str) -> None:
 
 # TODO: shift this logic to a group class
 # and make it available from python as well
-def group(args: Dict[str, Any]) -> None:
-    novem = NovemAPI(**args, is_cli=True)
+def group(args: CliArgs) -> None:
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
 
     has_org = "org" in args and args["org"] != ""
     has_group = "group" in args and args["group"] != ""
@@ -329,10 +335,7 @@ def group(args: Dict[str, Any]) -> None:
 
         from .gql import NovemGQL, fetch_group_topics_gql, render_topics
 
-        if "profile" in args and args["profile"]:
-            args["config_profile"] = args["profile"]
-
-        gql = NovemGQL(**args)
+        gql = NovemGQL.from_args(args)
 
         if has_org and org_name:
             group_type = "org_group"

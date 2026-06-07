@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from novem import Plot
+from novem.exceptions import NovemAuthError
 from novem.utils import API_ROOT, ensure_cli_defaults, get_config_path, get_current_config
 
 
@@ -37,7 +38,7 @@ version = 0.5.0
 
 
 def test_fails_without_token(requests_mock, fs):
-    with pytest.raises(SystemExit):
+    with pytest.raises(NovemAuthError):
         Plot(id="foo", create=False)
 
 

@@ -5,9 +5,11 @@ from novem.exceptions import Novem404
 
 from ..api_ref import NovemAPI
 from ..utils import cl, format_datetime_local, parse_api_datetime, pretty_format
+from .args import CliArgs
+from .config import config_from_args
 
 
-def list_invites(args: Dict[str, Any], novem: NovemAPI) -> None:
+def list_invites(args: CliArgs, novem: NovemAPI) -> None:
     """
     List pending invites
     """
@@ -121,8 +123,8 @@ def list_invites(args: Dict[str, Any], novem: NovemAPI) -> None:
     print(ppl)
 
 
-def invite(args: Dict[str, Any]) -> None:
-    novem = NovemAPI(**args, is_cli=True)
+def invite(args: CliArgs) -> None:
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
 
     # we are invoked so plot must exist
     invite_name = args["invite"]

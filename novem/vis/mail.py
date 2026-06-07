@@ -9,11 +9,53 @@ from .mail_sections import NovemEmailSection, PreviewSection
 
 
 class Mail(NovemVisAPI):
-    """
-    Novem mail class
+    """A novem e-mail, addressed by name.
+
+    Content and delivery fields (``content``, ``to``, ``cc``, ``bcc``,
+    ``subject``, ``status``, …) may be passed to the constructor or set as
+    attributes; changes are written live. Note that setting ``status`` can
+    send the e-mail, so it is always applied last. Connection options are
+    resolved from the arguments, ``novem.config``, the environment, or the
+    config file — see the README.
     """
 
-    def __init__(self, id: str, **kwargs: Any) -> None:
+    _content_props = (
+        "name",
+        "description",
+        "summary",
+        "content",
+        "status",
+        "to",
+        "cc",
+        "bcc",
+        "subject",
+        "theme",
+        "size",
+        "template",
+        "reply_to",
+    )
+    # content first (writes body), status last (can send the e-mail)
+    _content_deferred = ("content", "status")
+
+    def __init__(
+        self,
+        id: str,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        summary: Optional[str] = None,
+        content: Optional[str] = None,
+        status: Optional[str] = None,
+        to: Optional[str] = None,
+        cc: Optional[str] = None,
+        bcc: Optional[str] = None,
+        subject: Optional[str] = None,
+        theme: Optional[str] = None,
+        size: Optional[str] = None,
+        template: Optional[str] = None,
+        reply_to: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         :id mail name, duplicate entry will update the mail
 
@@ -21,14 +63,16 @@ class Mail(NovemVisAPI):
         :cc  CC recipients
         :bcc BCC recipients
         :subject subject line
+
+        Connection options and behaviour flags are accepted via **kwargs and
+        resolved by the super chain. Unknown extras are warned and ignored.
         """
 
         # if we have an @ name we will override id and user
         if id[0] == "@":
             cand = id[1:].split("~")
             id = cand[1]
-            uname = cand[0]
-            kwargs["user"] = uname
+            kwargs["user"] = cand[0]
 
         self.id = id
 
@@ -43,7 +87,22 @@ class Mail(NovemVisAPI):
 
         self._sections: List[NovemEmailSection] = []
 
-        self._parse_kwargs(**kwargs)
+        self._parse_kwargs(
+            name=name,
+            description=description,
+            summary=summary,
+            content=content,
+            status=status,
+            to=to,
+            cc=cc,
+            bcc=bcc,
+            subject=subject,
+            theme=theme,
+            size=size,
+            template=template,
+            reply_to=reply_to,
+            **kwargs,
+        )
 
     def __call__(self, content: Any, **kwargs: Any) -> Any:
         """
@@ -64,42 +123,6 @@ class Mail(NovemVisAPI):
 
         # return the original object so users can chain the contentframe
         return content
-
-    def _parse_kwargs(self, **kwargs: Any) -> None:
-
-        # first let our super do it's thing
-        super()._parse_kwargs(**kwargs)
-
-        # get a list of valid properties
-        # exclude content as it needs to be run last
-        props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["content", "read", "delete", "write", "status", "create"]
-        ]
-
-        do_content = False
-        do_status = False
-        for k, v in kwargs.items():
-            if k == "content":
-                do_content = True
-
-            if k == "status":
-                do_status = True
-
-            if k not in props:
-                continue
-
-            # print(f"{k} :: {v}")
-            # set our value
-            setattr(self, k, v)
-
-        if do_content:
-            content = kwargs["content"]
-            setattr(self, "content", content)
-
-        # status can send e-mail, so it's the very last thing to be updated
-        if do_status:
-            status = kwargs["status"]
-            setattr(self, "status", status)
 
     # we'll implement generic properties common across all plots here
     def _produce_content(self) -> str:
