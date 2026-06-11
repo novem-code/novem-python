@@ -2,7 +2,7 @@ import sys
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
-from novem.exceptions import Novem403, Novem404
+from novem.exceptions import Novem403, Novem404, raise_on_response
 
 from ..api_ref import NovemAPI
 from ..shared import NovemShare
@@ -383,17 +383,8 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
             # as creating objects that already exist is not a problem
             return
 
-        # TODO: verify result and raise exception if not ok
         if not r.ok:
-            print(r)
-            print(f"PUT: {path}")
-            print("body")
-            print("---")
-            print(r.text)
-            print("headers")
-            print("---")
-            print(r.headers)
-            print("should raise a general error")
+            raise_on_response(r)
 
     def api_write(self, relpath: str, value: str) -> None:
         """
@@ -419,22 +410,8 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         if r.status_code == 404:
             raise Novem404(path)
 
-        if r.status_code == 403:
-            raise Novem403
-
-        # TODO: verify result and raise exception if not ok
         if not r.ok:
-            print(r)
-            print(f"POST: {path} {value}")
-            print("body")
-            print("---")
-            print(r.text)
-            print(r.status_code)
-            print("headers")
-            print("---")
-            for k, v in r.headers.items():
-                print(f"   {k}: {v}")
-            print("should raise a general error")
+            raise_on_response(r)
 
     @property
     def log(self) -> None:
