@@ -415,7 +415,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
             ]
             if self._debug:
                 print(f"  files in:  {len(upload)} ({list(upload.keys())})")
-            r = self._session.post(path, files=multipart, stream=bool(output))
+            r = self._session.post(path, files=multipart, stream=bool(output), timeout=(30, 1800))
         else:
             if self._debug:
                 print("  files in:  0")
@@ -424,6 +424,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
                 headers={"Content-type": "application/json; charset=utf-8"},
                 data="{}",
                 stream=bool(output),
+                timeout=(30, 1800),
             )
 
         if not r.ok:

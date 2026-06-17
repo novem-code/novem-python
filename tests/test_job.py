@@ -5,6 +5,8 @@ from contextlib import redirect_stdout
 from functools import partial
 from unittest.mock import patch
 
+from requests import Response
+
 import pytest
 
 from novem import Job
@@ -1015,3 +1017,48 @@ def test_dedup_path_with_conflicts(tmp_path):
 
     open(tmp_path / "file (1).txt", "w").close()
     assert _Job._dedup_path(str(tmp_path), "file.txt") == os.path.join(str(tmp_path), "file (2).txt")
+
+
+# ---------------------------------------------------------------------------
+# timeout tests
+# ---------------------------------------------------------------------------
+
+
+def _ok_response(content=b""):
+    r = Response()
+    r.status_code = 200
+    r._content = content
+    return r
+
+
+def test_session_default_timeout(requests_mock):
+    """Default (10, 120) timeout reaches session.send for ordinary API calls."""
+    j, _ = _make_job(requests_mock)
+
+    with patch.object(j._session, "send", return_value=_ok_response(b"ok")) as mock_send:
+        j.api_read("/log")
+
+    assert mock_send.call_args.kwargs.get("timeout") == (10, 120)
+
+
+def test_job_run_no_files_uses_job_timeout(requests_mock):
+    """run() without files passes timeout=(30, 1800) through to session.send."""
+    j, _ = _make_job(requests_mock)
+
+    with patch.object(j._session, "send", return_value=_ok_response()) as mock_send:
+        j.run()
+
+    assert mock_send.call_args.kwargs.get("timeout") == (30, 1800)
+
+
+def test_job_run_with_files_uses_job_timeout(requests_mock, tmp_path):
+    """run() with files passes timeout=(30, 1800) through to session.send."""
+    j, _ = _make_job(requests_mock)
+
+    f1 = tmp_path / "data.csv"
+    f1.write_text("a,b\n1,2\n")
+
+    with patch.object(j._session, "send", return_value=_ok_response()) as mock_send:
+        j.run(files=[f"@{f1}"])
+
+    assert mock_send.call_args.kwargs.get("timeout") == (30, 1800)
