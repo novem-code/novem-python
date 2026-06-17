@@ -6,6 +6,7 @@ while the core data operations remain REST-based.
 """
 
 import datetime
+import functools
 import json
 import re
 import shutil
@@ -35,6 +36,9 @@ class NovemGQL:
         _, config = get_current_config(**connection)
         self._config = config
         self._session = requests.Session()
+        self._session.request = functools.partial(  # type: ignore[method-assign]
+            self._session.request, timeout=(10, 120)
+        )
         self._debug = debug
         # Support both old gql_debug and new gql parameter for debug mode
         self._gql_debug = gql is True  # True when --gql with no argument
