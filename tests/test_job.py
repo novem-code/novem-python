@@ -5,9 +5,8 @@ from contextlib import redirect_stdout
 from functools import partial
 from unittest.mock import patch
 
-from requests import Response
-
 import pytest
+from requests import Response
 
 from novem import Job
 from novem.exceptions import Novem403, Novem404

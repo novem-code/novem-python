@@ -133,7 +133,9 @@ class NovemAPI(object):
         self._session = requests.Session()
         self._session.headers.update(get_ua(is_cli))
         self._session.proxies = urllib.request.getproxies()
-        self._session.request = functools.partial(self._session.request, timeout=(10, 120))
+        self._session.request = functools.partial(  # type: ignore[method-assign]
+            self._session.request, timeout=(10, 120)
+        )
 
         if cfg.ignore_ssl:
             # supress ssl warnings
