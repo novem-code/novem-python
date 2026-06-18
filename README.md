@@ -178,6 +178,48 @@ the plot in real time.
 
 
 
+## Error handling
+Every novem operation talks to the platform over the network, so any call can
+fail — a rejected token, a missing resource, or a value the server won't accept.
+When a read or write fails, novem raises a `NovemException` (or a more specific
+subclass) carrying the server's error message, rather than failing silently.
+
+```python
+from novem import Plot
+from novem.exceptions import NovemException, Novem403
+
+try:
+    # the constructor creates the plot (a PUT) unless create=False, so this
+    # call can raise too — not just the writes that follow it
+    plot = Plot("my-plot")
+    plot.type = "line"
+except Novem403:
+    print("not permitted to write this plot")
+except NovemException as e:
+    # the server's message (plus any rejected lines) is on the exception
+    print(f"novem rejected the write: {e}")
+```
+
+All exceptions are importable from `novem.exceptions` and inherit from
+`NovemException`, so catching the base class catches them all:
+
+ * `NovemException` — base class; raised for any otherwise-unclassified API error
+ * `Novem401` — the supplied token was rejected by the server
+ * `Novem403` — authenticated, but not permitted to perform the operation
+ * `Novem404` — the resource does not exist
+ * `NovemAuthError` — no usable token could be resolved locally (distinct from
+   `Novem401`, which is a server-side rejection of a token that *was* sent)
+
+Creating an object that already exists is not an error — the create PUT returns
+a 409, which is treated as a no-op rather than raised.
+
+### Timeouts
+novem requests time out instead of hanging indefinitely: every call uses a
+default `(10s connect, 2min read)` timeout. Job execution (`job.run()`) can
+legitimately take longer and allows up to `(30s connect, 30min read)`. A request
+that exceeds its timeout raises `requests.exceptions.Timeout`.
+
+
 ## Contribution and development
 The novem python library and platform is under active development, contributions
 or issues are most welcome.
