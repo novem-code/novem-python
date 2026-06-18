@@ -119,16 +119,26 @@ class NovemGQL:
         Resolved through the lightweight REST ``/whoami`` endpoint rather than a
         GraphQL ``me`` round-trip. Returns ``""`` when there is no usable
         identity (anonymous or bad token); callers degrade gracefully rather
-        than leaking another view. Cached for the lifetime of the client.
+        than leaking another view. The result is shared per-token across the
+        process (see :class:`novem.config.ConfigManager`), so the CLI's
+        startup token check and any later lookups make at most one request.
         """
         if self._current_username is None:
-            try:
-                api_root = self._config.get("api_root") or API_ROOT
-                resp = self._session.get(f"{api_root.rstrip('/')}/whoami")
-                resp.raise_for_status()
-                self._current_username = resp.text.strip()
-            except Exception:
-                self._current_username = ""
+            from ..config import config as _config_manager
+
+            token = self._config.get("token") or ""
+            cached = _config_manager.cached_identity(token) if token else None
+            if cached is not None:
+                self._current_username = cached
+            else:
+                try:
+                    api_root = self._config.get("api_root") or API_ROOT
+                    resp = self._session.get(f"{api_root.rstrip('/')}/whoami")
+                    resp.raise_for_status()
+                    self._current_username = resp.text.strip()
+                except Exception:
+                    self._current_username = ""
+                _config_manager.cache_identity(token, self._current_username)
         return self._current_username
 
 
