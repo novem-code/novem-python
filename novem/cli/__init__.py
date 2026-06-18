@@ -35,8 +35,14 @@ from .vis import list_org_group_users, list_org_group_vis, list_org_groups, list
 
 def _cli_excepthook(exc_type: type, exc_value: BaseException, exc_traceback: Any) -> None:
     """Custom exception handler for CLI mode - suppresses tracebacks unless in debug mode."""
-    # Just print the exception message without traceback
-    print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
+    # Our own API exceptions already carry a user-facing message, so surface
+    # just that (via cli_message, which also drops library-only hints) — the
+    # internal class name ("Novem404: …") is noise to a CLI user. Unexpected
+    # errors keep their type to aid debugging.
+    if isinstance(exc_value, NovemException):
+        print(exc_value.cli_message, file=sys.stderr)
+    else:
+        print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
 
 
 # Server enforces ^[a-z][a-z0-9\-\._]*$ and length <= 128 on token names
