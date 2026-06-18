@@ -20,6 +20,7 @@ else:
     import readline  # type: ignore
 
 from ..api_ref import NovemAPI
+from ..config import config as _config_manager
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
 from .common import doc, grid, job, mail, plot, user
@@ -34,8 +35,14 @@ from .vis import list_org_group_users, list_org_group_vis, list_org_groups, list
 
 def _cli_excepthook(exc_type: type, exc_value: BaseException, exc_traceback: Any) -> None:
     """Custom exception handler for CLI mode - suppresses tracebacks unless in debug mode."""
-    # Just print the exception message without traceback
-    print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
+    # Our own API exceptions already carry a user-facing message, so surface
+    # just that (via cli_message, which also drops library-only hints) — the
+    # internal class name ("Novem404: …") is noise to a CLI user. Unexpected
+    # errors keep their type to aid debugging.
+    if isinstance(exc_value, NovemException):
+        print(exc_value.cli_message, file=sys.stderr)
+    else:
+        print(f"{exc_type.__name__}: {exc_value}", file=sys.stderr)
 
 
 # Server enforces ^[a-z][a-z0-9\-\._]*$ and length <= 128 on token names
@@ -399,6 +406,45 @@ def print_short(parser: Any) -> None:
     print("  novem -u              list your connections")
 
 
+def _exit_if_token_rejected(args: Mapping[str, Any]) -> None:
+    """CLI guard: stop early when a configured token is rejected by the server.
+
+    Without this, a stale or expired token silently degrades to empty (or
+    another user's public) results instead of telling the user to re-auth.
+    Only a definitive 401/403 aborts; transient/network errors fall through so
+    the real command can surface its own error.
+
+    The whoami response does double duty: a successful one seeds the shared
+    identity cache, so the command's own current-user lookups reuse it instead
+    of fetching ``/whoami`` again.
+    """
+    _, cfg = get_current_config(**config_from_args(args))
+    token = cfg.get("token")
+    if not token:
+        # Anonymous / unconfigured: not a dead token — let normal flow handle it.
+        return
+
+    try:
+        novem = NovemAPI(**config_from_args(args), is_cli=True)
+        resp = novem._session.get(f"{novem._api_root}whoami")
+    except Exception:
+        # Network/transient (or unmocked in tests): don't block the command.
+        return
+
+    if resp.status_code == 200:
+        _config_manager.cache_identity(token, resp.text.strip())
+        return
+
+    if resp.status_code in (401, 403):
+        print(
+            f"{cl.WARNING} ! {cl.ENDC}Your novem token is invalid or has expired.\n"
+            f"   Re-authenticate with:  {cl.OKCYAN}novem --init{cl.ENDC}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    # Any other status: let the command run and surface its own error.
+
+
 def run_cli_wrapped() -> None:
     colors()
 
@@ -681,6 +727,12 @@ novem --init --profile {args["profile"]}\
 
         qpr = f"{qpr}cols={sz.columns},rows={sz.lines - prompt_lines}"
         args["qpr"] = qpr
+
+    # CLI-only: a configured-but-rejected token aborts here with a clear
+    # message, rather than letting the data commands below silently return
+    # empty/public results. Also seeds the resolved-identity cache.
+    if args:
+        _exit_if_token_rejected(args)
 
     # operate on org group vis listing (if -O <org> -G <group> -p/-m/-g/-j with no vis ID)
     if args and args.get("org") and args.get("group") and args.get("plot") is None and "plot" in args:

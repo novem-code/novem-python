@@ -247,11 +247,12 @@ def test_grid_list(cli, requests_mock, fs):
         },
     ]
 
-    # Mock GraphQL endpoint
+    # Mock GraphQL endpoint. Listing one's own grids is now scoped to the
+    # token via `me { grids }`, so the response is nested under `me`.
     requests_mock.register_uri(
         "post",
         gql_endpoint,
-        json={"data": {"grids": gql_grid_list}},
+        json={"data": {"me": {"username": "demouser", "grids": gql_grid_list}}},
         status_code=200,
     )
 

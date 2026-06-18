@@ -42,6 +42,8 @@ class NovemGQL:
         self._debug = debug
         # Support both old gql_debug and new gql parameter for debug mode
         self._gql_debug = gql is True  # True when --gql with no argument
+        # Token-resolved current username, lazily fetched via `me` and cached.
+        self._current_username: Optional[str] = None
 
         token = config.get("token")
         if token:
@@ -105,11 +107,45 @@ class NovemGQL:
 
         return result.get("data", {})
 
+    @property
+    def current_username(self) -> str:
+        """The authenticated user's name, resolved from the token via ``whoami``.
 
-# GraphQL query for listing plots/grids/mails
-LIST_VIS_QUERY = """
-query ListVis($author: String, $limit: Int, $offset: Int) {
-  plots(author: $author, limit: $limit, offset: $offset) {
+        This is authoritative. The config-file ``username`` is only a cached
+        label and goes stale when a user is renamed on the backend, so any
+        identity decision (``is_me`` highlighting, building ``@user~group``
+        paths, …) should use this instead.
+
+        Resolved through the lightweight REST ``/whoami`` endpoint rather than a
+        GraphQL ``me`` round-trip. Returns ``""`` when there is no usable
+        identity (anonymous or bad token); callers degrade gracefully rather
+        than leaking another view. The result is shared per-token across the
+        process (see :class:`novem.config.ConfigManager`), so the CLI's
+        startup token check and any later lookups make at most one request.
+        """
+        if self._current_username is None:
+            from ..config import config as _config_manager
+
+            token = self._config.get("token") or ""
+            cached = _config_manager.cached_identity(token) if token else None
+            if cached is not None:
+                self._current_username = cached
+            else:
+                try:
+                    api_root = self._config.get("api_root") or API_ROOT
+                    resp = self._session.get(f"{api_root.rstrip('/')}/whoami")
+                    resp.raise_for_status()
+                    self._current_username = resp.text.strip()
+                except Exception:
+                    self._current_username = ""
+                _config_manager.cache_identity(token, self._current_username)
+        return self._current_username
+
+
+# Field selection shared by every VDE listing (plots/grids/mails/docs/jobs),
+# kept in one place so the root `author`-filtered queries and the token-scoped
+# `me { ... }` queries can never drift apart.
+_VIS_FIELDS = """
     id
     name
     type
@@ -117,162 +153,44 @@ query ListVis($author: String, $limit: Int, $offset: Int) {
     url
     updated
     public
-    shared {
-      id
-      name
-      type
-    }
-    tags {
-      id
-      name
-      type
-    }
-    social {
-      views
-    }
-    topics {
-      num_comments
-      num_likes
-      num_dislikes
-    }
-  }
-}
-"""
+    shared { id name type }
+    tags { id name type }
+    social { views }
+    topics { num_comments num_likes num_dislikes }"""
 
-LIST_GRIDS_QUERY = """
-query ListGrids($author: String, $limit: Int, $offset: Int) {
-  grids(author: $author, limit: $limit, offset: $offset) {
-    id
-    name
-    type
-    summary
-    url
-    updated
-    public
-    shared {
-      id
-      name
-      type
-    }
-    tags {
-      id
-      name
-      type
-    }
-    social {
-      views
-    }
-    topics {
-      num_comments
-      num_likes
-      num_dislikes
-    }
-  }
-}
-"""
-
-LIST_MAILS_QUERY = """
-query ListMails($author: String, $limit: Int, $offset: Int) {
-  mails(author: $author, limit: $limit, offset: $offset) {
-    id
-    name
-    type
-    summary
-    url
-    updated
-    public
-    shared {
-      id
-      name
-      type
-    }
-    tags {
-      id
-      name
-      type
-    }
-    social {
-      views
-    }
-    topics {
-      num_comments
-      num_likes
-      num_dislikes
-    }
-  }
-}
-"""
-
-LIST_DOCS_QUERY = """
-query ListDocs($author: String, $limit: Int, $offset: Int) {
-  docs(author: $author, limit: $limit, offset: $offset) {
-    id
-    name
-    type
-    summary
-    url
-    updated
-    public
-    shared {
-      id
-      name
-      type
-    }
-    tags {
-      id
-      name
-      type
-    }
-    social {
-      views
-    }
-    topics {
-      num_comments
-      num_likes
-      num_dislikes
-    }
-  }
-}
-"""
-
-LIST_JOBS_QUERY = """
-query ListJobs($author: String, $limit: Int, $offset: Int) {
-  jobs(author: $author, limit: $limit, offset: $offset) {
-    id
-    name
-    type
-    summary
-    url
-    updated
-    public
-    shared {
-      id
-      name
-      type
-    }
-    tags {
-      id
-      name
-      type
-    }
-    social {
-      views
-    }
-    topics {
-      num_comments
-      num_likes
-      num_dislikes
-    }
+# Jobs carry the VDE core plus run/schedule metadata.
+_JOB_FIELDS = (
+    _VIS_FIELDS
+    + """
     last_run_status
     last_run_time
     run_count
     job_steps
     current_step
     schedule
-    triggers
-  }
-}
-"""
+    triggers"""
+)
+
+
+def _root_list_query(field: str, fields: str) -> str:
+    """A root listing query that filters by ``author`` (another user's view)."""
+    return (
+        f"query List($author: String, $limit: Int, $offset: Int) {{\n"
+        f"  {field}(author: $author, limit: $limit, offset: $offset) {{{fields}\n  }}\n}}"
+    )
+
+
+def _me_list_query(field: str, fields: str) -> str:
+    """A listing query scoped to the token-resolved current user via ``me``."""
+    return f"query Me {{\n  me {{\n    username\n    {field} {{{fields}\n    }}\n  }}\n}}"
+
+
+# GraphQL queries for listing another user's visualizations (--for-user).
+LIST_VIS_QUERY = _root_list_query("plots", _VIS_FIELDS)
+LIST_GRIDS_QUERY = _root_list_query("grids", _VIS_FIELDS)
+LIST_MAILS_QUERY = _root_list_query("mails", _VIS_FIELDS)
+LIST_DOCS_QUERY = _root_list_query("docs", _VIS_FIELDS)
+LIST_JOBS_QUERY = _root_list_query("jobs", _JOB_FIELDS)
 
 
 LIST_USERS_QUERY = """
@@ -487,6 +405,49 @@ def list_jobs_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[i
     data = gql._query(LIST_JOBS_QUERY, variables)
     jobs = data.get("jobs", [])
     return _transform_jobs_response(jobs)
+
+
+def _list_me_vis(gql: NovemGQL, field: str, fields: str) -> List[Dict[str, Any]]:
+    """Fetch the current user's own VDEs of ``field`` via ``me``.
+
+    Resolves identity from the token rather than a (possibly stale) config
+    username, so it keeps working across backend renames and never falls back
+    to another user's public view.
+
+    A missing ``me`` (anonymous / bad token) yields an empty list today. A
+    friendlier "you are not authenticated" error belongs here and is handled
+    in a follow-up change.
+    """
+    me = gql._query(_me_list_query(field, fields)).get("me")
+    if not me:
+        # TODO(stacked PR): surface an explicit auth error instead of empty.
+        return []
+    return me.get(field, []) or []
+
+
+def list_my_plots_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own plots via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "plots", _VIS_FIELDS))
+
+
+def list_my_grids_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own grids via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "grids", _VIS_FIELDS))
+
+
+def list_my_mails_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own mails via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "mails", _VIS_FIELDS))
+
+
+def list_my_docs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own docs via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "docs", _VIS_FIELDS))
+
+
+def list_my_jobs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own jobs via ``me`` (token-scoped)."""
+    return _transform_jobs_response(_list_me_vis(gql, "jobs", _JOB_FIELDS))
 
 
 def _transform_users_response(users: List[Dict[str, Any]], me_type: str) -> List[Dict[str, Any]]:

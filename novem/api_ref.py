@@ -31,18 +31,30 @@ def get_ua(is_cli: bool) -> Dict[str, str]:
 
 
 class NovemException(Exception):
-    pass
+    @property
+    def cli_message(self) -> str:
+        """The message to show when raised under the CLI.
+
+        Defaults to the full exception text. Subclasses may override to drop
+        hints that only make sense for library callers — the CLI validates the
+        token up front (the startup whoami check), so it doesn't need the
+        "are you authenticated?" nudge.
+        """
+        return str(self)
 
 
 class Novem404(NovemException):
     def __init__(self, message: str):
 
-        # 404 errors can occur if users are not authenticated, let them know
-        # future improvement: consider requesting a fixed endpoint (like
-        # whoami) and notify if not authenticated
-        message = f"Resource not found: {message} (Are you authenticated?)"
+        # 404s can also be how the API answers an unauthenticated request, so
+        # library callers (which have no up-front auth check) get a nudge. The
+        # CLI validates auth at startup, so its cli_message omits it.
+        self._detail = f"Resource not found: {message}"
+        super().__init__(f"{self._detail} (Are you authenticated?)")
 
-        super().__init__(message)
+    @property
+    def cli_message(self) -> str:
+        return self._detail
 
 
 class Novem403(NovemException):

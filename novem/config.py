@@ -68,6 +68,9 @@ class ConfigManager:
 
     def __init__(self) -> None:
         self._overrides: Dict[str, Any] = {}
+        # Cache of token -> server-resolved username (via /whoami), so the
+        # identity only has to be fetched once per process per token.
+        self._identity: Dict[str, str] = {}
 
     def _set(self, key: str, value: Any) -> None:
         if value is None:
@@ -100,6 +103,17 @@ class ConfigManager:
     def reset(self) -> None:
         """Clear all programmatically set overrides."""
         self._overrides.clear()
+        self._identity.clear()
+
+    # -- resolved-identity cache -----------------------------------------
+    def cache_identity(self, token: str, username: str) -> None:
+        """Remember the server-resolved username for ``token`` (no-op if empty)."""
+        if token and username:
+            self._identity[token] = username
+
+    def cached_identity(self, token: str) -> Optional[str]:
+        """Return the cached username for ``token``, or ``None`` if unknown."""
+        return self._identity.get(token)
 
     def session(
         self,

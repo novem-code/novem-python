@@ -333,7 +333,7 @@ def group(args: CliArgs) -> None:
             print("Error: --comments requires a group name", file=sys.stderr)
             return
 
-        from .gql import NovemGQL, fetch_group_topics_gql, render_topics
+        from .gql import NovemGQL, _fetch_group_topics_gql, render_topics
 
         gql = NovemGQL.from_args(args)
 
@@ -342,10 +342,13 @@ def group(args: CliArgs) -> None:
             parent = org_name
         else:
             group_type = "user_group"
-            parent = gql._config.get("username", "")
+            # Owner of a user group is the current user — resolve from the
+            # token, not the cached config username (stale after a rename).
+            parent = gql.current_username
 
-        topics = fetch_group_topics_gql(gql, group_name, group_type, parent)
-        me = gql._config.get("username", "")
+        # The topics query resolves the current user too, so reuse it for the
+        # "me" highlight instead of a second identity round-trip.
+        topics, me = _fetch_group_topics_gql(gql, group_name, group_type, parent)
         api_root = gql._config.get("api_root") or "https://api.novem.io/v1/"
         print(
             render_topics(

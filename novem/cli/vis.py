@@ -17,6 +17,11 @@ from .gql import (
     list_grids_gql,
     list_jobs_gql,
     list_mails_gql,
+    list_my_docs_gql,
+    list_my_grids_gql,
+    list_my_jobs_gql,
+    list_my_mails_gql,
+    list_my_plots_gql,
     list_org_group_members_gql,
     list_org_group_vis_gql,
     list_org_groups_gql,
@@ -100,9 +105,10 @@ def list_vis(args: CliArgs, type: str) -> None:
 
     plist: List[Dict[str, Any]] = []
 
-    usr = config.get("username")
-    if "for_user" in args and args["for_user"]:
-        usr = args["for_user"]
+    # An explicit --for-user lists *that* user's (public) visualizations; an
+    # empty value means "my own", which we resolve from the token via `me`
+    # rather than trusting the cached config username (stale after a rename).
+    for_user = args["for_user"] if ("for_user" in args and args["for_user"]) else ""
 
     # Use GraphQL for listing
     gql = NovemGQL.from_args(args)
@@ -112,14 +118,17 @@ def list_vis(args: CliArgs, type: str) -> None:
         novem = NovemAPI(**config_from_args(args), is_cli=True)
         group = args["group"]
         org = args.get("org", "")
-        fu = args.get("for_user", "")
 
         if group[0] in ["@", "+"]:
             query = group
-        elif fu and group:
-            query = f"@{usr}~{group}"
+        elif for_user and group:
+            query = f"@{for_user}~{group}"
         elif org and group:
             query = f"+{org}~{group}"
+        elif group:
+            # My own user group — resolve identity from the token.
+            owner = gql.current_username
+            query = f"@{owner}~{group}" if owner else ""
         else:
             query = ""
 
@@ -129,16 +138,26 @@ def list_vis(args: CliArgs, type: str) -> None:
                 plist = json.loads(novem.read(path))
             except Novem404:
                 plist = []
-    else:
-        # Use GraphQL for user's own visualizations
+    elif for_user:
+        # Another user's visualizations, filtered by author.
         if pfx == "p":
-            plist = list_plots_gql(gql, author=usr)
+            plist = list_plots_gql(gql, author=for_user)
         elif pfx == "g":
-            plist = list_grids_gql(gql, author=usr)
+            plist = list_grids_gql(gql, author=for_user)
         elif pfx == "m":
-            plist = list_mails_gql(gql, author=usr)
+            plist = list_mails_gql(gql, author=for_user)
         elif pfx == "d":
-            plist = list_docs_gql(gql, author=usr)
+            plist = list_docs_gql(gql, author=for_user)
+    else:
+        # My own visualizations, scoped to the token via `me`.
+        if pfx == "p":
+            plist = list_my_plots_gql(gql)
+        elif pfx == "g":
+            plist = list_my_grids_gql(gql)
+        elif pfx == "m":
+            plist = list_my_mails_gql(gql)
+        elif pfx == "d":
+            plist = list_my_docs_gql(gql)
 
     # Apply filters (handles both legacy and new column-based filtering)
     plist = apply_filters(plist, args.get("filter"))
@@ -569,8 +588,8 @@ def list_users(args: CliArgs) -> None:
     # Apply filters
     plist = apply_filters(plist, args.get("filter"))
 
-    # Get current user's username
-    current_user = config.get("username", "")
+    # Get current user's username (token-resolved, not the cached config label)
+    current_user = gql.current_username
 
     # Sort by relevance: me first > connected > following > follower > groups > orgs > username
     def user_sort_key(u: Dict[str, Any]) -> Tuple[bool, bool, bool, bool, int, int, str]:
@@ -765,13 +784,12 @@ def list_jobs(args: CliArgs) -> None:
 
     config_status, config = get_current_config(**config_from_args(args))
 
-    usr = config.get("username")
-    if "for_user" in args and args["for_user"]:
-        usr = args["for_user"]
+    for_user = args["for_user"] if ("for_user" in args and args["for_user"]) else ""
 
     # Use GraphQL for listing
     gql = NovemGQL.from_args(args)
-    plist = list_jobs_gql(gql, author=usr)
+    # --for-user lists that user's jobs; otherwise list my own via `me`.
+    plist = list_jobs_gql(gql, author=for_user) if for_user else list_my_jobs_gql(gql)
 
     # Apply filters
     plist = apply_filters(plist, args.get("filter"))
@@ -1256,10 +1274,9 @@ def list_org_users(args: CliArgs) -> None:
         print("Error: No org specified")
         return
 
-    current_user = config.get("username", "")
-
     # Use GraphQL for listing
     gql = NovemGQL.from_args(args)
+    current_user = gql.current_username
     plist = list_org_members_gql(gql, org_id, current_user)
 
     # Apply filters
@@ -1435,10 +1452,9 @@ def list_org_groups(args: CliArgs) -> None:
         print("Error: No org specified")
         return
 
-    current_user = config.get("username", "")
-
     # Use GraphQL for listing
     gql = NovemGQL.from_args(args)
+    current_user = gql.current_username
     plist = list_org_groups_gql(gql, org_id, current_user)
 
     # Apply filters
@@ -1784,10 +1800,9 @@ def list_org_group_users(args: CliArgs) -> None:
         print("Error: No group specified")
         return
 
-    current_user = config.get("username", "")
-
     # Use GraphQL for listing
     gql = NovemGQL.from_args(args)
+    current_user = gql.current_username
     plist = list_org_group_members_gql(gql, org_id, group_id, current_user)
 
     # Apply filters
