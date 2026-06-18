@@ -249,11 +249,12 @@ def test_plot_list(cli, requests_mock, fs):
         },
     ]
 
-    # Mock GraphQL endpoint
+    # Mock GraphQL endpoint. Listing one's own plots is now scoped to the
+    # token via `me { plots }`, so the response is nested under `me`.
     requests_mock.register_uri(
         "post",
         gql_endpoint,
-        json={"data": {"plots": gql_plot_list}},
+        json={"data": {"me": {"username": "demouser", "plots": gql_plot_list}}},
         status_code=200,
     )
 

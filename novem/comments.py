@@ -343,7 +343,11 @@ class Context(NovemAPI):
     def _threads_base(self) -> str:
         """REST API base path for threads on this resource."""
         p = self._parsed
-        me = self._config.username or ""
+        # Prefer the token-resolved identity if the tree is already loaded;
+        # otherwise fall back to the config username rather than forcing a
+        # network round-trip just to build a path. (_me is populated by the
+        # topics fetch and reflects the real, post-rename name.)
+        me = self._me or self._config.username or ""
 
         # Org group: orgs/{org}/groups/{group}/threads
         if p.group_type == "org_group":
@@ -540,7 +544,7 @@ class Context(NovemAPI):
         from .cli.gql import render_topics
 
         self._load()
-        username = self._config.username or ""
+        username = self.me
         api_root = self._config.api_root
         session = self._session if hasattr(self, "_session") else None
         return render_topics(
@@ -576,7 +580,7 @@ class Context(NovemAPI):
         from .cli.gql import render_topics
 
         await self.aload()
-        username = self._config.username or ""
+        username = self.me
         api_root = self._config.api_root
         session = self._session if hasattr(self, "_session") else None
         return render_topics(

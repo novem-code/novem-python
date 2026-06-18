@@ -6,7 +6,7 @@ from novem import Doc, Grid, Job, Mail, Plot
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.config import config_from_args
 from novem.cli.editor import edit
-from novem.cli.gql import NovemGQL, _build_var_lookup, fetch_vde_topics_gql, render_topics
+from novem.cli.gql import NovemGQL, _build_var_lookup, _fetch_vde_topics_gql, render_topics
 from novem.cli.setup import Share, Tag
 from novem.cli.vis import (
     list_job_shares,
@@ -173,8 +173,9 @@ class VisBase:
         # --comments: show topics and comment threads
         if args.get("comments"):
             gql = NovemGQL.from_args(args)
-            topics, vde_vars = fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
-            me = gql._config.get("username", "")
+            # The topics query already resolves the current user (token-based),
+            # so reuse it for the "me" highlight instead of a second round-trip.
+            topics, vde_vars, me = _fetch_vde_topics_gql(gql, self.fragment, name, author=usr)
             var_lookup = _build_var_lookup(vde_vars, usr or "", self.fragment, name) if vde_vars else None
             print(
                 render_topics(
