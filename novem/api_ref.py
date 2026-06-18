@@ -68,6 +68,39 @@ class NovemAuthError(NovemException):
     pass
 
 
+def raise_on_response(r: requests.Response) -> None:
+    """Raise the appropriate ``NovemException`` for a non-ok API response.
+
+    Surfaces the server's ``message`` and any ``rejected`` lines (e.g. the
+    recipient-write reject contract) so callers get a real exception to catch
+    instead of a silent no-op. No-op on a successful response.
+    """
+    if r.ok or r.status_code == 409:
+        return
+
+    try:
+        resp = r.json()
+    except ValueError:
+        resp = {}
+
+    message = resp.get("message") or r.text or f"HTTP {r.status_code}"
+
+    rejected = resp.get("rejected")
+    if rejected:
+        lines = "; ".join(f'{item.get("line")}: {item.get("reason")}' for item in rejected if isinstance(item, dict))
+        if lines:
+            message = f"{message} [{lines}]"
+
+    code = r.status_code
+    if code == 401:
+        raise Novem401(message)
+    if code == 403:
+        raise Novem403(message)
+    if code == 404:
+        raise Novem404(message)
+    raise NovemException(message)
+
+
 class NovemAPI(object):
     """
     Novem API class
