@@ -12,7 +12,7 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "requests>=2.32.4",
-    "pyreadline3>=3.5.4",
+    "pyreadline3>=3.5.4 ; os_name == 'nt'",
     "colorama>=0.4.6",
     "urllib3>=2.5.0",
     "typing-extensions>=4.14.1",
