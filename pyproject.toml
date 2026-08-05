@@ -23,7 +23,10 @@ events = [
     "python-socketio[asyncio_client]>=5.11.0",
 ]
 mcp = [
-    "mcp>=1.0.0",
+    # novem.comments.MCP() targets the v1 API (mcp.server.fastmcp.FastMCP,
+    # Tool.inputSchema).  mcp 2.0 removed both, so keep the extra on 1.x
+    # until the migration lands -- see the tracking issue.
+    "mcp>=1.0.0,<2",
 ]
 
 [project.urls]
