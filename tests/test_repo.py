@@ -32,7 +32,7 @@ def test_repo_ref(requests_mock):
     # Plot creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text=verify_create,
     )
     requests_mock.register_uri(
@@ -70,12 +70,12 @@ def test_repo_type(requests_mock):
     # Plot creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text=verify_create,
     )
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=repo_type,
     )
 
@@ -127,57 +127,57 @@ def test_repo_properties(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text=verify_create,
     )
 
     # Property endpoints - GET
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/name",
+        f"{api_root}code/repos/{repo_id}/name",
         text=partial(verify_read, "name", repo_name),
     )
 
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/description",
+        f"{api_root}code/repos/{repo_id}/description",
         text=partial(verify_read, "description", repo_description),
     )
 
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/summary",
+        f"{api_root}code/repos/{repo_id}/summary",
         text=partial(verify_read, "summary", repo_summary),
     )
 
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=partial(verify_read, "type", repo_type),
     )
 
     # Property endpoints - POST (write)
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/name",
+        f"{api_root}code/repos/{repo_id}/name",
         text=partial(verify_write, "name", repo_name),
     )
 
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/description",
+        f"{api_root}code/repos/{repo_id}/description",
         text=partial(verify_write, "description", repo_description),
     )
 
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/summary",
+        f"{api_root}code/repos/{repo_id}/summary",
         text=partial(verify_write, "summary", repo_summary),
     )
 
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=partial(verify_write, "type", repo_type),
     )
 
@@ -216,20 +216,20 @@ def test_repo_url_shortname(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # URL and shortname endpoints
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/url",
+        f"{api_root}code/repos/{repo_id}/url",
         text=repo_url,
     )
 
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/shortname",
+        f"{api_root}code/repos/{repo_id}/shortname",
         text=repo_shortname,
     )
 
@@ -246,8 +246,8 @@ def test_repo_log(requests_mock, fs):
     repo_id = "test_repo"
     log_content = "2023-05-01 12:00:00 - Repository created\n2023-05-01 12:05:00 - Files uploaded"
 
-    requests_mock.register_uri("put", f"{API_ROOT}repos/{repo_id}", text="", status_code=200)
-    requests_mock.register_uri("get", f"{API_ROOT}repos/{repo_id}/log", text=log_content, status_code=200)
+    requests_mock.register_uri("put", f"{API_ROOT}code/repos/{repo_id}", text="", status_code=200)
+    requests_mock.register_uri("get", f"{API_ROOT}code/repos/{repo_id}/log", text=log_content, status_code=200)
 
     r = Repo(repo_id)
 
@@ -274,32 +274,32 @@ def test_repo_api_operations(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # API operations
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         text=test_content,
     )
 
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         text="",
     )
 
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         text="",
     )
 
     requests_mock.register_uri(
         "delete",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         text="",
     )
 
@@ -329,21 +329,21 @@ def test_repo_w_function(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # Name endpoint for property
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/name",
+        f"{api_root}code/repos/{repo_id}/name",
         text="",
     )
 
     # Custom key endpoint for API
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}{custom_key}",
+        f"{api_root}code/repos/{repo_id}{custom_key}",
         text="",
     )
 
@@ -373,20 +373,20 @@ def test_repo_error_handling(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # Error responses
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         status_code=404,
     )
 
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}{test_path}",
+        f"{api_root}code/repos/{repo_id}{test_path}",
         status_code=403,
     )
 
@@ -421,14 +421,14 @@ def test_repo_with_config_type(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # Custom config endpoints
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text="",
     )
 
@@ -438,7 +438,7 @@ def test_repo_with_config_type(requests_mock):
     # Register a GET endpoint to check the type was set
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=repo_type,
     )
 
@@ -462,14 +462,14 @@ def test_repo_with_config_dict(requests_mock):
     # Repository creation endpoint
     requests_mock.register_uri(
         "put",
-        f"{api_root}repos/{repo_id}",
+        f"{api_root}code/repos/{repo_id}",
         text="",
     )
 
     # Custom config endpoints
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text="",
     )
 
@@ -479,7 +479,7 @@ def test_repo_with_config_dict(requests_mock):
     # Register a GET endpoint to check the type was set via the config dictionary
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=repo_type,
     )
 
@@ -490,7 +490,7 @@ def test_repo_with_config_dict(requests_mock):
     new_type = "pipeline"
     requests_mock.register_uri(
         "post",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text="",
     )
 
@@ -499,7 +499,7 @@ def test_repo_with_config_dict(requests_mock):
     # Update mock for the new type
     requests_mock.register_uri(
         "get",
-        f"{api_root}repos/{repo_id}/config/type",
+        f"{api_root}code/repos/{repo_id}/config/type",
         text=new_type,
     )
 

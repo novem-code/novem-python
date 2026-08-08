@@ -99,6 +99,62 @@ tags can be comma-separated.
 ```
 
 
+## Coding resources: spaces, repos, computers, images
+The coding resources reuse four short flags that already have a job elsewhere:
+
+| flag | selects   | everyday meaning                 |
+|------|-----------|----------------------------------|
+| `-s` | spaces    | share group (`-s public -C`)     |
+| `-r` | repos     | read path to stdout (`-r url`)   |
+| `-c` | computers | `--config-path` short form       |
+| `-i` | images    | `--input` upload dir (with `-R`) |
+
+The rule: when nothing else claims the invocation (no `-p`/`-g`/`-m`/`-d`/`-j`
+selector and no standalone command like `--init` or `--get`), the *first*
+occurrence of one of these flags selects the resource — every later occurrence
+keeps its everyday meaning. Long forms `--space`, `--repo`, `--computer` and
+`--image` always work.
+
+```bash
+  # list your spaces / repos / computers / images
+  novem -s
+  novem -r
+  novem -c
+  novem -i
+
+  # read the clone url of a repo (first -r selects, second -r reads)
+  novem -r repo_name -r url
+
+  # create a space and share it with the public
+  novem -s space_name -C
+  novem -s space_name -s public -C
+
+  # upload a file into a space, read it back, delete it
+  novem -s space_name -w content/data.csv @data.csv
+  novem -s space_name -r content/data.csv
+  novem -s space_name -e content/notes.md      # edit in $EDITOR
+
+  # create a computer, size it, boot it, watch it
+  novem -c box_name -C --type ephemeral
+  novem -c box_name -w config/cpu 4 -w config/memory 4Gi
+  novem -c box_name -w status online
+  novem -c box_name -r status
+  novem -c box_name -r log
+
+  # inspect an image built from one of your repos
+  novem -i image_name -r status
+  novem -i image_name -r labels
+```
+
+Images are derived from their source repo (one appears whenever a repo has
+been built) and cannot be created or deleted directly — everything else
+(shares, tags, `-w name`, `-r ...`) works like the other resources.
+
+Because plot/grid/mail/doc/job selectors always win, existing invocations are
+unchanged: `novem -p plot_name -s public -C` still shares a plot, and
+`novem -j job_name -R -i data/` still uploads a directory to a job run.
+
+
 ## Raw API access
 ```bash
   # read / write arbitrary api paths

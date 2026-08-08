@@ -26,7 +26,106 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
     return ap.RawDescriptionHelpFormatter(prog, width=width)
 
 
+# The overloaded short flags: each doubles as a coding-resource selector when
+# nothing else claims the invocation (see promote_code_selectors).
+_CODE_SELECTOR_MAP = {
+    "-s": "--space",
+    "-r": "--repo",
+    "-c": "--computer",
+    "-i": "--image",
+}
+
+# Flags that claim the invocation for another resource. When any of these is
+# present the overloaded short flags keep their legacy meaning everywhere.
+_PRIMARY_SELECTOR_FLAGS = {
+    "-p",
+    "-g",
+    "-m",
+    "-d",
+    "-j",
+    "-u",
+    "-O",
+    "-G",
+    "--invites",
+    "--space",
+    "--repo",
+    "--computer",
+    "--image",
+}
+
+# Early-exit commands that historically pair with the legacy meanings of the
+# overloaded shorts (-c config file, -i input dir, ...) and never combine with
+# a resource selector. Their presence disables promotion entirely.
+_PROMOTION_BLOCKERS = {
+    "--version",
+    "--init",
+    "--refresh",
+    "--info",
+    "--add-ssh-key",
+    "--events",
+    "--get",
+    "--post",
+    "--put",
+    "--delete",
+    "--gql",
+}
+
+
+def promote_code_selectors(raw_args: Any) -> Any:
+    """Rewrite a leading ``-s``/``-r``/``-c``/``-i`` into its selector form.
+
+    The coding resources reuse short flags that already have a job:
+
+        -s  spaces     (legacy: share group)
+        -r  repos      (legacy: read path to stdout)
+        -c  computers  (legacy: --config-path)
+        -i  images     (legacy: --input upload dir)
+
+    When no other resource selector (``-p``/``-g``/``-m``/``-d``/``-j``/…) and
+    no early-exit command (``--init``/``--info``/…) is present, the FIRST
+    occurrence of one of these shorts is the resource selector and is
+    rewritten to its long form (``-s`` → ``--space``, …). Every later
+    occurrence keeps its legacy meaning, so
+
+        novem -r my-repo -r url        # read my-repo's clone url
+        novem -s my-space -s public -C # share my-space with public
+
+    both do what you'd expect, while ``novem -p my-plot -r url`` and
+    ``novem -j my-job -R -i data/`` are untouched.
+    """
+    if not raw_args:
+        return raw_args
+
+    tokens = list(raw_args)
+
+    for idx, tok in enumerate(tokens):
+        if tok == "--":
+            break
+        if not tok.startswith("-"):
+            continue
+        base = tok.split("=", 1)[0] if tok.startswith("--") else tok
+        if base == "-u":
+            # `-u USER` only scopes another selector to that user; it is the
+            # bare `-u` (list connections) that claims the invocation
+            nxt = tokens[idx + 1] if idx + 1 < len(tokens) else None
+            if nxt is not None and not nxt.startswith("-"):
+                continue
+        if base in _PRIMARY_SELECTOR_FLAGS or base in _PROMOTION_BLOCKERS:
+            return tokens
+
+    for idx, tok in enumerate(tokens):
+        if tok == "--":
+            break
+        if tok in _CODE_SELECTOR_MAP:
+            tokens[idx] = _CODE_SELECTOR_MAP[tok]
+            break
+
+    return tokens
+
+
 def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
+    raw_args = promote_code_selectors(raw_args)
+
     parser = ap.ArgumentParser(
         prog="novem",
         description="Novem commandline interface.",
@@ -600,6 +699,59 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         help="save job output to this directory (created if needed)",
     )
 
+    code = parser.add_argument_group(
+        "coding resources",
+        description="""\
+Spaces, repos, computers and images. The short flags -s/-r/-c/-i select these
+resources when they are the first selector on the command line; once a
+resource is selected they keep their usual meaning:
+
+  novem -r my-repo -r url          read the clone url of my-repo
+  novem -s my-space -s public -C   share my-space with public
+  novem -c my-box -w status reboot reboot computer my-box
+""",
+    )
+
+    code.add_argument(
+        "--space",
+        dest="space",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select space to operate on (also: -s as first selector), no parameter will list all your spaces",
+    )
+
+    code.add_argument(
+        "--repo",
+        dest="repo",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select repo to operate on (also: -r as first selector), no parameter will list all your repos",
+    )
+
+    code.add_argument(
+        "--computer",
+        dest="computer",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select computer to operate on (also: -c as first selector), no parameter will list all your computers",
+    )
+
+    code.add_argument(
+        "--image",
+        dest="image",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        help="select image to operate on (also: -i as first selector), no parameter will list all your images",
+    )
+
     invite = parser.add_argument_group("invite")
 
     invite.add_argument(
@@ -699,7 +851,9 @@ No parameter will list all organisations groups of which you are a member""",
         args["delete"] = False
         args["share"] = (Share.DELETE, share)
     else:
-        args["share"] = None
+        # a bare `-s TARGET` has no operation to perform; previously this
+        # stored a non-tuple None that crashed every consumer
+        parser.error(f"-s {share} requires -C (add the share) or -D (remove the share)")
 
     # fix up the --tag option (supports comma-separated tags like -t fav,+demo,+test)
     tag = args.pop("tag")
@@ -718,6 +872,8 @@ No parameter will list all organisations groups of which you are a member""",
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.DELETE, tags)
     else:
-        args["tag"] = None
+        # a bare `-t TAG` has no operation to perform; previously this stored
+        # a non-tuple None that crashed every consumer
+        parser.error(f"-t {tag} requires -C (add the tag) or -D (remove the tag)")
 
     return (parser, cast(CliArgs, args))

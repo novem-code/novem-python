@@ -248,11 +248,9 @@ class NovemAPI(object):
         )
 
         if not r.ok:
-            resp = r.json()
-            if r.status_code == 404:
-                raise Novem404(resp["message"])
-            else:
-                print(r.json())
+            # raises Novem404/403/401/... with the server message; unlike the
+            # previous inline r.json() this survives non-JSON error bodies
+            raise_on_response(r)
 
         return r.ok
 
@@ -263,9 +261,7 @@ class NovemAPI(object):
         )
 
         if not r.ok:
-            resp = r.json()
-            if r.status_code == 404:
-                raise Novem404(resp["message"])
+            raise_on_response(r)
 
         return r.text
 

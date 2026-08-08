@@ -23,7 +23,7 @@ from ..api_ref import NovemAPI
 from ..config import config as _config_manager
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
-from .common import doc, grid, job, mail, plot, user
+from .common import computer, doc, grid, image, job, mail, plot, repo, space, user
 from .config import check_if_profile_exists, config_from_args, update_config
 from .events import run_events
 from .gql import NovemGQL
@@ -403,6 +403,10 @@ def print_short(parser: Any) -> None:
     print("  novem -g              list your grids")
     print("  novem -m              list your mails")
     print("  novem -j              list your jobs")
+    print("  novem -s              list your spaces")
+    print("  novem -r              list your repos")
+    print("  novem -c              list your computers")
+    print("  novem -i              list your images")
     print("  novem -u              list your connections")
 
 
@@ -687,6 +691,10 @@ novem --init --profile {args["profile"]}\
             or args.get("grid") != ""
             or args.get("mail") != ""
             or args.get("job") != ""
+            or args.get("space") != ""
+            or args.get("repo") != ""
+            or args.get("computer") != ""
+            or args.get("image") != ""
             or args.get("invite") != ""
             or args.get("for_user") != ""
             or "org" in args  # uses SUPPRESS, so only present if specified
@@ -766,6 +774,14 @@ novem --init --profile {args["profile"]}\
         doc(args)
     elif args and args["job"] != "":
         job(args)
+    elif args and args["space"] != "":
+        space(args)
+    elif args and args["repo"] != "":
+        repo(args)
+    elif args and args["computer"] != "":
+        computer(args)
+    elif args and args["image"] != "":
+        image(args)
     elif args and args["invite"] != "":
         invite(args)
     # operate on org listing (if -O with no argument)

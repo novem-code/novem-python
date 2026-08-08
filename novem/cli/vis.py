@@ -13,21 +13,29 @@ from .config import config_from_args
 from .filter import apply_filters
 from .gql import (
     NovemGQL,
+    list_computers_gql,
     list_docs_gql,
     list_grids_gql,
+    list_images_gql,
     list_jobs_gql,
     list_mails_gql,
+    list_my_computers_gql,
     list_my_docs_gql,
     list_my_grids_gql,
+    list_my_images_gql,
     list_my_jobs_gql,
     list_my_mails_gql,
     list_my_plots_gql,
+    list_my_repos_gql,
+    list_my_spaces_gql,
     list_org_group_members_gql,
     list_org_group_vis_gql,
     list_org_groups_gql,
     list_org_members_gql,
     list_orgs_gql,
     list_plots_gql,
+    list_repos_gql,
+    list_spaces_gql,
     list_users_gql,
 )
 
@@ -575,6 +583,70 @@ def list_job_tags(job_name: str, args: CliArgs) -> None:
     return
 
 
+def list_code_shares(kind: str, name: str, args: CliArgs) -> None:
+    """List shares for a coding resource (space/repo/computer/image)."""
+
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    collection = f"{kind}s"
+    plist = []
+
+    for_user = args.get("for_user")
+    if for_user:
+        share_path = f"users/{for_user}/code/{collection}/{name}/shared"
+    else:
+        share_path = f"code/{collection}/{name}/shared"
+
+    try:
+        plist = json.loads(novem.read(share_path))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        share_pretty_print(plist, striped=striped)
+
+    return
+
+
+def list_code_tags(kind: str, name: str, args: CliArgs) -> None:
+    """List tags for a coding resource (space/repo/computer/image)."""
+
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    collection = f"{kind}s"
+    plist = []
+
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/code/{collection}/{name}/tags"
+    else:
+        tag_path = f"code/{collection}/{name}/tags"
+
+    try:
+        plist = json.loads(novem.read(tag_path))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        tag_pretty_print(plist, striped=striped)
+
+    return
+
+
 def list_users(args: CliArgs) -> None:
     """List connected users with custom formatting."""
     colors()
@@ -1011,6 +1083,222 @@ def list_jobs(args: CliArgs) -> None:
     for p in plist:
         p["_steps"] = p["_steps"].rjust(max_steps)
         p["run_count"] = p["run_count"].rjust(max_runs)
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+# per-kind (fetch-by-author, fetch-mine) listing functions
+_CODE_LIST_FNS = {
+    "space": (list_spaces_gql, list_my_spaces_gql),
+    "repo": (list_repos_gql, list_my_repos_gql),
+    "computer": (list_computers_gql, list_my_computers_gql),
+    "image": (list_images_gql, list_my_images_gql),
+}
+
+
+def list_code_vis(args: CliArgs, kind: str) -> None:
+    """List a coding resource collection (space/repo/computer/image)."""
+    colors()
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    for_user = args["for_user"] if ("for_user" in args and args["for_user"]) else ""
+
+    by_author, mine = _CODE_LIST_FNS[kind]
+
+    # Use GraphQL for listing
+    gql = NovemGQL.from_args(args)
+    plist = by_author(gql, author=for_user) if for_user else mine(gql)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by: favs first, likes second, rest last - each by updated (newest first)
+    def parse_date(date_str: str) -> datetime.datetime:
+        dt = parse_api_datetime(date_str)
+        return dt if dt else datetime.datetime.min.replace(tzinfo=timezone.utc)
+
+    def sort_tier(markers: str) -> int:
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
+
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x["updated"]).timestamp()))
+
+    if args["list"]:
+        # print ids only
+        for p in plist:
+            print(p["id"])
+        return
+
+    def share_fmt(share: List[str], cl: cl) -> str:
+        """Format shared column: P C @ + for public, chat, user group, org group."""
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDFGC}" if "c" in sl else "-"  # chat claim
+        ug = f"{cl.OKGREEN}@{cl.ENDFGC}" if "@" in sl else "-"  # user group
+        og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def status_fmt(status: Optional[str], cl: cl) -> str:
+        """Format computer/image status with color."""
+        if not status:
+            return ""
+        s = status.lower()
+        if s in ("online", "ready"):
+            return f"{cl.OKGREEN}{status}{cl.ENDFGC}"
+        if s in ("booting", "building"):
+            return f"{cl.OKBLUE}{status}{cl.ENDFGC}"
+        if s in ("failed", "failure"):
+            return f"{cl.FAIL}{status}{cl.ENDFGC}"
+        if s.startswith("ready"):  # ready (stale)
+            return f"{cl.WARNING}{status}{cl.ENDFGC}"
+        return status
+
+    has_favs = any("*" in p.get("fav", "") for p in plist)
+    has_likes = any("+" in p.get("fav", "") for p in plist)
+
+    def fav_fmt(markers: str, cl: cl) -> str:
+        parts = ""
+        if has_favs:
+            parts += f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        if has_likes:
+            parts += f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {parts} " if parts else ""
+
+    fav_header_width = (1 if has_favs else 0) + (1 if has_likes else 0)
+    fav_header = (" " * (fav_header_width + 2)) if fav_header_width > 0 else ""
+
+    fav_col: List[Dict[str, Any]] = (
+        [
+            {
+                "key": "fav",
+                "header": fav_header,
+                "type": "text",
+                "fmt": fav_fmt,
+                "overflow": "keep",
+                "no_border": True,
+                "no_padding": True,
+            },
+        ]
+        if has_favs or has_likes
+        else []
+    )
+
+    id_col: Dict[str, Any] = {
+        "key": "id",
+        "header": f"{kind.capitalize()} ID",
+        "type": "text",
+        "overflow": "keep",
+    }
+    name_col: Dict[str, Any] = {
+        "key": "name",
+        "header": "Name",
+        "type": "text",
+        "overflow": "shrink",
+    }
+    shared_col: Dict[str, Any] = {
+        "key": "shared",
+        "header": "Shared",
+        "type": "text",
+        "fmt": share_fmt,
+        "overflow": "keep",
+    }
+    activity_col: Dict[str, Any] = {
+        "key": "_activity",
+        "header": "Activity",
+        "type": "text",
+        "overflow": "keep",
+    }
+    views_col: Dict[str, Any] = {
+        "key": "_views_fmt",
+        "header": "Views",
+        "type": "text",
+        "overflow": "keep",
+    }
+    updated_col: Dict[str, Any] = {
+        "key": "_updated",
+        "header": "Updated",
+        "type": "text",
+        "overflow": "keep",
+    }
+    summary_col: Dict[str, Any] = {
+        "key": "summary",
+        "header": "Summary",
+        "type": "text",
+        "overflow": "truncate",
+    }
+    status_col: Dict[str, Any] = {
+        "key": "status",
+        "header": "Status",
+        "type": "text",
+        "fmt": status_fmt,
+        "overflow": "keep",
+    }
+    type_col: Dict[str, Any] = {
+        "key": "type",
+        "header": "Type",
+        "type": "text",
+        "clr": cl.OKCYAN,
+        "overflow": "keep",
+    }
+
+    if kind == "repo":
+        url_col: Dict[str, Any] = {
+            "key": "uri",
+            "header": "Clone URL",
+            "type": "url",
+            "overflow": "shrink",
+        }
+        ppo = [*fav_col, id_col, type_col, name_col, shared_col, activity_col, views_col, updated_col, url_col]
+    elif kind == "space":
+        ppo = [*fav_col, id_col, name_col, shared_col, activity_col, views_col, updated_col, summary_col]
+    elif kind == "computer":
+        image_col: Dict[str, Any] = {
+            "key": "image_ref",
+            "header": "Image",
+            "type": "text",
+            "overflow": "shrink",
+        }
+        size_col: Dict[str, Any] = {
+            "key": "_size",
+            "header": "Cpu/Mem/Disk",
+            "type": "text",
+            "overflow": "keep",
+        }
+        ppo = [*fav_col, id_col, type_col, status_col, image_col, size_col, name_col, shared_col, updated_col]
+    else:  # image
+        repo_col: Dict[str, Any] = {
+            "key": "repo",
+            "header": "Repo",
+            "type": "text",
+            "overflow": "keep",
+        }
+        labels_col: Dict[str, Any] = {
+            "key": "_labels",
+            "header": "Labels",
+            "type": "text",
+            "overflow": "shrink",
+        }
+        ppo = [*fav_col, id_col, repo_col, status_col, labels_col, name_col, shared_col, updated_col]
+
+    # Pre-process derived columns
+    for p in plist:
+        p["_updated"] = _format_relative_time(p.get("updated", ""))
+        if kind == "computer":
+            cpu = p.get("cpu")
+            cpu_s = f"{cpu:g}" if isinstance(cpu, (int, float)) else (cpu or "-")
+            p["_size"] = f"{cpu_s}/{p.get('memory') or '-'}/{p.get('disk') or '-'}"
+        if kind == "image":
+            p["_labels"] = ", ".join(p.get("labels", []) or [])
+
+    _format_activity(plist)
+    _format_views(plist)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)

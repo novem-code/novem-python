@@ -25,6 +25,10 @@ CliArgs = TypedDict(
         "grid": str,
         "doc": str,
         "job": str,
+        "space": str,
+        "repo": str,
+        "computer": str,
+        "image": str,
         "invite": str,
         # group subcommand (only present for `novem group ...`)
         "org": Optional[str],
