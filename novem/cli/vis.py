@@ -252,6 +252,13 @@ def list_vis(args: CliArgs, type: str) -> None:
             "overflow": "keep",
         },
         {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
+        },
+        {
             "key": "shared",
             "header": "Shared",
             "type": "text",
@@ -273,22 +280,15 @@ def list_vis(args: CliArgs, type: str) -> None:
             "drop": 3,
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
-            "drop": 2,
+            "key": "updated",
+            "header": "Updated",
+            "type": "date",
+            "overflow": "keep",
         },
         {
             "key": "uri",
             "header": "Url",
             "type": "url",
-            "overflow": "keep",
-        },
-        {
-            "key": "updated",
-            "header": "Updated",
-            "type": "date",
             "overflow": "keep",
         },
         {
@@ -990,33 +990,6 @@ def list_jobs(args: CliArgs) -> None:
             "overflow": "keep",
         },
         {
-            "key": "_last_run",
-            "header": "Last Run",
-            "type": "text",
-            "overflow": "keep",
-        },
-        {
-            "key": "shared",
-            "header": "Shared",
-            "type": "text",
-            "fmt": share_fmt,
-            "overflow": "keep",
-        },
-        {
-            "key": "_activity",
-            "header": "Activity",
-            "type": "text",
-            "overflow": "keep",
-            "drop": 4,
-        },
-        {
-            "key": "_views_fmt",
-            "header": "Views",
-            "type": "text",
-            "overflow": "keep",
-            "drop": 3,
-        },
-        {
             "key": "triggers",
             "header": "Trigger",
             "type": "text",
@@ -1043,6 +1016,33 @@ def list_jobs(args: CliArgs) -> None:
             "type": "text",
             "overflow": "keep",
             "align": "right",
+        },
+        {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
+            "overflow": "keep",
+        },
+        {
+            "key": "_activity",
+            "header": "Activity",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 4,
+        },
+        {
+            "key": "_views_fmt",
+            "header": "Views",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 3,
+        },
+        {
+            "key": "_last_run",
+            "header": "Last Run",
+            "type": "text",
+            "overflow": "keep",
         },
         {
             "key": "summary",
@@ -1360,7 +1360,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             "type": "text",
             "overflow": "keep",
         }
-        ppo = [*fav_col, id_col, type_col, status_col, image_col, size_col, name_col, shared_col, updated_col]
+        ppo = [*fav_col, id_col, type_col, name_col, status_col, image_col, size_col, shared_col, updated_col]
     else:  # image
         repo_col: Dict[str, Any] = {
             "key": "repo",
@@ -1374,7 +1374,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             "type": "text",
             "overflow": "shrink",
         }
-        ppo = [*fav_col, id_col, repo_col, status_col, labels_col, name_col, shared_col, updated_col]
+        ppo = [*fav_col, id_col, name_col, repo_col, status_col, labels_col, shared_col, updated_col]
 
     # Pre-process derived columns
     for p in plist:
@@ -2101,6 +2101,13 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
             "overflow": "keep",
         },
         {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
+        },
+        {
             "key": "shared",
             "header": "Shared",
             "type": "text",
@@ -2108,21 +2115,15 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
             "overflow": "keep",
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
+            "key": "updated",
+            "header": "Updated",
+            "type": "date",
+            "overflow": "keep",
         },
         {
             "key": "uri",
             "header": "Url",
             "type": "url",
-            "overflow": "keep",
-        },
-        {
-            "key": "updated",
-            "header": "Updated",
-            "type": "date",
             "overflow": "keep",
         },
         {

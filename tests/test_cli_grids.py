@@ -317,6 +317,13 @@ def test_grid_list(cli, requests_mock, fs):
             "overflow": "keep",
         },
         {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
+        },
+        {
             "key": "shared",
             "header": "Shared",
             "fmt": share_fmt,
@@ -338,22 +345,15 @@ def test_grid_list(cli, requests_mock, fs):
             "drop": 3,
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
-            "drop": 2,
+            "key": "updated",
+            "header": "Updated",
+            "type": "date",
+            "overflow": "keep",
         },
         {
             "key": "uri",
             "header": "Url",
             "type": "url",
-            "overflow": "keep",
-        },
-        {
-            "key": "updated",
-            "header": "Updated",
-            "type": "date",
             "overflow": "keep",
         },
         {
