@@ -751,6 +751,16 @@ novem --init --profile {args["profile"]}\
         list_org_group_vis(args, "Grid")
     elif args and args.get("org") and args.get("group") and args.get("job") is None and "job" in args:
         list_org_group_vis(args, "Job")
+    elif args and args.get("org") and args.get("group") and args.get("doc") is None and "doc" in args:
+        list_org_group_vis(args, "Doc")
+    elif args and args.get("org") and args.get("group") and args.get("space") is None and "space" in args:
+        list_org_group_vis(args, "Space")
+    elif args and args.get("org") and args.get("group") and args.get("repo") is None and "repo" in args:
+        list_org_group_vis(args, "Repo")
+    elif args and args.get("org") and args.get("group") and args.get("computer") is None and "computer" in args:
+        list_org_group_vis(args, "Computer")
+    elif args and args.get("org") and args.get("group") and args.get("image") is None and "image" in args:
+        list_org_group_vis(args, "Image")
     # operate on org group user listing (if -O <org> -G <group> -u)
     elif args and args.get("org") and args.get("group") and "for_user" in args and args.get("for_user") is None:
         list_org_group_users(args)

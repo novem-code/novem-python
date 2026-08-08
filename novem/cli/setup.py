@@ -37,6 +37,10 @@ _CODE_SELECTOR_MAP = {
 
 # Flags that claim the invocation for another resource. When any of these is
 # present the overloaded short flags keep their legacy meaning everywhere.
+# -O/-G are handled separately: they restrict promotion to BARE flags (see
+# promote_code_selectors) instead of disabling it, so that
+# `novem -O org -G group -s` lists the group's spaces while
+# `novem -O org -G group -c ./conf ...` keeps reading a config file.
 _PRIMARY_SELECTOR_FLAGS = {
     "-p",
     "-g",
@@ -44,8 +48,6 @@ _PRIMARY_SELECTOR_FLAGS = {
     "-d",
     "-j",
     "-u",
-    "-O",
-    "-G",
     "--invites",
     "--space",
     "--repo",
@@ -98,6 +100,13 @@ def promote_code_selectors(raw_args: Any) -> Any:
 
     tokens = list(raw_args)
 
+    def is_bare(idx: int) -> bool:
+        """True when the flag at idx has no value attached."""
+        nxt = tokens[idx + 1] if idx + 1 < len(tokens) else None
+        return nxt is None or nxt.startswith("-")
+
+    org_ctx = False
+
     for idx, tok in enumerate(tokens):
         if tok == "--":
             break
@@ -107,9 +116,14 @@ def promote_code_selectors(raw_args: Any) -> Any:
         if base == "-u":
             # `-u USER` only scopes another selector to that user; it is the
             # bare `-u` (list connections) that claims the invocation
-            nxt = tokens[idx + 1] if idx + 1 < len(tokens) else None
-            if nxt is not None and not nxt.startswith("-"):
+            if not is_bare(idx):
                 continue
+        if base in ("-O", "-G"):
+            # group management context: only bare code-selector flags promote
+            # (they mean "list the group's spaces/repos/..."), valued ones
+            # keep their legacy meaning (-c ./conf, ...)
+            org_ctx = True
+            continue
         if base in _PRIMARY_SELECTOR_FLAGS or base in _PROMOTION_BLOCKERS:
             return tokens
 
@@ -117,6 +131,8 @@ def promote_code_selectors(raw_args: Any) -> Any:
         if tok == "--":
             break
         if tok in _CODE_SELECTOR_MAP:
+            if org_ctx and not is_bare(idx):
+                break
             tokens[idx] = _CODE_SELECTOR_MAP[tok]
             break
 

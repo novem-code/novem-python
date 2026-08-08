@@ -86,8 +86,24 @@ def test_gql_blocks_promotion():
     assert promoted(argv) == argv
 
 
-def test_org_group_selectors_block_promotion():
-    argv = ["-O", "myorg", "-G", "mygroup", "-s"]
+def test_org_group_bare_selector_promotes():
+    # bare -s with -O/-G means "list the group's spaces"
+    assert promoted(["-O", "myorg", "-G", "mygroup", "-s"]) == ["-O", "myorg", "-G", "mygroup", "--space"]
+    assert promoted(["-O", "myorg", "-G", "mygroup", "-r"]) == ["-O", "myorg", "-G", "mygroup", "--repo"]
+    assert promoted(["-O", "myorg", "-G", "mygroup", "-c"]) == ["-O", "myorg", "-G", "mygroup", "--computer"]
+    assert promoted(["-O", "myorg", "-G", "mygroup", "-i"]) == ["-O", "myorg", "-G", "mygroup", "--image"]
+
+
+def test_org_group_valued_selector_keeps_legacy():
+    # a valued -c in group context is still the config file
+    argv = ["-O", "myorg", "-G", "mygroup", "-c", "./test.conf", "-C"]
+    assert promoted(argv) == argv
+
+
+def test_org_invite_flow_untouched():
+    argv = ["-O", "myorg", "-G", "analysts", "--invite", "bob"]
+    assert promoted(argv) == argv
+    argv = ["--invite", "bob", "-G", "analysts", "-C"]
     assert promoted(argv) == argv
 
 

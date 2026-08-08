@@ -5,7 +5,6 @@ Listing goes through GraphQL (mocked at the /gql endpoint); everything else
 is REST against code/{collection}/{id} (mocked with requests_mock).
 """
 
-import json
 from functools import partial
 
 from novem.cli.gql import _get_gql_endpoint
@@ -330,6 +329,82 @@ def test_space_read_for_user(cli, requests_mock, fs):
 
     out, err = cli("-s", "team", "-u", "other", "-r", "name")
     assert out == "Team space"
+
+
+# --- org group listings -----------------------------------------------------------
+
+
+def _mock_org_group(requests_mock, org, group, field, items):
+    requests_mock.register_uri(
+        "post",
+        gql_endpoint,
+        json={"data": {"groups": [{"id": org, "groups": [{"id": group, field: items}]}]}},
+        status_code=200,
+    )
+
+
+def test_org_group_spaces_list(cli, requests_mock, fs):
+    write_config(auth_req)
+    _mock_org_group(
+        requests_mock,
+        "myorg",
+        "crew",
+        "spaces",
+        [_vde("shared-space", author={"username": "alice"})],
+    )
+
+    out, err = cli("-O", "myorg", "-G", "crew", "-s", "-l")
+    assert out.split() == ["alice/shared-space"]
+
+
+def test_org_group_computers_list(cli, requests_mock, fs):
+    write_config(auth_req)
+    _mock_org_group(
+        requests_mock,
+        "myorg",
+        "crew",
+        "computers",
+        [_vde("crew-box", author={"username": "alice"})],
+    )
+
+    out, err = cli("-O", "myorg", "-G", "crew", "-c", "-l")
+    assert out.split() == ["alice/crew-box"]
+
+
+def test_org_group_docs_list(cli, requests_mock, fs):
+    write_config(auth_req)
+    _mock_org_group(
+        requests_mock,
+        "myorg",
+        "crew",
+        "docs",
+        [_vde("handbook", author={"username": "alice"})],
+    )
+
+    out, err = cli("-O", "myorg", "-G", "crew", "-d", "-l")
+    assert out.split() == ["alice/handbook"]
+
+
+def test_org_group_invite_with_config_path(cli, requests_mock, fs):
+    """-c stays the config file when valued in group context."""
+    write_config(auth_req)
+
+    invited = {}
+
+    def on_invite(request, context):
+        invited["yes"] = True
+        context.status_code = 201
+        return ""
+
+    # group.py builds these paths with a leading slash, hence v1//admin
+    requests_mock.register_uri(
+        "put",
+        f"{api_root}/admin/orgs/myorg/groups/analysts/roles/members/bob",
+        text=on_invite,
+    )
+
+    out, err = cli("-O", "myorg", "-G", "analysts", "--invite", "bob")
+    assert invited.get("yes")
 
 
 # --- legacy meanings stay intact -------------------------------------------------

@@ -1370,13 +1370,7 @@ def list_org_group_members_gql(gql: NovemGQL, org_id: str, group_id: str, curren
     return _transform_org_group_members_response(data, group_id, current_user)
 
 
-LIST_ORG_GROUP_VIS_QUERY = """
-query ListOrgGroupVis($orgId: ID!) {
-  groups(id: $orgId, type: org) {
-    id
-    groups {
-      id
-      plots {
+_ORG_GROUP_ITEM_FIELDS = """
         id
         name
         type
@@ -1386,73 +1380,29 @@ query ListOrgGroupVis($orgId: ID!) {
         public
         shared { id name type }
         tags { id name type }
-        author { username }
-      }
-      grids {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      mails {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      docs {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      repos {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      jobs {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-        last_run_time
-      }
-    }
-  }
-}
-"""
+        author { username }"""
+
+
+def _org_group_vis_query(vis_type: str) -> str:
+    """Build the org-group listing query for a single collection field.
+
+    Requesting one field at a time keeps the query small and — more
+    importantly — valid against servers that do not yet expose the newer
+    Group fields (computers, images).
+    """
+    extra = "\n        last_run_time" if vis_type == "jobs" else ""
+    return (
+        "query ListOrgGroupVis($orgId: ID!) {\n"
+        "  groups(id: $orgId, type: org) {\n"
+        "    id\n"
+        "    groups {\n"
+        "      id\n"
+        f"      {vis_type} {{{_ORG_GROUP_ITEM_FIELDS}{extra}\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+    )
 
 
 def _transform_org_group_vis_response(data: Dict[str, Any], group_id: str, vis_type: str) -> List[Dict[str, Any]]:
@@ -1507,7 +1457,7 @@ def _transform_org_group_vis_response(data: Dict[str, Any], group_id: str, vis_t
 def list_org_group_vis_gql(gql: NovemGQL, org_id: str, group_id: str, vis_type: str) -> List[Dict[str, Any]]:
     """List vis shared with an org group, returning REST-compatible format."""
     variables = {"orgId": org_id}
-    data = gql._query(LIST_ORG_GROUP_VIS_QUERY, variables)
+    data = gql._query(_org_group_vis_query(vis_type), variables)
     return _transform_org_group_vis_response(data, group_id, vis_type)
 
 

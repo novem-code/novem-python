@@ -1913,6 +1913,9 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
         "Doc": "docs",
         "Repo": "repos",
         "Job": "jobs",
+        "Space": "spaces",
+        "Computer": "computers",
+        "Image": "images",
     }
     gql_vis_type = vis_type_map.get(vis_type, vis_type.lower() + "s")
 

@@ -154,6 +154,17 @@ Because plot/grid/mail/doc/job selectors always win, existing invocations are
 unchanged: `novem -p plot_name -s public -C` still shares a plot, and
 `novem -j job_name -R -i data/` still uploads a directory to a job run.
 
+With `-O org -G group`, a *bare* code selector lists what is shared with that
+group (a valued one keeps its everyday meaning, so `-c ./conf` still reads a
+config file there):
+
+```bash
+  novem -O org_name -G group_name -s    # spaces shared with the group
+  novem -O org_name -G group_name -r    # repos shared with the group
+  novem -O org_name -G group_name -c    # computers shared with the group
+  novem -O org_name -G group_name -i    # images shared with the group
+```
+
 
 ## Raw API access
 ```bash
