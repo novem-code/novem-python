@@ -81,7 +81,10 @@ def test_raw_http_blocks_promotion():
     assert promoted(argv) == argv
 
 
-def test_gql_blocks_promotion():
+def test_gql_bare_only_promotion():
+    # bare --gql + bare selector: promote (debug the listing)
+    assert promoted(["--gql", "-s"]) == ["--gql", "--space"]
+    # bare --gql + valued short: legacy meaning holds (stdin query + config)
     argv = ["--gql", "-c", "./test.conf"]
     assert promoted(argv) == argv
 
@@ -115,6 +118,25 @@ def test_long_selector_blocks_short_promotion():
 
 def test_double_dash_ends_scan():
     argv = ["--", "-r", "x"]
+    assert promoted(argv) == argv
+
+
+def test_attached_short_values():
+    # attached selector value promotes into the long= form
+    assert promoted(["-smy-space"]) == ["--space=my-space"]
+    assert promoted(["-rmy-repo", "-r", "url"]) == ["--repo=my-repo", "-r", "url"]
+    # attached values on other selectors block promotion like separated ones
+    argv = ["-pmy-plot", "-s", "public", "-C"]
+    assert promoted(argv) == argv
+    argv = ["-umeuser", "-s", "team"]  # attached -u value scopes, doesn't block
+    assert promoted(argv) == ["-umeuser", "--space", "team"]
+
+
+def test_gql_valued_blocks_promotion():
+    # valued --gql runs a standalone query: legacy meanings hold
+    argv = ["--gql", "@query.gql", "-c", "./test.conf"]
+    assert promoted(argv) == argv
+    argv = ["--gql", "query { me }", "-s"]
     assert promoted(argv) == argv
 
 
@@ -165,3 +187,40 @@ def test_setup_computer_create_with_config_write():
     assert args["computer"] == "my-box"
     assert args["create"] is True
     assert args["input"] == [["config/cpu", "4"]]
+
+
+def test_setup_counted_create_covers_resource_and_share():
+    from novem.cli.setup import Share
+
+    # one -C per action: create the space AND add the share
+    _, args = setup(["-s", "my-space", "-C", "-s", "public", "-C"])
+    assert args["space"] == "my-space"
+    assert args["share"] == (Share.CREATE, "public")
+    assert args["create"] is True
+
+    # a single -C is consumed by the share op, like before
+    _, args = setup(["-s", "my-space", "-s", "public", "-C"])
+    assert args["share"] == (Share.CREATE, "public")
+    assert args["create"] is False
+
+
+def test_setup_counted_create_share_and_tag():
+    from novem.cli.setup import Share, Tag
+
+    _, args = setup(["-p", "my-plot", "-C", "-s", "public", "-C", "-t", "fav", "-C"])
+    assert args["share"] == (Share.CREATE, "public")
+    assert args["tag"] == (Tag.CREATE, ["fav"])
+    assert args["create"] is True
+
+
+def test_setup_counted_delete():
+    from novem.cli.setup import Share
+
+    # one -D removes only the share, two remove share and resource
+    _, args = setup(["-s", "my-space", "-s", "public", "-D"])
+    assert args["share"] == (Share.DELETE, "public")
+    assert args["delete"] is False
+
+    _, args = setup(["-s", "my-space", "-s", "public", "-D", "-D"])
+    assert args["share"] == (Share.DELETE, "public")
+    assert args["delete"] is True

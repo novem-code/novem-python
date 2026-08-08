@@ -28,7 +28,7 @@ from .config import check_if_profile_exists, config_from_args, update_config
 from .events import run_events
 from .gql import NovemGQL
 from .group import group
-from .invite import invite
+from .invite import invite, list_invites
 from .setup import setup
 from .vis import list_org_group_users, list_org_group_vis, list_org_groups, list_org_users, list_orgs
 
@@ -794,6 +794,17 @@ novem --init --profile {args["profile"]}\
         image(args)
     elif args and args["invite"] != "":
         invite(args)
+    # --inbox: the merged invitation inbox (group/org invites + connections)
+    elif args and args.get("inbox"):
+        list_invites(args, NovemAPI(**config_from_args(args), is_cli=True), include_social=True)
+    # --invite without a group is a no-op on the server; fail loudly instead
+    elif args and args.get("invite_user") and "group" not in args:
+        print(
+            "Error: --invite requires a group: novem -O org -G group --invite USER (org group)\n"
+            "       or novem -G group --invite USER (user group)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     # operate on org listing (if -O with no argument)
     elif args and args.get("org") is None and "org" in args:
         list_orgs(args)

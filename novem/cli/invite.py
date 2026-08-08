@@ -9,9 +9,13 @@ from .args import CliArgs
 from .config import config_from_args
 
 
-def list_invites(args: CliArgs, novem: NovemAPI) -> None:
+def list_invites(args: CliArgs, novem: NovemAPI, include_social: bool = False) -> None:
     """
-    List pending invites
+    List pending invites.
+
+    With ``include_social`` (the --inbox view) connection requests from
+    /admin/social/invites are merged in alongside the group and organisation
+    invitations, mirroring the webapp's invite inbox.
     """
 
     # see if list flag is set
@@ -22,6 +26,12 @@ def list_invites(args: CliArgs, novem: NovemAPI) -> None:
         ilist = json.loads(novem.read("/admin/invites/"))
     except Novem404:
         ilist = []
+
+    if include_social:
+        try:
+            ilist += json.loads(novem.read("/admin/social/invites/"))
+        except Novem404:
+            pass
 
     ilist = sorted(ilist, key=lambda x: x["name"])
 
@@ -59,6 +69,9 @@ def list_invites(args: CliArgs, novem: NovemAPI) -> None:
         elif nm[0] == "+" and "~" not in nm:
             gt = "organisation"
             org = nm[1:]
+        elif nm[0] == "@" and "~" not in nm:
+            gt = "connection"
+            user = nm[1:]
         else:
             gt = "unkown"
 

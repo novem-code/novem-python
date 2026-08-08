@@ -125,9 +125,12 @@ keeps its everyday meaning. Long forms `--space`, `--repo`, `--computer` and
   # read the clone url of a repo (first -r selects, second -r reads)
   novem -r repo_name -r url
 
-  # create a space and share it with the public
-  novem -s space_name -C
-  novem -s space_name -s public -C
+  # create a space and share it with the public — each -C covers one
+  # action, so this creates the space AND adds the share in one line
+  novem -s space_name -C -s public -C
+
+  # several writes in one line
+  novem -c box_name -C -w config/cpu 4 -w config/memory 4Gi -w status online
 
   # upload a file into a space, read it back, delete it
   novem -s space_name -w content/data.csv @data.csv
@@ -163,6 +166,24 @@ config file there):
   novem -O org_name -G group_name -r    # repos shared with the group
   novem -O org_name -G group_name -c    # computers shared with the group
   novem -O org_name -G group_name -i    # images shared with the group
+```
+
+A valued flag in group context is reserved for future per-resource deep
+dives (`-O org -G group -r repo_name -r url`) and currently does nothing.
+
+
+## Invitations
+```bash
+  # your invitation inbox: group and organisation invites plus
+  # connection requests
+  novem --inbox
+
+  # accept / reject a group or organisation invite
+  novem --invites +org_name~group_name --accept
+  novem --invites +org_name~group_name --reject
+
+  # invite a user to a group (requires -G, and -O for org groups)
+  novem -O org_name -G group_name --invite username
 ```
 
 

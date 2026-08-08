@@ -58,6 +58,8 @@ _PRIMARY_SELECTOR_FLAGS = {
 # Early-exit commands that historically pair with the legacy meanings of the
 # overloaded shorts (-c config file, -i input dir, ...) and never combine with
 # a resource selector. Their presence disables promotion entirely.
+# --gql is special-cased: a VALUED --gql (@file / inline query) runs standalone
+# and blocks, while a bare --gql only toggles debug output and does not.
 _PROMOTION_BLOCKERS = {
     "--version",
     "--init",
@@ -69,8 +71,10 @@ _PROMOTION_BLOCKERS = {
     "--post",
     "--put",
     "--delete",
-    "--gql",
 }
+
+# Short flags that take a value, for recognising the attached form (-pmyplot).
+_VALUED_SHORT_FLAGS = {"-p", "-g", "-m", "-d", "-j", "-u", "-O", "-G", "-s", "-t", "-r", "-c", "-i", "-o", "-e", "-f"}
 
 
 def promote_code_selectors(raw_args: Any) -> Any:
@@ -100,29 +104,44 @@ def promote_code_selectors(raw_args: Any) -> Any:
 
     tokens = list(raw_args)
 
+    def short_base(tok: str) -> str:
+        """The flag part of a short token: '-pmyplot' -> '-p'."""
+        if tok.startswith("-") and not tok.startswith("--") and len(tok) > 2 and tok[:2] in _VALUED_SHORT_FLAGS:
+            return tok[:2]
+        return tok
+
     def is_bare(idx: int) -> bool:
-        """True when the flag at idx has no value attached."""
+        """True when the flag at idx has no value (separate or attached)."""
+        if short_base(tokens[idx]) != tokens[idx]:
+            return False  # attached value
         nxt = tokens[idx + 1] if idx + 1 < len(tokens) else None
         return nxt is None or nxt.startswith("-")
 
-    org_ctx = False
+    # in these contexts only BARE code-selector flags promote; valued ones
+    # keep their legacy meaning (-c ./conf stays the config file):
+    #  - group management (-O/-G): a bare selector lists the group's resources
+    #  - bare --gql (debug output): a bare selector is the listing to debug
+    bare_only = False
 
     for idx, tok in enumerate(tokens):
         if tok == "--":
             break
         if not tok.startswith("-"):
             continue
-        base = tok.split("=", 1)[0] if tok.startswith("--") else tok
+        base = tok.split("=", 1)[0] if tok.startswith("--") else short_base(tok)
         if base == "-u":
             # `-u USER` only scopes another selector to that user; it is the
             # bare `-u` (list connections) that claims the invocation
             if not is_bare(idx):
                 continue
         if base in ("-O", "-G"):
-            # group management context: only bare code-selector flags promote
-            # (they mean "list the group's spaces/repos/..."), valued ones
-            # keep their legacy meaning (-c ./conf, ...)
-            org_ctx = True
+            bare_only = True
+            continue
+        if base == "--gql":
+            # a valued --gql runs a standalone query: legacy meanings hold
+            if tok != "--gql" or not is_bare(idx):
+                return tokens
+            bare_only = True
             continue
         if base in _PRIMARY_SELECTOR_FLAGS or base in _PROMOTION_BLOCKERS:
             return tokens
@@ -130,10 +149,15 @@ def promote_code_selectors(raw_args: Any) -> Any:
     for idx, tok in enumerate(tokens):
         if tok == "--":
             break
-        if tok in _CODE_SELECTOR_MAP:
-            if org_ctx and not is_bare(idx):
+        base = short_base(tok)
+        if base in _CODE_SELECTOR_MAP:
+            if bare_only and not is_bare(idx):
                 break
-            tokens[idx] = _CODE_SELECTOR_MAP[tok]
+            if base != tok:
+                # attached value: -smy-space -> --space=my-space
+                tokens[idx] = f"{_CODE_SELECTOR_MAP[base]}={tok[2:]}"
+            else:
+                tokens[idx] = _CODE_SELECTOR_MAP[base]
             break
 
     return tokens
@@ -405,16 +429,20 @@ an inline string, @filename to read from a file, or piped via stdin.""",
     vis.add_argument(
         "-C",
         dest="create",
-        action="store_true",
+        action="count",
+        default=0,
         required=False,
-        help="create the visualisation if it doesn't exist",
+        help="create the visualisation if it doesn't exist. Each -C covers one action, so "
+        '"-s my-space -C -s public -C" creates the space AND adds the share',
     )
 
     vis.add_argument(
         "-D",
         dest="delete",
-        action="store_true",
-        help="delete the current visualisation defined by -[pdmgv] or share defined by -s",
+        action="count",
+        default=0,
+        help="delete the current visualisation defined by -[pdmgv] or share defined by -s. "
+        "Like -C, each -D covers one action",
     )
 
     vis.add_argument(
@@ -781,6 +809,15 @@ resource is selected they keep their usual meaning:
     )
 
     invite.add_argument(
+        "--inbox",
+        dest="inbox",
+        action="store_true",
+        required=False,
+        default=False,
+        help="list your pending invitations (group, organisation and connection requests)",
+    )
+
+    invite.add_argument(
         "--accept",
         dest="accept",
         action="store_true",
@@ -854,6 +891,10 @@ No parameter will list all organisations groups of which you are a member""",
 
     args = vars(parser.parse_args(raw_args))
 
+    # -C and -D are counted: each occurrence covers one action. The share and
+    # tag fixups below each consume one; whatever remains covers the resource
+    # itself ("-s my-space -C -s public -C" creates the space AND the share).
+
     # fix up the --share option
     share = args.pop("share")
     if share == "":
@@ -861,10 +902,10 @@ No parameter will list all organisations groups of which you are a member""",
     elif share is None:
         args["share"] = (Share.LIST, None)
     elif args["create"]:
-        args["create"] = False
+        args["create"] -= 1
         args["share"] = (Share.CREATE, share)
     elif args["delete"]:
-        args["delete"] = False
+        args["delete"] -= 1
         args["share"] = (Share.DELETE, share)
     else:
         # a bare `-s TARGET` has no operation to perform; previously this
@@ -878,12 +919,12 @@ No parameter will list all organisations groups of which you are a member""",
     elif tag is None:
         args["tag"] = (Tag.LIST, None)
     elif args["create"]:
-        args["create"] = False
+        args["create"] -= 1
         # Split by comma to support multiple tags
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.CREATE, tags)
     elif args["delete"]:
-        args["delete"] = False
+        args["delete"] -= 1
         # Split by comma to support multiple tags
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.DELETE, tags)
@@ -891,5 +932,9 @@ No parameter will list all organisations groups of which you are a member""",
         # a bare `-t TAG` has no operation to perform; previously this stored
         # a non-tuple None that crashed every consumer
         parser.error(f"-t {tag} requires -C (add the tag) or -D (remove the tag)")
+
+    # everything downstream treats create/delete as booleans
+    args["create"] = args["create"] > 0
+    args["delete"] = args["delete"] > 0
 
     return (parser, cast(CliArgs, args))

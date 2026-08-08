@@ -331,6 +331,61 @@ def test_space_read_for_user(cli, requests_mock, fs):
     assert out == "Team space"
 
 
+def test_space_create_and_share_one_line(cli, requests_mock, fs):
+    """Each -C covers one action: create the space AND add the share."""
+    write_config(auth_req)
+
+    hits = {}
+
+    def on(key, request, context):
+        hits[key] = True
+        context.status_code = 201
+        return ""
+
+    requests_mock.register_uri("put", f"{api_root}code/spaces/my-space", text=partial(on, "create"))
+    requests_mock.register_uri("get", f"{api_root}code/spaces/my-space/shared", json=[], status_code=200)
+    requests_mock.register_uri("put", f"{api_root}code/spaces/my-space/shared/public", text=partial(on, "share"))
+
+    out, err = cli("-s", "my-space", "-C", "-s", "public", "-C")
+    assert hits.get("create")
+    assert hits.get("share")
+
+
+def test_computer_multiple_writes_one_line(cli, requests_mock, fs):
+    """Several -w PATH VALUE pairs in a single invocation."""
+    write_config(auth_req)
+
+    written = {}
+
+    def on_write(key, request, context):
+        written[key] = request.text
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    for leaf in ("config/cpu", "config/memory", "config/disk", "status"):
+        requests_mock.register_uri("post", f"{api_root}code/computers/my-box/{leaf}", text=partial(on_write, leaf))
+
+    out, err = cli(
+        "-c",
+        "my-box",
+        "-C",
+        "-w",
+        "config/cpu",
+        "4",
+        "-w",
+        "config/memory",
+        "4Gi",
+        "-w",
+        "config/disk",
+        "20Gi",
+        "-w",
+        "status",
+        "online",
+    )
+    assert written == {"config/cpu": "4", "config/memory": "4Gi", "config/disk": "20Gi", "status": "online"}
+
+
 # --- org group listings -----------------------------------------------------------
 
 
@@ -405,6 +460,59 @@ def test_org_group_invite_with_config_path(cli, requests_mock, fs):
 
     out, err = cli("-O", "myorg", "-G", "analysts", "--invite", "bob")
     assert invited.get("yes")
+
+
+# --- invitations -------------------------------------------------------------------
+
+
+def test_inbox_merges_group_and_social_invites(cli, requests_mock, fs):
+    write_config(auth_req)
+
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}/admin/invites/",
+        json=[{"name": "+acme~crew", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
+        status_code=200,
+    )
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}/admin/social/invites/",
+        json=[{"name": "@friend", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
+        status_code=200,
+    )
+
+    out, err = cli("--inbox", "-l")
+    assert out.split() == ["+acme~crew", "@friend"]
+
+    out, err = cli("--inbox")
+    assert "connection" in out
+    assert "organisation group" in out
+
+
+def test_invites_listing_unchanged(cli, requests_mock, fs):
+    """bare --invites keeps listing only the group/org invitations."""
+    write_config(auth_req)
+
+    requests_mock.register_uri(
+        "get",
+        f"{api_root}/admin/invites/",
+        json=[{"name": "+acme~crew", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
+        status_code=200,
+    )
+
+    out, err = cli("--invites", "-l")
+    assert out.split() == ["+acme~crew"]
+
+
+def test_invite_without_group_errors(cli, requests_mock, fs):
+    write_config(auth_req)
+
+    try:
+        cli("--invite", "bob")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "--invite requires a group" in err
 
 
 # --- legacy meanings stay intact -------------------------------------------------
