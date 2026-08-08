@@ -77,15 +77,18 @@ def test_pretty_format_hard_truncate() -> None:
     # strip all ansi color codes, and trailing whitespace
     res = "\n".join(x.strip() for x in ansi_escape.sub("", res).split("\n"))
 
+    # the table must fit inside col=10: the keep column is shaved to make
+    # room and the over-long header is clipped with the rows
     assert (
         res
         == """\
-ID      Type of thing in list
-╌╌╌╌╌╌  ╌╌╌╌╌
-apple   fruit
-potato  di...
+ID     Typ
+╌╌╌╌╌  ╌╌╌
+apple  fru
+po...  dir
 """
     )
+    assert all(len(line) <= 10 for line in res.split("\n"))
 
 
 def test_pretty_format_fmt_receives_original_value() -> None:
@@ -156,6 +159,41 @@ def test_pretty_format_fmt_with_list_not_truncated_to_string() -> None:
     for val in received_values:
         assert isinstance(val, list)
         assert val == ["a", "b", "c", "d", "e"]
+
+
+def test_pretty_format_never_overflows() -> None:
+    """The rendered table must NEVER exceed the given width, whatever the
+    column mix — including keep-only tables on very narrow terminals."""
+    colors()
+
+    obj = [
+        {
+            "id": "a-rather-long-identifier-string",
+            "status": "running (dirty)",
+            "name": "An even longer human readable name for this thing",
+            "summary": "and a summary that just keeps going on and on and on and on",
+        }
+        for _ in range(3)
+    ]
+
+    keep_only = [
+        {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+        {"key": "status", "header": "Status", "type": "text", "overflow": "keep"},
+        {"key": "name", "header": "Name", "type": "text", "overflow": "keep"},
+        {"key": "summary", "header": "Summary of the whole thing", "type": "text", "overflow": "keep"},
+    ]
+    mixed = [
+        {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+        {"key": "status", "header": "Status", "type": "text", "overflow": "keep"},
+        {"key": "name", "header": "Name", "type": "text", "overflow": "shrink"},
+        {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate"},
+    ]
+
+    for order in (keep_only, mixed):
+        for col in (20, 30, 40, 60, 80, 120):
+            res = ansi_escape.sub("", pretty_format_inner(obj, order, col=col))
+            for line in res.split("\n"):
+                assert len(line.rstrip()) <= col, f"col={col}: {len(line.rstrip())} > {col}: {line!r}"
 
 
 def test_parse_api_datetime_utc_suffix() -> None:

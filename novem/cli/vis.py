@@ -905,16 +905,6 @@ def list_jobs(args: CliArgs) -> None:
         commit = f"{cl.WARNING}C{cl.ENDFGC}" if "commit" in tset else "-"
         return f"{mail} {sched} {api} {commit}"
 
-    def schedule_fmt(schedule: Optional[str], cl: cl) -> str:
-        """Format schedule column as cron or dashes, right-aligned fields."""
-        if not schedule:
-            return " -  -  -  -  -"
-        # Pad to consistent width (5 cron fields), each field 2 chars right-aligned
-        parts = schedule.split()
-        if len(parts) == 5:
-            return f"{parts[0]:>2} {parts[1]:>2} {parts[2]:>2} {parts[3]:>2} {parts[4]:>2}"
-        return schedule
-
     def steps_fmt(item: Dict[str, Any], cl: cl) -> str:
         """Format steps column as current:total."""
         current = item.get("current_step")
@@ -1027,10 +1017,9 @@ def list_jobs(args: CliArgs) -> None:
             "overflow": "keep",
         },
         {
-            "key": "schedule",
+            "key": "_schedule",
             "header": "Schedule",
             "type": "text",
-            "fmt": schedule_fmt,
             "overflow": "keep",
         },
         {
@@ -1071,6 +1060,39 @@ def list_jobs(args: CliArgs) -> None:
 
         # Last run - format last_run_time as relative time
         p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
+
+    # Schedule column: align the five cron fields into per-position columns
+    # across every row (right-aligned), so */15 and single-char fields line
+    # up. A TZ=<zone> prefix is shown as a suffix; anything unparseable is
+    # left as-is.
+    parsed_scheds: List[Tuple[Dict[str, Any], Optional[List[str]], str, str]] = []
+    for p in plist:
+        raw = (p.get("schedule") or "").strip()
+        tz = ""
+        fields = raw.split()
+        if fields and fields[0].upper().startswith("TZ="):
+            tz = fields[0][3:]
+            fields = fields[1:]
+        if not raw:
+            parsed_scheds.append((p, ["-"] * 5, tz, raw))
+        elif len(fields) == 5:
+            parsed_scheds.append((p, fields, tz, raw))
+        else:
+            parsed_scheds.append((p, None, tz, raw))
+
+    field_widths = [1] * 5
+    for _, fields, _, _ in parsed_scheds:
+        if fields:
+            for fi in range(5):
+                field_widths[fi] = max(field_widths[fi], len(fields[fi]))
+
+    for p, fields, tz, raw in parsed_scheds:
+        if fields is None:
+            p["_schedule"] = raw
+        else:
+            p["_schedule"] = " ".join(f"{fields[fi]:>{field_widths[fi]}}" for fi in range(5))
+            if tz:
+                p["_schedule"] += f" {tz}"
 
     _format_activity(plist)
     _format_views(plist)
