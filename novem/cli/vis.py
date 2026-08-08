@@ -1354,13 +1354,40 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             "type": "text",
             "overflow": "shrink",
         }
-        size_col: Dict[str, Any] = {
-            "key": "_size",
-            "header": "Cpu/Mem/Disk",
+        cpu_col: Dict[str, Any] = {
+            "key": "_cpu",
+            "header": "Cpu",
             "type": "text",
             "overflow": "keep",
+            "align": "right",
         }
-        ppo = [*fav_col, id_col, type_col, name_col, status_col, image_col, size_col, shared_col, updated_col]
+        mem_col: Dict[str, Any] = {
+            "key": "_memory",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        }
+        disk_col: Dict[str, Any] = {
+            "key": "_disk",
+            "header": "Disk",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        }
+        ppo = [
+            *fav_col,
+            id_col,
+            type_col,
+            name_col,
+            status_col,
+            image_col,
+            cpu_col,
+            mem_col,
+            disk_col,
+            shared_col,
+            updated_col,
+        ]
     else:  # image
         repo_col: Dict[str, Any] = {
             "key": "repo",
@@ -1381,8 +1408,9 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
         p["_updated"] = _format_relative_time(p.get("updated", ""))
         if kind == "computer":
             cpu = p.get("cpu")
-            cpu_s = f"{cpu:g}" if isinstance(cpu, (int, float)) else (cpu or "-")
-            p["_size"] = f"{cpu_s}/{p.get('memory') or '-'}/{p.get('disk') or '-'}"
+            p["_cpu"] = f"{cpu:g}" if isinstance(cpu, (int, float)) else (cpu or "-")
+            p["_memory"] = p.get("memory") or "-"
+            p["_disk"] = p.get("disk") or "-"
         if kind == "image":
             p["_labels"] = ", ".join(p.get("labels", []) or [])
 

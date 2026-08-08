@@ -92,12 +92,15 @@ def test_computer_list(cli, requests_mock, fs):
     out, err = cli("-c", "-l")
     assert out.split() == ["my-box"]
 
-    # pretty listing carries the computer-specific columns
+    # pretty listing carries the computer-specific columns, with
+    # cpu/mem/disk as separate right-aligned columns
     out, err = cli("-c")
     assert "my-box" in out
     assert "online" in out
     assert "@novem/base:latest" in out
-    assert "2/2Gi/10Gi" in out
+    header = out.split("\n")[0]
+    assert "Cpu" in header and "Mem" in header and "Disk" in header
+    assert "2Gi" in out and "10Gi" in out
 
 
 def test_image_list(cli, requests_mock, fs):
