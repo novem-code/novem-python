@@ -252,18 +252,19 @@ def list_vis(args: CliArgs, type: str) -> None:
             "overflow": "keep",
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
-            "drop": 2,
-        },
-        {
             "key": "shared",
             "header": "Shared",
             "type": "text",
             "fmt": share_fmt,
             "overflow": "keep",
+            "protect": True,
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "_activity",
@@ -976,6 +977,14 @@ def list_jobs(args: CliArgs) -> None:
             "overflow": "keep",
         },
         {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
+            "overflow": "keep",
+            "protect": True,
+        },
+        {
             "key": "name",
             "header": "Name",
             "type": "text",
@@ -1016,13 +1025,6 @@ def list_jobs(args: CliArgs) -> None:
             "type": "text",
             "overflow": "keep",
             "align": "right",
-        },
-        {
-            "key": "shared",
-            "header": "Shared",
-            "type": "text",
-            "fmt": share_fmt,
-            "overflow": "keep",
         },
         {
             "key": "_activity",
@@ -1294,6 +1296,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
         "type": "text",
         "fmt": share_fmt,
         "overflow": "keep",
+        "protect": True,
     }
     activity_col: Dict[str, Any] = {
         "key": "_activity",
@@ -1344,9 +1347,9 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             "type": "url",
             "overflow": "shrink",
         }
-        ppo = [*fav_col, id_col, type_col, name_col, shared_col, activity_col, views_col, updated_col, url_col]
+        ppo = [*fav_col, id_col, type_col, shared_col, name_col, activity_col, views_col, updated_col, url_col]
     elif kind == "space":
-        ppo = [*fav_col, id_col, name_col, shared_col, activity_col, views_col, updated_col, summary_col]
+        ppo = [*fav_col, id_col, shared_col, name_col, activity_col, views_col, updated_col, summary_col]
     elif kind == "computer":
         image_col: Dict[str, Any] = {
             "key": "image_ref",
@@ -1379,13 +1382,13 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             *fav_col,
             id_col,
             type_col,
+            shared_col,
             name_col,
             status_col,
             image_col,
             cpu_col,
             mem_col,
             disk_col,
-            shared_col,
             updated_col,
         ]
     else:  # image
@@ -1401,7 +1404,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
             "type": "text",
             "overflow": "shrink",
         }
-        ppo = [*fav_col, id_col, name_col, repo_col, status_col, labels_col, shared_col, updated_col]
+        ppo = [*fav_col, id_col, shared_col, name_col, repo_col, status_col, labels_col, updated_col]
 
     # Pre-process derived columns
     for p in plist:
@@ -2129,18 +2132,19 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
             "overflow": "keep",
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
-            "drop": 2,
-        },
-        {
             "key": "shared",
             "header": "Shared",
             "type": "text",
             "fmt": share_fmt,
             "overflow": "keep",
+            "protect": True,
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "updated",

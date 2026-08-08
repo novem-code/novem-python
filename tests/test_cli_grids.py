@@ -317,18 +317,19 @@ def test_grid_list(cli, requests_mock, fs):
             "overflow": "keep",
         },
         {
-            "key": "name",
-            "header": "Name",
-            "type": "text",
-            "overflow": "shrink",
-            "drop": 2,
-        },
-        {
             "key": "shared",
             "header": "Shared",
             "fmt": share_fmt,
             "type": "text",
             "overflow": "keep",
+            "protect": True,
+        },
+        {
+            "key": "name",
+            "header": "Name",
+            "type": "text",
+            "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "_activity",
