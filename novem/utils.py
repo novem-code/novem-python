@@ -283,9 +283,29 @@ def pretty_format_inner(
             return text[:width]
         return text[: width - 3] + "..."
 
-    # let's calculate our actual widths. Padding follows every column except
-    # the last and the no_padding ones (matches the render loops below).
-    total_padding = sum(pw for o in order[:-1] if not o.get("no_padding"))
+    def padding_for(cols: List[Dict[str, Any]]) -> int:
+        # padding follows every column except the last and the no_padding
+        # ones (matches the render loops below)
+        return sum(pw for o in cols[:-1] if not o.get("no_padding"))
+
+    # When the table does not fit, whole low-value columns are dropped before
+    # anything gets mangled. A column opts in with "drop": N — lower N is
+    # dropped first (summary=1, name=2, views=3, activity=4 in the listings).
+    while sum(wm[o["key"]] for o in order) + padding_for(order) > col:
+        droppable = [o for o in order if "drop" in o]
+        if not droppable:
+            break
+        victim = min(droppable, key=lambda o: o["drop"])
+        order = [o for o in order if o is not victim]
+
+    if not order:
+        return ""
+
+    # forget widths of dropped columns
+    wm = {o["key"]: wm[o["key"]] for o in order}
+
+    # let's calculate our actual widths
+    total_padding = padding_for(order)
     if sum(wm.values()) + total_padding > col:
         # we need to adjust our sizing
         # Priority: keep > shrink > truncate
@@ -327,7 +347,8 @@ def pretty_format_inner(
     # allocation above is best-effort — its floors, and "keep" columns on a
     # narrow terminal, can still overflow. Shave the widest column of the
     # least precious class first (truncate, then shrink, then keep), in
-    # progressively lower floors, until everything fits.
+    # progressively lower floors, until everything fits. Columns marked
+    # "protect" (e.g. the schedule grid) are only touched as a last resort.
     shave_phases = [
         ("truncate", 5),
         ("shrink", 5),
@@ -338,13 +359,18 @@ def pretty_format_inner(
         ("shrink", 1),
         ("keep", 1),
     ]
-    for phase, floor in shave_phases:
-        while sum(wm.values()) + total_padding > col:
-            cands = [o for o in order if o["overflow"] == phase and wm[o["key"]] > floor]
-            if not cands:
-                break
-            widest = max(cands, key=lambda o: wm[o["key"]])
-            wm[widest["key"]] -= 1
+    for protected_too in (False, True):
+        for phase, floor in shave_phases:
+            while sum(wm.values()) + total_padding > col:
+                cands = [
+                    o
+                    for o in order
+                    if o["overflow"] == phase and wm[o["key"]] > floor and (protected_too or not o.get("protect"))
+                ]
+                if not cands:
+                    break
+                widest = max(cands, key=lambda o: wm[o["key"]])
+                wm[widest["key"]] -= 1
 
     # construct output string
     los = f"{cl.BOLD}"

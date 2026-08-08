@@ -196,6 +196,62 @@ def test_pretty_format_never_overflows() -> None:
                 assert len(line.rstrip()) <= col, f"col={col}: {len(line.rstrip())} > {col}: {line!r}"
 
 
+def test_pretty_format_drop_priority() -> None:
+    """When the table does not fit, droppable columns disappear whole —
+    summary first, then name, then views, then activity — before anything
+    is shaved, and protected columns keep their full width throughout."""
+    colors()
+
+    obj = [
+        {
+            "id": "job-one",
+            "schedule": "*/15 0,30 1-5 * *",
+            "name": "A human readable name",
+            "views": "1.2k",
+            "activity": "3 12 4",
+            "summary": "a fairly long summary of what this thing does",
+        }
+    ]
+
+    def mk_order():
+        return [
+            {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+            {"key": "schedule", "header": "Schedule", "type": "text", "overflow": "keep", "protect": True},
+            {"key": "activity", "header": "Activity", "type": "text", "overflow": "keep", "drop": 4},
+            {"key": "views", "header": "Views", "type": "text", "overflow": "keep", "drop": 3},
+            {"key": "name", "header": "Name", "type": "text", "overflow": "shrink", "drop": 2},
+            {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate", "drop": 1},
+        ]
+
+    # everything fits: nothing dropped
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=200))
+    header = res.split("\n")[0]
+    for h in ("ID", "Schedule", "Activity", "Views", "Name", "Summary"):
+        assert h in header
+
+    # too narrow for the summary: it is dropped whole, the rest intact
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=70))
+    header = res.split("\n")[0]
+    assert "Summary" not in header
+    assert "Name" in header
+    assert "*/15 0,30 1-5 * *" in res
+
+    # narrower still: name goes, then views, then activity — schedule stays
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=45))
+    header = res.split("\n")[0]
+    assert "Name" not in header
+    assert "*/15 0,30 1-5 * *" in res
+
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=30))
+    header = res.split("\n")[0]
+    assert "Views" not in header
+    assert "Activity" not in header
+    # the protected schedule survives at full width even here
+    assert "*/15 0,30 1-5 * *" in res
+    for line in res.split("\n"):
+        assert len(line.rstrip()) <= 30
+
+
 def test_parse_api_datetime_utc_suffix() -> None:
     """Test parsing dates with UTC suffix (as returned by the API)."""
     result = parse_api_datetime("Mon, 05 Jan 2026 23:40:13 UTC")

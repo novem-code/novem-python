@@ -330,18 +330,21 @@ def test_plot_list(cli, requests_mock, fs):
             "header": "Activity",
             "type": "text",
             "overflow": "keep",
+            "drop": 4,
         },
         {
             "key": "_views_fmt",
             "header": "Views",
             "type": "text",
             "overflow": "keep",
+            "drop": 3,
         },
         {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "uri",
@@ -361,6 +364,7 @@ def test_plot_list(cli, requests_mock, fs):
             "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
     colors()

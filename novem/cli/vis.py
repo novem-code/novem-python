@@ -263,18 +263,21 @@ def list_vis(args: CliArgs, type: str) -> None:
             "header": "Activity",
             "type": "text",
             "overflow": "keep",
+            "drop": 4,
         },
         {
             "key": "_views_fmt",
             "header": "Views",
             "type": "text",
             "overflow": "keep",
+            "drop": 3,
         },
         {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "uri",
@@ -294,6 +297,7 @@ def list_vis(args: CliArgs, type: str) -> None:
             "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
 
@@ -976,6 +980,7 @@ def list_jobs(args: CliArgs) -> None:
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "last_run_status",
@@ -1002,12 +1007,14 @@ def list_jobs(args: CliArgs) -> None:
             "header": "Activity",
             "type": "text",
             "overflow": "keep",
+            "drop": 4,
         },
         {
             "key": "_views_fmt",
             "header": "Views",
             "type": "text",
             "overflow": "keep",
+            "drop": 3,
         },
         {
             "key": "triggers",
@@ -1021,6 +1028,7 @@ def list_jobs(args: CliArgs) -> None:
             "header": "Schedule",
             "type": "text",
             "overflow": "keep",
+            "protect": True,
         },
         {
             "key": "_steps",
@@ -1041,6 +1049,7 @@ def list_jobs(args: CliArgs) -> None:
             "header": "Summary",
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
 
@@ -1063,8 +1072,9 @@ def list_jobs(args: CliArgs) -> None:
 
     # Schedule column: align the five cron fields into per-position columns
     # across every row (right-aligned), so */15 and single-char fields line
-    # up. A TZ=<zone> prefix is shown as a suffix; anything unparseable is
-    # left as-is.
+    # up. A TZ=<zone> prefix is never displayed — the fields are recomputed
+    # into the viewer's configured time zone instead (the raw schedule config
+    # stays authoritative). Anything unparseable is left as-is.
     parsed_scheds: List[Tuple[Dict[str, Any], Optional[List[str]], str, str]] = []
     for p in plist:
         raw = (p.get("schedule") or "").strip()
@@ -1080,6 +1090,13 @@ def list_jobs(args: CliArgs) -> None:
         else:
             parsed_scheds.append((p, None, tz, raw))
 
+    if any(tz for _, fields, tz, _ in parsed_scheds if fields):
+        viewer_tz = _viewer_timezone(gql)
+        parsed_scheds = [
+            (p, _localize_cron_fields(fields, tz, viewer_tz) if (fields and tz) else fields, tz, raw)
+            for p, fields, tz, raw in parsed_scheds
+        ]
+
     field_widths = [1] * 5
     for _, fields, _, _ in parsed_scheds:
         if fields:
@@ -1091,8 +1108,6 @@ def list_jobs(args: CliArgs) -> None:
             p["_schedule"] = raw
         else:
             p["_schedule"] = " ".join(f"{fields[fi]:>{field_widths[fi]}}" for fi in range(5))
-            if tz:
-                p["_schedule"] += f" {tz}"
 
     _format_activity(plist)
     _format_views(plist)
@@ -1110,6 +1125,54 @@ def list_jobs(args: CliArgs) -> None:
     ppl = pretty_format(plist, ppo, striped=striped)
 
     print(ppl)
+
+
+def _localize_cron_fields(fields: List[str], from_tz: str, to_tz: Optional[str]) -> List[str]:
+    """Convert a cron schedule's minute/hour from ``from_tz`` into the
+    viewer's zone (``to_tz``, falling back to the OS-local zone).
+
+    Only pure-numeric minute and hour fields can be shifted safely; anything
+    else (ranges, steps, lists) is returned unchanged. When the shift crosses
+    midnight, a single numeric day-of-week is rotated along; other day fields
+    are left untouched — the raw schedule config remains authoritative.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+
+        src = ZoneInfo(from_tz)
+        dst: Any = ZoneInfo(to_tz) if to_tz else datetime.datetime.now().astimezone().tzinfo
+    except Exception:
+        return fields
+
+    minute, hour, dom, mon, dow = fields
+    if not (minute.isdigit() and hour.isdigit()):
+        return fields
+
+    now = datetime.datetime.now(tz=src)
+    src_dt = now.replace(hour=int(hour) % 24, minute=int(minute) % 60, second=0, microsecond=0)
+    dst_dt = src_dt.astimezone(dst)
+
+    out = [str(dst_dt.minute), str(dst_dt.hour), dom, mon, dow]
+    day_delta = (dst_dt.date() - src_dt.date()).days
+    if day_delta and dow.isdigit():
+        out[4] = str((int(dow) + day_delta) % 7)
+    return out
+
+
+def _viewer_timezone(gql: NovemGQL) -> Optional[str]:
+    """The viewer's configured novem time zone via ``me { timezone }``.
+
+    Returns None when the backend does not expose the field yet or the
+    query fails — callers fall back to the OS-local zone.
+    """
+    try:
+        me = gql._query("query { me { timezone } }").get("me") or {}
+        tz = me.get("timezone")
+        return str(tz) if tz else None
+    except SystemExit:
+        raise
+    except Exception:
+        return None
 
 
 # per-kind (fetch-by-author, fetch-mine) listing functions
@@ -1223,6 +1286,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
         "header": "Name",
         "type": "text",
         "overflow": "shrink",
+        "drop": 2,
     }
     shared_col: Dict[str, Any] = {
         "key": "shared",
@@ -1236,12 +1300,14 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
         "header": "Activity",
         "type": "text",
         "overflow": "keep",
+        "drop": 4,
     }
     views_col: Dict[str, Any] = {
         "key": "_views_fmt",
         "header": "Views",
         "type": "text",
         "overflow": "keep",
+        "drop": 3,
     }
     updated_col: Dict[str, Any] = {
         "key": "_updated",
@@ -1254,6 +1320,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
         "header": "Summary",
         "type": "text",
         "overflow": "truncate",
+        "drop": 1,
     }
     status_col: Dict[str, Any] = {
         "key": "status",
