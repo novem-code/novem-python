@@ -136,6 +136,20 @@ def list_invites(args: CliArgs, novem: NovemAPI, include_social: bool = False) -
     print(ppl)
 
 
+def invite_accept_path(invite_name: str) -> str:
+    """The accept endpoint for an invitation name.
+
+    Connection requests (a bare ``@user``, no ``~group`` suffix) live under
+    /admin/social/invites and are surfaced by --inbox; group and organisation
+    invitations live under /admin/invites. Answering one on the other's
+    endpoint 404s, so the name decides the root.
+    """
+    if invite_name.startswith("@") and "~" not in invite_name:
+        return f"/admin/social/invites/{invite_name}/accept"
+
+    return f"/admin/invites/{invite_name}/accept"
+
+
 def invite(args: CliArgs) -> None:
     novem = NovemAPI(**config_from_args(args), is_cli=True)
 
@@ -147,9 +161,11 @@ def invite(args: CliArgs) -> None:
         list_invites(args, novem)
         return
 
+    path = invite_accept_path(invite_name)
+
     # check if
     if "accept" in args and args["accept"]:
-        novem.write(f"/admin/invites/{invite_name}/accept", "yes")
+        novem.write(path, "yes")
 
     elif "reject" in args and args["reject"]:
-        novem.write(f"/admin/invites/{invite_name}/accept", "no")
+        novem.write(path, "no")

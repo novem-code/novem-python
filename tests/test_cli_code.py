@@ -507,6 +507,39 @@ def test_invites_listing_unchanged(cli, requests_mock, fs):
     assert out.split() == ["+acme~crew"]
 
 
+def test_accept_routes_connection_requests_to_the_social_endpoint(cli, requests_mock, fs):
+    """A connection request surfaced by --inbox must be answerable: it lives
+    under /admin/social/invites, not the group/org /admin/invites root."""
+    write_config(auth_req)
+
+    answered = {}
+
+    def on_accept(request, context):
+        answered["social"] = request.body
+        return ""
+
+    def on_group_accept(request, context):
+        answered["group"] = request.body
+        return ""
+
+    requests_mock.register_uri("post", f"{api_root}/admin/social/invites/@friend/accept", text=on_accept)
+    requests_mock.register_uri("post", f"{api_root}/admin/invites/+acme~crew/accept", text=on_group_accept)
+    # a user GROUP invite is not a connection request and keeps the old root
+    requests_mock.register_uri("post", f"{api_root}/admin/invites/@friend~crew/accept", text=on_group_accept)
+
+    cli("--invites", "@friend", "--accept")
+    assert answered["social"] == b"yes"
+
+    cli("--invites", "@friend", "--reject")
+    assert answered["social"] == b"no"
+
+    cli("--invites", "+acme~crew", "--accept")
+    assert answered["group"] == b"yes"
+
+    cli("--invites", "@friend~crew", "--accept")
+    assert answered["group"] == b"yes"
+
+
 def test_invite_without_group_errors(cli, requests_mock, fs):
     write_config(auth_req)
 

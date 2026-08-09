@@ -87,7 +87,8 @@ bare `-s`.
 
 ## Tagging
 Tags work like shares: `-C` to add, `-D` to remove, bare `-t` to list. Multiple
-tags can be comma-separated.
+tags can be comma-separated. A `-t TAG` with neither `-C` nor `-D` has nothing
+to apply, so it lists the tags too.
 ```bash
   # list current tags
   novem -p plot_name -t

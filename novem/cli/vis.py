@@ -1134,9 +1134,13 @@ def _localize_cron_fields(fields: List[str], from_tz: str, to_tz: Optional[str])
     viewer's zone (``to_tz``, falling back to the OS-local zone).
 
     Only pure-numeric minute and hour fields can be shifted safely; anything
-    else (ranges, steps, lists) is returned unchanged. When the shift crosses
-    midnight, a single numeric day-of-week is rotated along; other day fields
-    are left untouched — the raw schedule config remains authoritative.
+    else (ranges, steps, lists) is returned unchanged.
+
+    A shift that crosses midnight also moves the day. A single numeric
+    day-of-week can be rotated to compensate, so that is done; a day-of-month
+    cannot (month lengths vary) and neither can a compound day-of-week, so
+    those schedules are left in their own zone rather than rendered wrong.
+    The raw schedule config remains authoritative either way.
     """
     try:
         from zoneinfo import ZoneInfo
@@ -1154,8 +1158,15 @@ def _localize_cron_fields(fields: List[str], from_tz: str, to_tz: Optional[str])
     src_dt = now.replace(hour=int(hour) % 24, minute=int(minute) % 60, second=0, microsecond=0)
     dst_dt = src_dt.astimezone(dst)
 
-    out = [str(dst_dt.minute), str(dst_dt.hour), dom, mon, dow]
     day_delta = (dst_dt.date() - src_dt.date()).days
+    if day_delta:
+        # the day moves too, and only a plain numeric day-of-week can follow
+        # it: "30 23 1 * *" UTC would otherwise render as "30 1 1 * *" in
+        # UTC+2 and claim the 1st while actually firing on the 2nd
+        if dom != "*" or mon != "*" or not (dow == "*" or dow.isdigit()):
+            return fields
+
+    out = [str(dst_dt.minute), str(dst_dt.hour), dom, mon, dow]
     if day_delta and dow.isdigit():
         out[4] = str((int(dow) + day_delta) % 7)
     return out

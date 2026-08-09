@@ -241,6 +241,10 @@ def pretty_format_inner(
     # padding width
     pw = 2
 
+    # the width a flexible (shrink/truncate) column is squeezed to before it is
+    # considered unrenderable - shared by the drop test and the shave phases
+    min_flex_width = 5
+
     # unicode aware string length https://stackoverflow.com/questions/33351599/
     def ucl(word: str) -> int:
         if not word:
@@ -288,10 +292,22 @@ def pretty_format_inner(
         # ones (matches the render loops below)
         return sum(pw for o in cols[:-1] if not o.get("no_padding"))
 
+    def min_width(o: Dict[str, Any]) -> int:
+        # what a column can be squeezed to before it has to go: flexible
+        # columns shave down to the same floor the shave phases use below,
+        # "keep" columns only ever hold their natural width
+        w = wm[o["key"]]
+        if o["overflow"] in ("shrink", "truncate"):
+            return min(w, min_flex_width)
+        return w
+
     # When the table does not fit, whole low-value columns are dropped before
     # anything gets mangled. A column opts in with "drop": N — lower N is
     # dropped first (summary=1, name=2, views=3, activity=4 in the listings).
-    while sum(wm[o["key"]] for o in order) + padding_for(order) > col:
+    # The test is against minimum widths, not natural ones, so a wide but
+    # truncatable column (a long summary) is squeezed rather than dropped
+    # whenever the terminal has room for it at all.
+    while sum(min_width(o) for o in order) + padding_for(order) > col:
         droppable = [o for o in order if "drop" in o]
         if not droppable:
             break
@@ -331,7 +347,7 @@ def pretty_format_inner(
             # Truncate columns share the rest
             if truncate_cols:
                 for o in truncate_cols:
-                    wm[o["key"]] = max(5, int(rem_after_shrink / len(truncate_cols)))
+                    wm[o["key"]] = max(min_flex_width, int(rem_after_shrink / len(truncate_cols)))
         else:
             # Shrink columns need to be reduced
             # Allocate space proportionally between shrink and truncate
@@ -341,7 +357,7 @@ def pretty_format_inner(
                 for o in all_flexible:
                     # Proportional allocation based on natural width
                     proportion = wm[o["key"]] / total_natural if total_natural > 0 else 1 / len(all_flexible)
-                    wm[o["key"]] = max(5, int(rem_after_keep * proportion))
+                    wm[o["key"]] = max(min_flex_width, int(rem_after_keep * proportion))
 
     # HARD guarantee: the table never exceeds the terminal width. The
     # allocation above is best-effort — its floors, and "keep" columns on a
@@ -350,8 +366,8 @@ def pretty_format_inner(
     # progressively lower floors, until everything fits. Columns marked
     # "protect" (e.g. the schedule grid) are only touched as a last resort.
     shave_phases = [
-        ("truncate", 5),
-        ("shrink", 5),
+        ("truncate", min_flex_width),
+        ("shrink", min_flex_width),
         ("truncate", 3),
         ("shrink", 3),
         ("keep", 3),

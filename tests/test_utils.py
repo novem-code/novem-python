@@ -315,3 +315,31 @@ def test_parse_api_datetime_returns_timezone_aware() -> None:
     # Should be able to compare with other tz-aware datetimes without error
     now = datetime.now(timezone.utc)
     _ = now - result  # This would raise if result is naive
+
+
+def test_pretty_format_truncates_before_dropping() -> None:
+    """A wide but truncatable column is squeezed to fit rather than dropped
+    whole — dropping is for terminals too narrow for even a minimal column."""
+    colors()
+
+    obj = [{"id": "abc123", "name": "my-plot", "summary": "x" * 300}]
+
+    def mk_order():
+        return [
+            {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+            {"key": "name", "header": "Name", "type": "text", "overflow": "shrink", "drop": 2},
+            {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate", "drop": 1},
+        ]
+
+    # the summary's natural width dwarfs the terminal, but there is ample room
+    # for a truncated one: it must survive, and the row must use the width
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=198))
+    lines = res.split("\n")
+    row = lines[2]
+    assert "Summary" in lines[0]
+    assert row.rstrip().endswith("...")
+    assert len(row.rstrip()) > 150
+
+    # genuinely too narrow for a minimal summary: now it goes
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=20))
+    assert "Summary" not in res.split("\n")[0]

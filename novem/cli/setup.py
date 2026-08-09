@@ -71,6 +71,45 @@ _PROMOTION_BLOCKERS = {
     "--post",
     "--put",
     "--delete",
+    "--inbox",
+    "--invite",
+    "--accept",
+    "--reject",
+}
+
+# Flags that deliberately do NOT affect promotion: global modifiers (--profile,
+# --token, ...), the explicit long forms of the overloaded shorts, and options
+# that only qualify a resource already chosen by a selector.
+#
+# This set exists so every long option the parser knows about is classified
+# somewhere; test_cli_selectors.py::test_every_long_flag_is_classified fails
+# when a new flag is added without deciding whether it claims the invocation.
+_PROMOTION_NEUTRAL = {
+    "--api-url",
+    "--bcc",
+    "--cc",
+    "--color",
+    "--comments",
+    "--config-path",
+    "--debug",
+    "--dry-run",
+    "--dump",
+    "--force",
+    "--fs",
+    "--help",
+    "--ignore-ssl",
+    "--input",
+    "--json",
+    "--load",
+    "--output",
+    "--profile",
+    "--qpr",
+    "--subject",
+    "--to",
+    "--token",
+    "--token-name",
+    "--tree",
+    "--type",
 }
 
 # Short flags that take a value, for recognising the attached form (-pmyplot).
@@ -929,9 +968,10 @@ No parameter will list all organisations groups of which you are a member""",
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.DELETE, tags)
     else:
-        # a bare `-t TAG` has no operation to perform; previously this stored
-        # a non-tuple None that crashed every consumer
-        parser.error(f"-t {tag} requires -C (add the tag) or -D (remove the tag)")
+        # `-t TAG` with neither -C nor -D has no operation to attach the tag
+        # to, so it falls back to the same listing a bare `-t` gives. (It
+        # previously stored a non-tuple None that crashed every consumer.)
+        args["tag"] = (Tag.LIST, None)
 
     # everything downstream treats create/delete as booleans
     args["create"] = args["create"] > 0

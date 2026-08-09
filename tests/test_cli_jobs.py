@@ -65,6 +65,30 @@ def test_localize_unknown_zone_unchanged():
     assert _localize_cron_fields(fields, "Not/AZone", "UTC") == fields
 
 
+def test_localize_day_rollover_leaves_day_of_month_alone():
+    # 23:30 on the 1st at UTC is 01:30 on the 2nd at UTC+2. The day-of-month
+    # cannot be rotated, so the schedule stays in its own zone rather than
+    # claiming the 1st while firing on the 2nd.
+    fields = ["30", "23", "1", "*", "*"]
+    assert _localize_cron_fields(fields, "UTC", "Etc/GMT-2") == fields
+
+    # a month field is just as unrotatable
+    fields = ["30", "23", "*", "6", "*"]
+    assert _localize_cron_fields(fields, "UTC", "Etc/GMT-2") == fields
+
+
+def test_localize_day_rollover_leaves_compound_dow_alone():
+    # "1-5" cannot be rotated the way a single numeric day can
+    fields = ["30", "23", "*", "*", "1-5"]
+    assert _localize_cron_fields(fields, "UTC", "Etc/GMT-2") == fields
+
+
+def test_localize_day_of_month_shifts_within_the_same_day():
+    # no midnight crossing, so the day fields are unaffected and the
+    # hour is still worth localising
+    assert _localize_cron_fields(["30", "10", "1", "*", "*"], "UTC", "Etc/GMT-2") == ["30", "12", "1", "*", "*"]
+
+
 # --- through the job listing -------------------------------------------------
 
 

@@ -224,3 +224,43 @@ def test_setup_counted_delete():
     _, args = setup(["-s", "my-space", "-s", "public", "-D", "-D"])
     assert args["share"] == (Share.DELETE, "public")
     assert args["delete"] is True
+
+
+def test_bare_tag_value_lists_tags():
+    from novem.cli.setup import Tag
+
+    # -t TAG with neither -C nor -D has no operation to perform, so it falls
+    # back to the listing a bare -t gives rather than erroring out
+    _, args = setup(["-p", "my-plot", "-t", "fav"])
+    assert args["tag"] == (Tag.LIST, None)
+
+    _, args = setup(["-p", "my-plot", "-t"])
+    assert args["tag"] == (Tag.LIST, None)
+
+
+def test_every_long_flag_is_classified():
+    """Promotion is driven by deny-lists, which rot silently as flags are
+    added. Every long option the parser knows about must be classified, so a
+    new flag forces the author to decide whether it claims the invocation."""
+    from novem.cli.setup import _PRIMARY_SELECTOR_FLAGS, _PROMOTION_BLOCKERS, _PROMOTION_NEUTRAL
+
+    parser, _ = setup([])
+    longs = {o for a in parser._actions for o in a.option_strings if o.startswith("--")}
+
+    # --gql is special-cased in promote_code_selectors: bare toggles debug
+    # output, valued runs a standalone query
+    classified = _PRIMARY_SELECTOR_FLAGS | _PROMOTION_BLOCKERS | _PROMOTION_NEUTRAL | {"--gql"}
+
+    unclassified = sorted(longs - classified)
+    assert not unclassified, (
+        f"unclassified long flags: {unclassified}. Add each to _PROMOTION_BLOCKERS (it claims the "
+        f"invocation for something other than a coding resource) or _PROMOTION_NEUTRAL (it does not)."
+    )
+
+    stale = sorted(f for f in classified - longs if f.startswith("--"))
+    assert not stale, f"classified flags the parser no longer has: {stale}"
+
+
+def test_inbox_blocks_promotion():
+    # --inbox is a standalone listing; -c keeps its config-path meaning
+    assert promoted(["--inbox", "-c", "~/my.conf"]) == ["--inbox", "-c", "~/my.conf"]
