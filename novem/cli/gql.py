@@ -171,6 +171,31 @@ _JOB_FIELDS = (
     triggers"""
 )
 
+# Spaces and repos are plain VDEs; computers and images carry extra state.
+_SPACE_FIELDS = _VIS_FIELDS
+_REPO_FIELDS = _VIS_FIELDS
+
+_COMPUTER_FIELDS = (
+    _VIS_FIELDS
+    + """
+    computer_type
+    status
+    running
+    dirty
+    image_ref
+    cpu
+    memory
+    disk"""
+)
+
+_IMAGE_FIELDS = (
+    _VIS_FIELDS
+    + """
+    repo
+    status
+    labels"""
+)
+
 
 def _root_list_query(field: str, fields: str) -> str:
     """A root listing query that filters by ``author`` (another user's view)."""
@@ -191,6 +216,10 @@ LIST_GRIDS_QUERY = _root_list_query("grids", _VIS_FIELDS)
 LIST_MAILS_QUERY = _root_list_query("mails", _VIS_FIELDS)
 LIST_DOCS_QUERY = _root_list_query("docs", _VIS_FIELDS)
 LIST_JOBS_QUERY = _root_list_query("jobs", _JOB_FIELDS)
+LIST_SPACES_QUERY = _root_list_query("spaces", _SPACE_FIELDS)
+LIST_REPOS_QUERY = _root_list_query("repos", _REPO_FIELDS)
+LIST_COMPUTERS_QUERY = _root_list_query("computers", _COMPUTER_FIELDS)
+LIST_IMAGES_QUERY = _root_list_query("images", _IMAGE_FIELDS)
 
 
 LIST_USERS_QUERY = """
@@ -407,6 +436,108 @@ def list_jobs_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[i
     return _transform_jobs_response(jobs)
 
 
+def _transform_computers_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Transform GraphQL computers response for computer listing."""
+    result = []
+    for item in items:
+        transformed = {
+            "id": item.get("id", ""),
+            "name": item.get("name", "") or "",
+            # `type` in the shared VDE core is the config/type file; for
+            # computers the authoritative kind is computer_type
+            "type": item.get("computer_type", "") or "",
+            "summary": item.get("summary"),
+            "uri": item.get("url", ""),
+            "updated": item.get("updated", ""),
+            "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
+            "fav": _get_markers(item.get("tags", [])),
+            "_views": (item.get("social") or {}).get("views", 0),
+            "status": item.get("status", "") or "",
+            "running": item.get("running", False),
+            "dirty": item.get("dirty", False),
+            "image_ref": item.get("image_ref", "") or "",
+            "cpu": item.get("cpu"),
+            "memory": item.get("memory", "") or "",
+            "disk": item.get("disk", "") or "",
+            **_aggregate_activity(item),
+        }
+        result.append(transformed)
+    return result
+
+
+def _transform_images_response(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Transform GraphQL images response for image listing."""
+    result = []
+    for item in items:
+        transformed = {
+            "id": item.get("id", ""),
+            "name": item.get("name", "") or "",
+            "type": item.get("type", ""),
+            "summary": item.get("summary"),
+            "uri": item.get("url", ""),
+            "updated": item.get("updated", ""),
+            "shared": _transform_shared(item.get("public", False), item.get("shared", [])),
+            "fav": _get_markers(item.get("tags", [])),
+            "_views": (item.get("social") or {}).get("views", 0),
+            "repo": item.get("repo", "") or "",
+            "status": item.get("status", "") or "",
+            "labels": item.get("labels", []) or [],
+            **_aggregate_activity(item),
+        }
+        result.append(transformed)
+    return result
+
+
+def list_spaces_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """List spaces via GraphQL, returning REST-compatible format."""
+    variables: Dict[str, Any] = {}
+    if author:
+        variables["author"] = author
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_SPACES_QUERY, variables)
+    return _transform_vis_response(data.get("spaces", []))
+
+
+def list_repos_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """List repos via GraphQL, returning REST-compatible format."""
+    variables: Dict[str, Any] = {}
+    if author:
+        variables["author"] = author
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_REPOS_QUERY, variables)
+    return _transform_vis_response(data.get("repos", []))
+
+
+def list_computers_gql(
+    gql: NovemGQL, author: Optional[str] = None, limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """List computers via GraphQL, returning REST-compatible format."""
+    variables: Dict[str, Any] = {}
+    if author:
+        variables["author"] = author
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_COMPUTERS_QUERY, variables)
+    return _transform_computers_response(data.get("computers", []))
+
+
+def list_images_gql(gql: NovemGQL, author: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """List images via GraphQL, returning REST-compatible format."""
+    variables: Dict[str, Any] = {}
+    if author:
+        variables["author"] = author
+    if limit:
+        variables["limit"] = limit
+
+    data = gql._query(LIST_IMAGES_QUERY, variables)
+    return _transform_images_response(data.get("images", []))
+
+
 def _list_me_vis(gql: NovemGQL, field: str, fields: str) -> List[Dict[str, Any]]:
     """Fetch the current user's own VDEs of ``field`` via ``me``.
 
@@ -448,6 +579,26 @@ def list_my_docs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
 def list_my_jobs_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
     """List the current user's own jobs via ``me`` (token-scoped)."""
     return _transform_jobs_response(_list_me_vis(gql, "jobs", _JOB_FIELDS))
+
+
+def list_my_spaces_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own spaces via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "spaces", _SPACE_FIELDS))
+
+
+def list_my_repos_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own repos via ``me`` (token-scoped)."""
+    return _transform_vis_response(_list_me_vis(gql, "repos", _REPO_FIELDS))
+
+
+def list_my_computers_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own computers via ``me`` (token-scoped)."""
+    return _transform_computers_response(_list_me_vis(gql, "computers", _COMPUTER_FIELDS))
+
+
+def list_my_images_gql(gql: NovemGQL) -> List[Dict[str, Any]]:
+    """List the current user's own images via ``me`` (token-scoped)."""
+    return _transform_images_response(_list_me_vis(gql, "images", _IMAGE_FIELDS))
 
 
 def _transform_users_response(users: List[Dict[str, Any]], me_type: str) -> List[Dict[str, Any]]:
@@ -1219,13 +1370,7 @@ def list_org_group_members_gql(gql: NovemGQL, org_id: str, group_id: str, curren
     return _transform_org_group_members_response(data, group_id, current_user)
 
 
-LIST_ORG_GROUP_VIS_QUERY = """
-query ListOrgGroupVis($orgId: ID!) {
-  groups(id: $orgId, type: org) {
-    id
-    groups {
-      id
-      plots {
+_ORG_GROUP_ITEM_FIELDS = """
         id
         name
         type
@@ -1235,73 +1380,29 @@ query ListOrgGroupVis($orgId: ID!) {
         public
         shared { id name type }
         tags { id name type }
-        author { username }
-      }
-      grids {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      mails {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      docs {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      repos {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-      }
-      jobs {
-        id
-        name
-        type
-        summary
-        url
-        updated
-        public
-        shared { id name type }
-        tags { id name type }
-        author { username }
-        last_run_time
-      }
-    }
-  }
-}
-"""
+        author { username }"""
+
+
+def _org_group_vis_query(vis_type: str) -> str:
+    """Build the org-group listing query for a single collection field.
+
+    Requesting one field at a time keeps the query small and — more
+    importantly — valid against servers that do not yet expose the newer
+    Group fields (computers, images).
+    """
+    extra = "\n        last_run_time" if vis_type == "jobs" else ""
+    return (
+        "query ListOrgGroupVis($orgId: ID!) {\n"
+        "  groups(id: $orgId, type: org) {\n"
+        "    id\n"
+        "    groups {\n"
+        "      id\n"
+        f"      {vis_type} {{{_ORG_GROUP_ITEM_FIELDS}{extra}\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n"
+    )
 
 
 def _transform_org_group_vis_response(data: Dict[str, Any], group_id: str, vis_type: str) -> List[Dict[str, Any]]:
@@ -1356,7 +1457,7 @@ def _transform_org_group_vis_response(data: Dict[str, Any], group_id: str, vis_t
 def list_org_group_vis_gql(gql: NovemGQL, org_id: str, group_id: str, vis_type: str) -> List[Dict[str, Any]]:
     """List vis shared with an org group, returning REST-compatible format."""
     variables = {"orgId": org_id}
-    data = gql._query(LIST_ORG_GROUP_VIS_QUERY, variables)
+    data = gql._query(_org_group_vis_query(vis_type), variables)
     return _transform_org_group_vis_response(data, group_id, vis_type)
 
 

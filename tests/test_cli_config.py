@@ -307,7 +307,7 @@ def test_config_param(requests_mock, fs, cli):
 
     # write sample config to location 1
     # write different config to location 2
-    # verify that you can use -c swtich to read them
+    # verify that you can use the --config switch to read them
 
     f1n = "c1.conf"
     f1 = """
@@ -353,9 +353,9 @@ version = 0.5.0
         f.write(f2)
 
     # it should read the supplied config file, but also operate on it
-    cli("--init", "-c", f1n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    cli("--init", "--config", f1n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
-    cli("--init", "-c", f2n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    cli("--init", "--config", f2n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
 
     c1 = configparser.ConfigParser()
     c1.read(f1n)
@@ -424,13 +424,13 @@ token = token2
     with open("conf", "w") as f:
         f.write(conf)
 
-    cli("--conf", "conf", "-p")
+    cli("--config", "conf", "-p")
     assert captured_token == "token1"
 
-    cli("--conf", "conf", "--profile", "user1", "-p")
+    cli("--config", "conf", "--profile", "user1", "-p")
     assert captured_token == "token1"
 
-    cli("--conf", "conf", "--profile", "user2", "-p")
+    cli("--config", "conf", "--profile", "user2", "-p")
     assert captured_token == "token2"
 
 

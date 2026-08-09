@@ -37,8 +37,8 @@ def _has_other_primary_command(args: CliArgs) -> bool:
         return True
     if args.get("gql") is not False:
         return True
-    # plot/mail/grid/doc/job/invite/for_user default to "" (unset)
-    for key in ("plot", "mail", "grid", "doc", "job", "invite", "for_user"):
+    # resource selectors and for_user default to "" (unset)
+    for key in ("plot", "mail", "grid", "doc", "job", "space", "repo", "computer", "image", "invite", "for_user"):
         if args.get(key) != "":
             return True
     # org/group use SUPPRESS — present in args dict means -O / -G was given

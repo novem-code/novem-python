@@ -11,7 +11,13 @@ from .config import config_from_args
 
 def list_invites(args: CliArgs, novem: NovemAPI) -> None:
     """
-    List pending invites
+    List pending invites.
+
+    /admin/invites is the whole pending picture: inbound group and
+    organisation invitations, inbound connection requests, your own pending
+    personal invites and your active invite URLs. (/admin/social/invites is
+    the history of personal invites that have already been accepted, so it
+    has no place in a list of things awaiting an answer.)
     """
 
     # see if list flag is set
@@ -46,6 +52,8 @@ def list_invites(args: CliArgs, novem: NovemAPI) -> None:
         user = ""
         group = ""
         org = ""
+        email = ""
+        handle = ""
         if nm[0] == "+" and "~" in nm:
             gt = "organisation group"
             spl = nm[1:].split("~")
@@ -59,14 +67,28 @@ def list_invites(args: CliArgs, novem: NovemAPI) -> None:
         elif nm[0] == "+" and "~" not in nm:
             gt = "organisation"
             org = nm[1:]
+        elif nm[0] == "@" and "~" not in nm:
+            gt = "connection"
+            user = nm[1:]
+        elif nm.startswith("I-"):
+            # a personal invite you sent that is still pending; revoked with
+            # DELETE rather than answered
+            gt = "personal invite"
+            email = nm[2:]
         else:
-            gt = "unkown"
+            # an active invite URL handle of yours
+            gt = "invite url"
+            handle = nm
 
         res["group"] = group
         if org:
             res["org_user"] = f"+{org}"
-        else:
+        elif user:
             res["org_user"] = f"@{user}"
+        elif email:
+            res["org_user"] = email
+        else:
+            res["org_user"] = handle
 
         res["type"] = gt
         res["created"] = i["created_on"]
@@ -134,9 +156,13 @@ def invite(args: CliArgs) -> None:
         list_invites(args, novem)
         return
 
+    # one endpoint answers every pending invite, connection requests
+    # included: a bare "@user" is recognised as a connection there
+    path = f"/admin/invites/{invite_name}/accept"
+
     # check if
     if "accept" in args and args["accept"]:
-        novem.write(f"/admin/invites/{invite_name}/accept", "yes")
+        novem.write(path, "yes")
 
     elif "reject" in args and args["reject"]:
-        novem.write(f"/admin/invites/{invite_name}/accept", "no")
+        novem.write(path, "no")

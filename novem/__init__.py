@@ -1,4 +1,5 @@
 from .claim import Claim
+from .code import Computer, Image, Space
 from .comments import Comment, Context, Message, Topic
 from .config import NovemConfig, config
 from .events import EventMessage, Events
@@ -20,6 +21,9 @@ __all__ = [
     "Doc",
     "Org",
     "Repo",
+    "Space",
+    "Computer",
+    "Image",
     "Job",
     "Claim",
     "Profile",

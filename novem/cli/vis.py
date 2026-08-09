@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+import sys
 from datetime import timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -13,21 +14,29 @@ from .config import config_from_args
 from .filter import apply_filters
 from .gql import (
     NovemGQL,
+    list_computers_gql,
     list_docs_gql,
     list_grids_gql,
+    list_images_gql,
     list_jobs_gql,
     list_mails_gql,
+    list_my_computers_gql,
     list_my_docs_gql,
     list_my_grids_gql,
+    list_my_images_gql,
     list_my_jobs_gql,
     list_my_mails_gql,
     list_my_plots_gql,
+    list_my_repos_gql,
+    list_my_spaces_gql,
     list_org_group_members_gql,
     list_org_group_vis_gql,
     list_org_groups_gql,
     list_org_members_gql,
     list_orgs_gql,
     list_plots_gql,
+    list_repos_gql,
+    list_spaces_gql,
     list_users_gql,
 )
 
@@ -249,30 +258,28 @@ def list_vis(args: CliArgs, type: str) -> None:
             "type": "text",
             "fmt": share_fmt,
             "overflow": "keep",
-        },
-        {
-            "key": "_activity",
-            "header": "Activity",
-            "type": "text",
-            "overflow": "keep",
-        },
-        {
-            "key": "_views_fmt",
-            "header": "Views",
-            "type": "text",
-            "overflow": "keep",
+            "protect": True,
         },
         {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
-            "key": "uri",
-            "header": "Url",
-            "type": "url",
+            "key": "_activity",
+            "header": "Activity",
+            "type": "text",
             "overflow": "keep",
+            "drop": 4,
+        },
+        {
+            "key": "_views_fmt",
+            "header": "Views",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 3,
         },
         {
             "key": "updated",
@@ -281,11 +288,18 @@ def list_vis(args: CliArgs, type: str) -> None:
             "overflow": "keep",
         },
         {
+            "key": "uri",
+            "header": "Url",
+            "type": "url",
+            "overflow": "keep",
+        },
+        {
             "key": "summary",
             "header": "Summary",
             "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
 
@@ -575,6 +589,118 @@ def list_job_tags(job_name: str, args: CliArgs) -> None:
     return
 
 
+def list_code_shares(kind: str, name: str, args: CliArgs) -> None:
+    """List shares for a coding resource (space/repo/computer/image)."""
+
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    collection = f"{kind}s"
+    plist = []
+
+    for_user = args.get("for_user")
+    if for_user:
+        share_path = f"users/{for_user}/code/{collection}/{name}/shared"
+    else:
+        share_path = f"code/{collection}/{name}/shared"
+
+    try:
+        plist = json.loads(novem.read(share_path))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        share_pretty_print(plist, striped=striped)
+
+    return
+
+
+def list_code_tags(kind: str, name: str, args: CliArgs) -> None:
+    """List tags for a coding resource (space/repo/computer/image)."""
+
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    collection = f"{kind}s"
+    plist = []
+
+    for_user = args.get("for_user")
+    if for_user:
+        tag_path = f"users/{for_user}/code/{collection}/{name}/tags"
+    else:
+        tag_path = f"code/{collection}/{name}/tags"
+
+    try:
+        plist = json.loads(novem.read(tag_path))
+    except Novem404:
+        plist = []
+
+    if args["list"]:
+        # print to terminal
+        for p in plist:
+            print(p["name"])
+    else:
+        striped: bool = config.get("cli_striped", False)
+        tag_pretty_print(plist, striped=striped)
+
+    return
+
+
+# the vis types live under vis/, everything else (jobs and the coding
+# resources) under code/
+_VIS_KINDS = {"plot", "grid", "mail"}
+
+
+def resource_collection_path(kind: str, name: str, args: CliArgs, collection: str) -> str:
+    """The API path of a resource's ``shared`` or ``tags`` collection.
+
+    ``kind`` is a vis type (plot/grid/mail), ``job``, or a coding resource
+    (space/repo/computer/image).
+    """
+    k = kind.lower()
+    root = "vis" if k in _VIS_KINDS else "code"
+
+    for_user = args.get("for_user")
+    if for_user:
+        return f"users/{for_user}/{root}/{k}s/{name}/{collection}"
+
+    return f"{root}/{k}s/{name}/{collection}"
+
+
+def check_membership(kind: str, name: str, args: CliArgs, collection: str, targets: List[str]) -> None:
+    """Answer whether a resource carries every one of ``targets``.
+
+    ``-s public`` / ``-t fav`` without -C or -D is a question, not an
+    operation, so the answer is the exit status: 0 when all the targets are
+    present, 1 (with the misses on stderr) when any is not. Nothing is
+    written to stdout, so it composes in a shell conditional.
+    """
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    path = resource_collection_path(kind, name, args, collection)
+
+    try:
+        current = {p["name"] for p in json.loads(novem.read(path))}
+    except Novem404:
+        current = set()
+
+    missing = [t for t in targets if t not in current]
+    if missing:
+        noun = "share" if collection == "shared" else "tag"
+        plural = "" if len(missing) == 1 else "s"
+        print(f"{kind} {name} does not have the {noun}{plural} {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
+
+    sys.exit(0)
+
+
 def list_users(args: CliArgs) -> None:
     """List connected users with custom formatting."""
     colors()
@@ -833,16 +959,6 @@ def list_jobs(args: CliArgs) -> None:
         commit = f"{cl.WARNING}C{cl.ENDFGC}" if "commit" in tset else "-"
         return f"{mail} {sched} {api} {commit}"
 
-    def schedule_fmt(schedule: Optional[str], cl: cl) -> str:
-        """Format schedule column as cron or dashes, right-aligned fields."""
-        if not schedule:
-            return " -  -  -  -  -"
-        # Pad to consistent width (5 cron fields), each field 2 chars right-aligned
-        parts = schedule.split()
-        if len(parts) == 5:
-            return f"{parts[0]:>2} {parts[1]:>2} {parts[2]:>2} {parts[3]:>2} {parts[4]:>2}"
-        return schedule
-
     def steps_fmt(item: Dict[str, Any], cl: cl) -> str:
         """Format steps column as current:total."""
         current = item.get("current_step")
@@ -910,41 +1026,25 @@ def list_jobs(args: CliArgs) -> None:
             "overflow": "keep",
         },
         {
+            "key": "shared",
+            "header": "Shared",
+            "type": "text",
+            "fmt": share_fmt,
+            "overflow": "keep",
+            "protect": True,
+        },
+        {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
             "key": "last_run_status",
             "header": "Status",
             "type": "text",
             "fmt": status_fmt,
-            "overflow": "keep",
-        },
-        {
-            "key": "_last_run",
-            "header": "Last Run",
-            "type": "text",
-            "overflow": "keep",
-        },
-        {
-            "key": "shared",
-            "header": "Shared",
-            "type": "text",
-            "fmt": share_fmt,
-            "overflow": "keep",
-        },
-        {
-            "key": "_activity",
-            "header": "Activity",
-            "type": "text",
-            "overflow": "keep",
-        },
-        {
-            "key": "_views_fmt",
-            "header": "Views",
-            "type": "text",
             "overflow": "keep",
         },
         {
@@ -955,11 +1055,11 @@ def list_jobs(args: CliArgs) -> None:
             "overflow": "keep",
         },
         {
-            "key": "schedule",
+            "key": "_schedule",
             "header": "Schedule",
             "type": "text",
-            "fmt": schedule_fmt,
             "overflow": "keep",
+            "protect": True,
         },
         {
             "key": "_steps",
@@ -976,10 +1076,31 @@ def list_jobs(args: CliArgs) -> None:
             "align": "right",
         },
         {
+            "key": "_activity",
+            "header": "Activity",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 4,
+        },
+        {
+            "key": "_views_fmt",
+            "header": "Views",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 3,
+        },
+        {
+            "key": "_last_run",
+            "header": "Last Run",
+            "type": "text",
+            "overflow": "keep",
+        },
+        {
             "key": "summary",
             "header": "Summary",
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
 
@@ -1000,6 +1121,45 @@ def list_jobs(args: CliArgs) -> None:
         # Last run - format last_run_time as relative time
         p["_last_run"] = _format_time_ago(p.get("last_run_time", ""))
 
+    # Schedule column: align the five cron fields into per-position columns
+    # across every row (right-aligned), so */15 and single-char fields line
+    # up. A TZ=<zone> prefix is never displayed — the fields are recomputed
+    # into the viewer's configured time zone instead (the raw schedule config
+    # stays authoritative). Anything unparseable is left as-is.
+    parsed_scheds: List[Tuple[Dict[str, Any], Optional[List[str]], str, str]] = []
+    for p in plist:
+        raw = (p.get("schedule") or "").strip()
+        tz = ""
+        fields = raw.split()
+        if fields and fields[0].upper().startswith("TZ="):
+            tz = fields[0][3:]
+            fields = fields[1:]
+        if not raw:
+            parsed_scheds.append((p, ["-"] * 5, tz, raw))
+        elif len(fields) == 5:
+            parsed_scheds.append((p, fields, tz, raw))
+        else:
+            parsed_scheds.append((p, None, tz, raw))
+
+    if any(tz for _, fields, tz, _ in parsed_scheds if fields):
+        viewer_tz = _viewer_timezone(gql)
+        parsed_scheds = [
+            (p, _localize_cron_fields(fields, tz, viewer_tz) if (fields and tz) else fields, tz, raw)
+            for p, fields, tz, raw in parsed_scheds
+        ]
+
+    field_widths = [1] * 5
+    for _, fields, _, _ in parsed_scheds:
+        if fields:
+            for fi in range(5):
+                field_widths[fi] = max(field_widths[fi], len(fields[fi]))
+
+    for p, fields, tz, raw in parsed_scheds:
+        if fields is None:
+            p["_schedule"] = raw
+        else:
+            p["_schedule"] = " ".join(f"{fields[fi]:>{field_widths[fi]}}" for fi in range(5))
+
     _format_activity(plist)
     _format_views(plist)
 
@@ -1011,6 +1171,314 @@ def list_jobs(args: CliArgs) -> None:
     for p in plist:
         p["_steps"] = p["_steps"].rjust(max_steps)
         p["run_count"] = p["run_count"].rjust(max_runs)
+
+    striped: bool = config.get("cli_striped", False)
+    ppl = pretty_format(plist, ppo, striped=striped)
+
+    print(ppl)
+
+
+def _localize_cron_fields(fields: List[str], from_tz: str, to_tz: Optional[str]) -> List[str]:
+    """Convert a cron schedule's minute/hour from ``from_tz`` into the
+    viewer's zone (``to_tz``, falling back to the OS-local zone).
+
+    Only pure-numeric minute and hour fields can be shifted safely; anything
+    else (ranges, steps, lists) is returned unchanged.
+
+    A shift that crosses midnight also moves the day. A single numeric
+    day-of-week can be rotated to compensate, so that is done; a day-of-month
+    cannot (month lengths vary) and neither can a compound day-of-week, so
+    those schedules are left in their own zone rather than rendered wrong.
+    The raw schedule config remains authoritative either way.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+
+        src = ZoneInfo(from_tz)
+        dst: Any = ZoneInfo(to_tz) if to_tz else datetime.datetime.now().astimezone().tzinfo
+    except Exception:
+        return fields
+
+    minute, hour, dom, mon, dow = fields
+    if not (minute.isdigit() and hour.isdigit()):
+        return fields
+
+    now = datetime.datetime.now(tz=src)
+    src_dt = now.replace(hour=int(hour) % 24, minute=int(minute) % 60, second=0, microsecond=0)
+    dst_dt = src_dt.astimezone(dst)
+
+    day_delta = (dst_dt.date() - src_dt.date()).days
+    if day_delta:
+        # the day moves too, and only a plain numeric day-of-week can follow
+        # it: "30 23 1 * *" UTC would otherwise render as "30 1 1 * *" in
+        # UTC+2 and claim the 1st while actually firing on the 2nd
+        if dom != "*" or mon != "*" or not (dow == "*" or dow.isdigit()):
+            return fields
+
+    out = [str(dst_dt.minute), str(dst_dt.hour), dom, mon, dow]
+    if day_delta and dow.isdigit():
+        out[4] = str((int(dow) + day_delta) % 7)
+    return out
+
+
+def _viewer_timezone(gql: NovemGQL) -> Optional[str]:
+    """The viewer's configured novem time zone via ``me { timezone }``.
+
+    Returns None when the backend does not expose the field yet or the
+    query fails — callers fall back to the OS-local zone.
+    """
+    try:
+        me = gql._query("query { me { timezone } }").get("me") or {}
+        tz = me.get("timezone")
+        return str(tz) if tz else None
+    except SystemExit:
+        raise
+    except Exception:
+        return None
+
+
+# per-kind (fetch-by-author, fetch-mine) listing functions
+_CODE_LIST_FNS = {
+    "space": (list_spaces_gql, list_my_spaces_gql),
+    "repo": (list_repos_gql, list_my_repos_gql),
+    "computer": (list_computers_gql, list_my_computers_gql),
+    "image": (list_images_gql, list_my_images_gql),
+}
+
+
+def list_code_vis(args: CliArgs, kind: str) -> None:
+    """List a coding resource collection (space/repo/computer/image)."""
+    colors()
+
+    config_status, config = get_current_config(**config_from_args(args))
+
+    for_user = args["for_user"] if ("for_user" in args and args["for_user"]) else ""
+
+    by_author, mine = _CODE_LIST_FNS[kind]
+
+    # Use GraphQL for listing
+    gql = NovemGQL.from_args(args)
+    plist = by_author(gql, author=for_user) if for_user else mine(gql)
+
+    # Apply filters
+    plist = apply_filters(plist, args.get("filter"))
+
+    # Sort by: favs first, likes second, rest last - each by updated (newest first)
+    def parse_date(date_str: str) -> datetime.datetime:
+        dt = parse_api_datetime(date_str)
+        return dt if dt else datetime.datetime.min.replace(tzinfo=timezone.utc)
+
+    def sort_tier(markers: str) -> int:
+        if "*" in markers:
+            return 0
+        if "+" in markers:
+            return 1
+        return 2
+
+    plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x["updated"]).timestamp()))
+
+    if args["list"]:
+        # print ids only
+        for p in plist:
+            print(p["id"])
+        return
+
+    def share_fmt(share: List[str], cl: cl) -> str:
+        """Format shared column: P C @ + for public, chat, user group, org group."""
+        sl = [x[0] for x in share]
+        pub = f"{cl.FAIL}P{cl.ENDFGC}" if "p" in sl else "-"  # public
+        chat = f"{cl.WARNING}C{cl.ENDFGC}" if "c" in sl else "-"  # chat claim
+        ug = f"{cl.OKGREEN}@{cl.ENDFGC}" if "@" in sl else "-"  # user group
+        og = f"{cl.OKGREEN}+{cl.ENDFGC}" if "+" in sl else "-"  # org group
+        return f"{pub} {chat} {ug} {og}"
+
+    def status_fmt(status: Optional[str], cl: cl) -> str:
+        """Format computer/image status with color."""
+        if not status:
+            return ""
+        s = status.lower()
+        if s in ("online", "ready"):
+            return f"{cl.OKGREEN}{status}{cl.ENDFGC}"
+        if s in ("booting", "building"):
+            return f"{cl.OKBLUE}{status}{cl.ENDFGC}"
+        if s in ("failed", "failure"):
+            return f"{cl.FAIL}{status}{cl.ENDFGC}"
+        if s.startswith("ready"):  # ready (stale)
+            return f"{cl.WARNING}{status}{cl.ENDFGC}"
+        return status
+
+    has_favs = any("*" in p.get("fav", "") for p in plist)
+    has_likes = any("+" in p.get("fav", "") for p in plist)
+
+    def fav_fmt(markers: str, cl: cl) -> str:
+        parts = ""
+        if has_favs:
+            parts += f"{cl.WARNING}*{cl.ENDFGC}" if "*" in markers else " "
+        if has_likes:
+            parts += f"{cl.OKBLUE}+{cl.ENDFGC}" if "+" in markers else " "
+        return f" {parts} " if parts else ""
+
+    fav_header_width = (1 if has_favs else 0) + (1 if has_likes else 0)
+    fav_header = (" " * (fav_header_width + 2)) if fav_header_width > 0 else ""
+
+    fav_col: List[Dict[str, Any]] = (
+        [
+            {
+                "key": "fav",
+                "header": fav_header,
+                "type": "text",
+                "fmt": fav_fmt,
+                "overflow": "keep",
+                "no_border": True,
+                "no_padding": True,
+            },
+        ]
+        if has_favs or has_likes
+        else []
+    )
+
+    id_col: Dict[str, Any] = {
+        "key": "id",
+        "header": f"{kind.capitalize()} ID",
+        "type": "text",
+        "overflow": "keep",
+    }
+    name_col: Dict[str, Any] = {
+        "key": "name",
+        "header": "Name",
+        "type": "text",
+        "overflow": "shrink",
+        "drop": 2,
+    }
+    shared_col: Dict[str, Any] = {
+        "key": "shared",
+        "header": "Shared",
+        "type": "text",
+        "fmt": share_fmt,
+        "overflow": "keep",
+        "protect": True,
+    }
+    activity_col: Dict[str, Any] = {
+        "key": "_activity",
+        "header": "Activity",
+        "type": "text",
+        "overflow": "keep",
+        "drop": 4,
+    }
+    views_col: Dict[str, Any] = {
+        "key": "_views_fmt",
+        "header": "Views",
+        "type": "text",
+        "overflow": "keep",
+        "drop": 3,
+    }
+    updated_col: Dict[str, Any] = {
+        "key": "_updated",
+        "header": "Updated",
+        "type": "text",
+        "overflow": "keep",
+    }
+    summary_col: Dict[str, Any] = {
+        "key": "summary",
+        "header": "Summary",
+        "type": "text",
+        "overflow": "truncate",
+        "drop": 1,
+    }
+    status_col: Dict[str, Any] = {
+        "key": "status",
+        "header": "Status",
+        "type": "text",
+        "fmt": status_fmt,
+        "overflow": "keep",
+    }
+    type_col: Dict[str, Any] = {
+        "key": "type",
+        "header": "Type",
+        "type": "text",
+        "clr": cl.OKCYAN,
+        "overflow": "keep",
+    }
+
+    if kind == "repo":
+        url_col: Dict[str, Any] = {
+            "key": "uri",
+            "header": "Clone URL",
+            "type": "url",
+            "overflow": "shrink",
+        }
+        ppo = [*fav_col, id_col, type_col, shared_col, name_col, activity_col, views_col, updated_col, url_col]
+    elif kind == "space":
+        ppo = [*fav_col, id_col, shared_col, name_col, activity_col, views_col, updated_col, summary_col]
+    elif kind == "computer":
+        image_col: Dict[str, Any] = {
+            "key": "image_ref",
+            "header": "Image",
+            "type": "text",
+            "overflow": "shrink",
+        }
+        cpu_col: Dict[str, Any] = {
+            "key": "_cpu",
+            "header": "Cpu",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        }
+        mem_col: Dict[str, Any] = {
+            "key": "_memory",
+            "header": "Mem",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        }
+        disk_col: Dict[str, Any] = {
+            "key": "_disk",
+            "header": "Disk",
+            "type": "text",
+            "overflow": "keep",
+            "align": "right",
+        }
+        ppo = [
+            *fav_col,
+            id_col,
+            type_col,
+            shared_col,
+            name_col,
+            status_col,
+            image_col,
+            cpu_col,
+            mem_col,
+            disk_col,
+            updated_col,
+        ]
+    else:  # image
+        repo_col: Dict[str, Any] = {
+            "key": "repo",
+            "header": "Repo",
+            "type": "text",
+            "overflow": "keep",
+        }
+        labels_col: Dict[str, Any] = {
+            "key": "_labels",
+            "header": "Labels",
+            "type": "text",
+            "overflow": "shrink",
+        }
+        ppo = [*fav_col, id_col, shared_col, name_col, repo_col, status_col, labels_col, updated_col]
+
+    # Pre-process derived columns
+    for p in plist:
+        p["_updated"] = _format_relative_time(p.get("updated", ""))
+        if kind == "computer":
+            cpu = p.get("cpu")
+            p["_cpu"] = f"{cpu:g}" if isinstance(cpu, (int, float)) else (cpu or "-")
+            p["_memory"] = p.get("memory") or "-"
+            p["_disk"] = p.get("disk") or "-"
+        if kind == "image":
+            p["_labels"] = ", ".join(p.get("labels", []) or [])
+
+    _format_activity(plist)
+    _format_views(plist)
 
     striped: bool = config.get("cli_striped", False)
     ppl = pretty_format(plist, ppo, striped=striped)
@@ -1625,6 +2093,9 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
         "Doc": "docs",
         "Repo": "repos",
         "Job": "jobs",
+        "Space": "spaces",
+        "Computer": "computers",
+        "Image": "images",
     }
     gql_vis_type = vis_type_map.get(vis_type, vis_type.lower() + "s")
 
@@ -1726,23 +2197,25 @@ def list_org_group_vis(args: CliArgs, vis_type: str) -> None:
             "type": "text",
             "fmt": share_fmt,
             "overflow": "keep",
+            "protect": True,
         },
         {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
-        },
-        {
-            "key": "uri",
-            "header": "Url",
-            "type": "url",
-            "overflow": "keep",
+            "drop": 2,
         },
         {
             "key": "updated",
             "header": "Updated",
             "type": "date",
+            "overflow": "keep",
+        },
+        {
+            "key": "uri",
+            "header": "Url",
+            "type": "url",
             "overflow": "keep",
         },
         {

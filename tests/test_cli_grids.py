@@ -322,30 +322,28 @@ def test_grid_list(cli, requests_mock, fs):
             "fmt": share_fmt,
             "type": "text",
             "overflow": "keep",
-        },
-        {
-            "key": "_activity",
-            "header": "Activity",
-            "type": "text",
-            "overflow": "keep",
-        },
-        {
-            "key": "_views_fmt",
-            "header": "Views",
-            "type": "text",
-            "overflow": "keep",
+            "protect": True,
         },
         {
             "key": "name",
             "header": "Name",
             "type": "text",
             "overflow": "shrink",
+            "drop": 2,
         },
         {
-            "key": "uri",
-            "header": "Url",
-            "type": "url",
+            "key": "_activity",
+            "header": "Activity",
+            "type": "text",
             "overflow": "keep",
+            "drop": 4,
+        },
+        {
+            "key": "_views_fmt",
+            "header": "Views",
+            "type": "text",
+            "overflow": "keep",
+            "drop": 3,
         },
         {
             "key": "updated",
@@ -354,11 +352,18 @@ def test_grid_list(cli, requests_mock, fs):
             "overflow": "keep",
         },
         {
+            "key": "uri",
+            "header": "Url",
+            "type": "url",
+            "overflow": "keep",
+        },
+        {
             "key": "summary",
             "header": "Summary",
             "fmt": summary_fmt,
             "type": "text",
             "overflow": "truncate",
+            "drop": 1,
         },
     ]
     colors()

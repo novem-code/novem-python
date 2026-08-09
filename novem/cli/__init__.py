@@ -23,7 +23,7 @@ from ..api_ref import NovemAPI
 from ..config import config as _config_manager
 from ..utils import cl, colors, get_config_path, get_current_config
 from ..version import __version__
-from .common import doc, grid, job, mail, plot, user
+from .common import computer, doc, grid, image, job, mail, plot, repo, space, user
 from .config import check_if_profile_exists, config_from_args, update_config
 from .events import run_events
 from .gql import NovemGQL
@@ -403,6 +403,10 @@ def print_short(parser: Any) -> None:
     print("  novem -g              list your grids")
     print("  novem -m              list your mails")
     print("  novem -j              list your jobs")
+    print("  novem -s              list your spaces")
+    print("  novem -r              list your repos")
+    print("  novem -c              list your computers")
+    print("  novem -i              list your images")
     print("  novem -u              list your connections")
 
 
@@ -687,6 +691,10 @@ novem --init --profile {args["profile"]}\
             or args.get("grid") != ""
             or args.get("mail") != ""
             or args.get("job") != ""
+            or args.get("space") != ""
+            or args.get("repo") != ""
+            or args.get("computer") != ""
+            or args.get("image") != ""
             or args.get("invite") != ""
             or args.get("for_user") != ""
             or "org" in args  # uses SUPPRESS, so only present if specified
@@ -743,6 +751,16 @@ novem --init --profile {args["profile"]}\
         list_org_group_vis(args, "Grid")
     elif args and args.get("org") and args.get("group") and args.get("job") is None and "job" in args:
         list_org_group_vis(args, "Job")
+    elif args and args.get("org") and args.get("group") and args.get("doc") is None and "doc" in args:
+        list_org_group_vis(args, "Doc")
+    elif args and args.get("org") and args.get("group") and args.get("space") is None and "space" in args:
+        list_org_group_vis(args, "Space")
+    elif args and args.get("org") and args.get("group") and args.get("repo") is None and "repo" in args:
+        list_org_group_vis(args, "Repo")
+    elif args and args.get("org") and args.get("group") and args.get("computer") is None and "computer" in args:
+        list_org_group_vis(args, "Computer")
+    elif args and args.get("org") and args.get("group") and args.get("image") is None and "image" in args:
+        list_org_group_vis(args, "Image")
     # operate on org group user listing (if -O <org> -G <group> -u)
     elif args and args.get("org") and args.get("group") and "for_user" in args and args.get("for_user") is None:
         list_org_group_users(args)
@@ -766,8 +784,24 @@ novem --init --profile {args["profile"]}\
         doc(args)
     elif args and args["job"] != "":
         job(args)
+    elif args and args["space"] != "":
+        space(args)
+    elif args and args["repo"] != "":
+        repo(args)
+    elif args and args["computer"] != "":
+        computer(args)
+    elif args and args["image"] != "":
+        image(args)
     elif args and args["invite"] != "":
         invite(args)
+    # --invite without a group is a no-op on the server; fail loudly instead
+    elif args and args.get("invite_user") and "group" not in args:
+        print(
+            "Error: --invite requires a group: novem -O org -G group --invite USER (org group)\n"
+            "       or novem -G group --invite USER (user group)",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     # operate on org listing (if -O with no argument)
     elif args and args.get("org") is None and "org" in args:
         list_orgs(args)

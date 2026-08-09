@@ -2,13 +2,17 @@ import os
 import sys
 from typing import Any, Dict, Literal, Optional, cast
 
-from novem import Doc, Grid, Job, Mail, Plot
+from novem import Computer, Doc, Grid, Image, Job, Mail, Plot, Repo, Space
 from novem.api_ref import Novem404, NovemAPI
 from novem.cli.config import config_from_args
 from novem.cli.editor import edit
 from novem.cli.gql import NovemGQL, _build_var_lookup, _fetch_vde_topics_gql, render_topics
 from novem.cli.setup import Share, Tag
 from novem.cli.vis import (
+    check_membership,
+    list_code_shares,
+    list_code_tags,
+    list_code_vis,
     list_job_shares,
     list_job_tags,
     list_jobs,
@@ -17,6 +21,7 @@ from novem.cli.vis import (
     list_vis_shares,
     list_vis_tags,
 )
+from novem.code import NovemCodeAPI
 from novem.utils import API_ROOT, data_on_stdin
 from novem.vis import NovemVisAPI
 
@@ -270,6 +275,10 @@ class VisBase:
             list_vis_shares(name, args, self.title)
             return
 
+        if share_op is Share.CHECK:
+            # `-s TARGET` without -C/-D: the exit code is the answer
+            check_membership(self.title.lower(), name, args, "shared", [share_target])
+
         # check if we are changing any tags (supports multiple comma-separated tags)
         tag_op, tag_targets = args["tag"]
         if tag_op is Tag.CREATE:
@@ -286,6 +295,10 @@ class VisBase:
             # check if we should print our tags, we will not provide other outputs
             list_vis_tags(name, args, self.title)
             return
+
+        if tag_op is Tag.CHECK:
+            # `-t TAG` without -C/-D: the exit code is the answer
+            check_membership(self.title.lower(), name, args, "tags", tag_targets)
 
         # E-mail needs sending/testing
         if isinstance(vis, Mail):
@@ -486,6 +499,9 @@ def job(args: CliArgs) -> None:
         list_job_shares(name, args)
         return
 
+    if share_op is Share.CHECK:
+        check_membership("job", name, args, "shared", [share_target])
+
     # -t (tag): manage tags (supports multiple comma-separated tags)
     tag_op, tag_targets = args["tag"]
     if tag_op is Tag.CREATE:
@@ -500,11 +516,209 @@ def job(args: CliArgs) -> None:
         list_job_tags(name, args)
         return
 
+    if tag_op is Tag.CHECK:
+        check_membership("job", name, args, "tags", tag_targets)
+
     # -r (read output)
     out = args["out"]
     if out:
         outp = j.api_read(f"/{out}")
         print(outp, end="")
+
+
+_CODE_CLASSES: Dict[str, Any] = {
+    "space": Space,
+    "repo": Repo,
+    "computer": Computer,
+    "image": Image,
+}
+
+
+def code_resource(args: CliArgs, kind: str) -> None:
+    """Shared handler for the coding resources (space/repo/computer/image).
+
+    Mirrors the job handler: list, delete, create, dump/load/tree, edit,
+    writes, shares, tags and reads — against ``code/{kind}s/{name}``.
+    """
+    name = cast(Dict[str, Any], args)[kind]
+    collection = f"{kind}s"
+
+    # List the collection
+    if name is None:
+        list_code_vis(args, kind)
+        return
+
+    # Images are derived from their source repo: not creatable, not deletable
+    if kind == "image" and (args["delete"] or args["create"]):
+        print("Images are derived from their source repo and cannot be created or deleted directly")
+        sys.exit(1)
+
+    # Delete resource
+    if args["delete"]:
+        novem = NovemAPI(**config_from_args(args), is_cli=True)
+        usr_for_path = args.get("for_user") or None
+        api_path = f"users/{usr_for_path}/code/{collection}/{name}" if usr_for_path else f"code/{collection}/{name}"
+        try:
+            novem.delete(api_path)
+            return
+        except Novem404:
+            print(f"{kind.capitalize()} {name} did not exist")
+            sys.exit(1)
+
+    ignore_ssl = False
+    if "ignore_ssl" in args:
+        ignore_ssl = args["ignore_ssl"]
+
+    create = args["create"]
+
+    usr = None
+    if "for_user" in args and args["for_user"]:
+        usr = args["for_user"]
+
+    obj: NovemCodeAPI = _CODE_CLASSES[kind](
+        name,
+        user=usr,
+        ignore_ssl=ignore_ssl,
+        create=create,
+        config_path=args["config_path"],
+        qpr=args.get("qpr"),
+        debug=args.get("debug"),
+        config_profile=args["profile"],
+        is_cli=True,
+    )
+
+    # --dump: dump entire API tree to file
+    if "dump" in args and args["dump"]:
+        path = args["dump"]
+        print(f'Dumping api tree structure to "{path}"')
+        obj.api_dump(outpath=path)
+        return
+
+    # --load: load folder structure into API
+    if "load" in args and args["load"]:
+        path = args["load"]
+        print(f'Loading api tree structure from "{path}"')
+        obj.api_load(inpath=path, dry_run=args.get("dry_run", False))
+        return
+
+    # --tree: print API tree structure
+    if "tree" in args and args["tree"] != -1:
+        tree_arg = args["tree"]
+        rel = tree_arg if isinstance(tree_arg, str) and tree_arg else "/"
+        ts = obj.api_tree(colors=True, relpath=rel)
+        print(ts)
+        return
+
+    # -e (edit): edit a path in the editor
+    if "edit" in args and args["edit"]:
+        path = args["edit"]
+
+        # fetch target
+        ctnt = obj.api_read(f"/{path}")
+
+        # get new content
+        nctnt = edit(contents=ctnt, use_tty=True)
+
+        if ctnt != nctnt:
+            # update content
+            obj.api_write(f"/{path}", nctnt)
+
+    else:
+        # --type
+        ptype = args["type"]
+        if ptype:
+            obj.type = ptype
+
+        found_stdin = False
+        stdin_data = data_on_stdin()
+        stdin_has_data = bool(stdin_data)
+
+        # check if we have any explicit inputs [-w's]
+        if args["input"] and len(args["input"]):
+            for i in args["input"]:
+                path = f"/{i[0]}"
+
+                if len(i) == 1:
+                    if stdin_has_data and not found_stdin:
+                        assert stdin_data
+                        ctnt = stdin_data
+
+                        obj.api_write(path, ctnt)
+                        found_stdin = True
+                    elif found_stdin:
+                        print("stdin can only be sent to a single destination per invocation")
+                        sys.exit(1)
+                    else:
+                        print(f'No data found on stdin, "-w {path}" requires data to be supplied on stdin')
+                        sys.exit(1)
+
+                elif len(i) == 2 and i[1][0] == "@":
+                    fn = os.path.expanduser(i[1][1:])
+                    try:
+                        with open(fn, "r") as f:
+                            ctnt = f.read()
+                            obj.api_write(path, ctnt)
+                    except FileNotFoundError:
+                        print(f'The supplied input file "{fn}" does not exist. Please review your options')
+                        sys.exit(1)
+
+                else:
+                    ctnt = i[1]
+                    obj.api_write(path, ctnt)
+
+    # -s (share): manage shares
+    share_op, share_target = args["share"]
+    if share_op is Share.CREATE:
+        obj.shared += share_target  # type: ignore
+
+    if share_op is Share.DELETE:
+        obj.shared -= share_target  # type: ignore
+
+    if share_op is Share.LIST:
+        list_code_shares(kind, name, args)
+        return
+
+    if share_op is Share.CHECK:
+        check_membership(kind, name, args, "shared", [share_target])
+
+    # -t (tag): manage tags (supports multiple comma-separated tags)
+    tag_op, tag_targets = args["tag"]
+    if tag_op is Tag.CREATE:
+        for tag_target in tag_targets:
+            obj.tags += tag_target  # type: ignore
+
+    if tag_op is Tag.DELETE:
+        for tag_target in tag_targets:
+            obj.tags -= tag_target  # type: ignore
+
+    if tag_op is Tag.LIST:
+        list_code_tags(kind, name, args)
+        return
+
+    if tag_op is Tag.CHECK:
+        check_membership(kind, name, args, "tags", tag_targets)
+
+    # -r (read output)
+    out = args["out"]
+    if out:
+        outp = obj.api_read(f"/{out}")
+        print(outp, end="")
+
+
+def space(args: CliArgs) -> None:
+    code_resource(args, "space")
+
+
+def repo(args: CliArgs) -> None:
+    code_resource(args, "repo")
+
+
+def computer(args: CliArgs) -> None:
+    code_resource(args, "computer")
+
+
+def image(args: CliArgs) -> None:
+    code_resource(args, "image")
 
 
 def user(args: CliArgs) -> None:

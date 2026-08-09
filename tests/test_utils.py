@@ -77,15 +77,18 @@ def test_pretty_format_hard_truncate() -> None:
     # strip all ansi color codes, and trailing whitespace
     res = "\n".join(x.strip() for x in ansi_escape.sub("", res).split("\n"))
 
+    # the table must fit inside col=10: the keep column is shaved to make
+    # room and the over-long header is clipped with the rows
     assert (
         res
         == """\
-ID      Type of thing in list
-╌╌╌╌╌╌  ╌╌╌╌╌
-apple   fruit
-potato  di...
+ID     Typ
+╌╌╌╌╌  ╌╌╌
+apple  fru
+po...  dir
 """
     )
+    assert all(len(line) <= 10 for line in res.split("\n"))
 
 
 def test_pretty_format_fmt_receives_original_value() -> None:
@@ -158,6 +161,97 @@ def test_pretty_format_fmt_with_list_not_truncated_to_string() -> None:
         assert val == ["a", "b", "c", "d", "e"]
 
 
+def test_pretty_format_never_overflows() -> None:
+    """The rendered table must NEVER exceed the given width, whatever the
+    column mix — including keep-only tables on very narrow terminals."""
+    colors()
+
+    obj = [
+        {
+            "id": "a-rather-long-identifier-string",
+            "status": "running (dirty)",
+            "name": "An even longer human readable name for this thing",
+            "summary": "and a summary that just keeps going on and on and on and on",
+        }
+        for _ in range(3)
+    ]
+
+    keep_only = [
+        {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+        {"key": "status", "header": "Status", "type": "text", "overflow": "keep"},
+        {"key": "name", "header": "Name", "type": "text", "overflow": "keep"},
+        {"key": "summary", "header": "Summary of the whole thing", "type": "text", "overflow": "keep"},
+    ]
+    mixed = [
+        {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+        {"key": "status", "header": "Status", "type": "text", "overflow": "keep"},
+        {"key": "name", "header": "Name", "type": "text", "overflow": "shrink"},
+        {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate"},
+    ]
+
+    for order in (keep_only, mixed):
+        for col in (20, 30, 40, 60, 80, 120):
+            res = ansi_escape.sub("", pretty_format_inner(obj, order, col=col))
+            for line in res.split("\n"):
+                assert len(line.rstrip()) <= col, f"col={col}: {len(line.rstrip())} > {col}: {line!r}"
+
+
+def test_pretty_format_drop_priority() -> None:
+    """When the table does not fit, droppable columns disappear whole —
+    summary first, then name, then views, then activity — before anything
+    is shaved, and protected columns keep their full width throughout."""
+    colors()
+
+    obj = [
+        {
+            "id": "job-one",
+            "schedule": "*/15 0,30 1-5 * *",
+            "name": "A human readable name",
+            "views": "1.2k",
+            "activity": "3 12 4",
+            "summary": "a fairly long summary of what this thing does",
+        }
+    ]
+
+    def mk_order():
+        return [
+            {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+            {"key": "schedule", "header": "Schedule", "type": "text", "overflow": "keep", "protect": True},
+            {"key": "activity", "header": "Activity", "type": "text", "overflow": "keep", "drop": 4},
+            {"key": "views", "header": "Views", "type": "text", "overflow": "keep", "drop": 3},
+            {"key": "name", "header": "Name", "type": "text", "overflow": "shrink", "drop": 2},
+            {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate", "drop": 1},
+        ]
+
+    # everything fits: nothing dropped
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=200))
+    header = res.split("\n")[0]
+    for h in ("ID", "Schedule", "Activity", "Views", "Name", "Summary"):
+        assert h in header
+
+    # too narrow for the summary: it is dropped whole, the rest intact
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=70))
+    header = res.split("\n")[0]
+    assert "Summary" not in header
+    assert "Name" in header
+    assert "*/15 0,30 1-5 * *" in res
+
+    # narrower still: name goes, then views, then activity — schedule stays
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=45))
+    header = res.split("\n")[0]
+    assert "Name" not in header
+    assert "*/15 0,30 1-5 * *" in res
+
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=30))
+    header = res.split("\n")[0]
+    assert "Views" not in header
+    assert "Activity" not in header
+    # the protected schedule survives at full width even here
+    assert "*/15 0,30 1-5 * *" in res
+    for line in res.split("\n"):
+        assert len(line.rstrip()) <= 30
+
+
 def test_parse_api_datetime_utc_suffix() -> None:
     """Test parsing dates with UTC suffix (as returned by the API)."""
     result = parse_api_datetime("Mon, 05 Jan 2026 23:40:13 UTC")
@@ -221,3 +315,31 @@ def test_parse_api_datetime_returns_timezone_aware() -> None:
     # Should be able to compare with other tz-aware datetimes without error
     now = datetime.now(timezone.utc)
     _ = now - result  # This would raise if result is naive
+
+
+def test_pretty_format_truncates_before_dropping() -> None:
+    """A wide but truncatable column is squeezed to fit rather than dropped
+    whole — dropping is for terminals too narrow for even a minimal column."""
+    colors()
+
+    obj = [{"id": "abc123", "name": "my-plot", "summary": "x" * 300}]
+
+    def mk_order():
+        return [
+            {"key": "id", "header": "ID", "type": "text", "overflow": "keep"},
+            {"key": "name", "header": "Name", "type": "text", "overflow": "shrink", "drop": 2},
+            {"key": "summary", "header": "Summary", "type": "text", "overflow": "truncate", "drop": 1},
+        ]
+
+    # the summary's natural width dwarfs the terminal, but there is ample room
+    # for a truncated one: it must survive, and the row must use the width
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=198))
+    lines = res.split("\n")
+    row = lines[2]
+    assert "Summary" in lines[0]
+    assert row.rstrip().endswith("...")
+    assert len(row.rstrip()) > 150
+
+    # genuinely too narrow for a minimal summary: now it goes
+    res = ansi_escape.sub("", pretty_format_inner(obj, mk_order(), col=20))
+    assert "Summary" not in res.split("\n")[0]

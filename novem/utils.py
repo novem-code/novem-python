@@ -6,6 +6,7 @@ import os
 import platform
 import re
 import select
+import shutil
 import sys
 import unicodedata
 from dataclasses import dataclass
@@ -226,11 +227,9 @@ def pretty_format(values: List[Dict[str, str]], order: List[Dict[str, Any]], str
 
     colors()
 
-    # lets' get total terminal width (we use 120 as default)
-    try:
-        col, row = os.get_terminal_size()
-    except OSError:
-        col = 120
+    # lets' get total terminal width (we use 120 as default). shutil honours
+    # a COLUMNS override and falls back gracefully when there is no tty.
+    col = shutil.get_terminal_size(fallback=(120, 24)).columns
 
     col = col - 2
     return pretty_format_inner(values, order, col, striped=striped)
@@ -241,6 +240,10 @@ def pretty_format_inner(
 ) -> str:
     # padding width
     pw = 2
+
+    # the width a flexible (shrink/truncate) column is squeezed to before it is
+    # considered unrenderable - shared by the drop test and the shave phases
+    min_flex_width = 5
 
     # unicode aware string length https://stackoverflow.com/questions/33351599/
     def ucl(word: str) -> int:
@@ -276,8 +279,49 @@ def pretty_format_inner(
 
         wm[k] = max([cand, len(o["header"])])
 
+    # clip text to a width, with an ellipsis when there is room for one
+    def clip(text: str, width: int) -> str:
+        if len(text) <= width:
+            return text
+        if width <= 3:
+            return text[:width]
+        return text[: width - 3] + "..."
+
+    def padding_for(cols: List[Dict[str, Any]]) -> int:
+        # padding follows every column except the last and the no_padding
+        # ones (matches the render loops below)
+        return sum(pw for o in cols[:-1] if not o.get("no_padding"))
+
+    def min_width(o: Dict[str, Any]) -> int:
+        # what a column can be squeezed to before it has to go: flexible
+        # columns shave down to the same floor the shave phases use below,
+        # "keep" columns only ever hold their natural width
+        w = wm[o["key"]]
+        if o["overflow"] in ("shrink", "truncate"):
+            return min(w, min_flex_width)
+        return w
+
+    # When the table does not fit, whole low-value columns are dropped before
+    # anything gets mangled. A column opts in with "drop": N — lower N is
+    # dropped first (summary=1, name=2, views=3, activity=4 in the listings).
+    # The test is against minimum widths, not natural ones, so a wide but
+    # truncatable column (a long summary) is squeezed rather than dropped
+    # whenever the terminal has room for it at all.
+    while sum(min_width(o) for o in order) + padding_for(order) > col:
+        droppable = [o for o in order if "drop" in o]
+        if not droppable:
+            break
+        victim = min(droppable, key=lambda o: o["drop"])
+        order = [o for o in order if o is not victim]
+
+    if not order:
+        return ""
+
+    # forget widths of dropped columns
+    wm = {o["key"]: wm[o["key"]] for o in order}
+
     # let's calculate our actual widths
-    total_padding = (len(order) - 1) * pw
+    total_padding = padding_for(order)
     if sum(wm.values()) + total_padding > col:
         # we need to adjust our sizing
         # Priority: keep > shrink > truncate
@@ -303,7 +347,7 @@ def pretty_format_inner(
             # Truncate columns share the rest
             if truncate_cols:
                 for o in truncate_cols:
-                    wm[o["key"]] = max(5, int(rem_after_shrink / len(truncate_cols)))
+                    wm[o["key"]] = max(min_flex_width, int(rem_after_shrink / len(truncate_cols)))
         else:
             # Shrink columns need to be reduced
             # Allocate space proportionally between shrink and truncate
@@ -313,7 +357,36 @@ def pretty_format_inner(
                 for o in all_flexible:
                     # Proportional allocation based on natural width
                     proportion = wm[o["key"]] / total_natural if total_natural > 0 else 1 / len(all_flexible)
-                    wm[o["key"]] = max(5, int(rem_after_keep * proportion))
+                    wm[o["key"]] = max(min_flex_width, int(rem_after_keep * proportion))
+
+    # HARD guarantee: the table never exceeds the terminal width. The
+    # allocation above is best-effort — its floors, and "keep" columns on a
+    # narrow terminal, can still overflow. Shave the widest column of the
+    # least precious class first (truncate, then shrink, then keep), in
+    # progressively lower floors, until everything fits. Columns marked
+    # "protect" (e.g. the schedule grid) are only touched as a last resort.
+    shave_phases = [
+        ("truncate", min_flex_width),
+        ("shrink", min_flex_width),
+        ("truncate", 3),
+        ("shrink", 3),
+        ("keep", 3),
+        ("truncate", 1),
+        ("shrink", 1),
+        ("keep", 1),
+    ]
+    for protected_too in (False, True):
+        for phase, floor in shave_phases:
+            while sum(wm.values()) + total_padding > col:
+                cands = [
+                    o
+                    for o in order
+                    if o["overflow"] == phase and wm[o["key"]] > floor and (protected_too or not o.get("protect"))
+                ]
+                if not cands:
+                    break
+                widest = max(cands, key=lambda o: wm[o["key"]])
+                wm[widest["key"]] -= 1
 
     # construct output string
     los = f"{cl.BOLD}"
@@ -321,7 +394,9 @@ def pretty_format_inner(
         w = f':<{wm[o["key"]]}'
         fmt = "{0" + w + "}"
         col_pad = "" if o.get("no_padding") else " " * pw
-        los += fmt.format(o["header"]) + col_pad
+        # headers respect the column width too — an over-long header used to
+        # push the whole line past the terminal edge
+        los += fmt.format(clip(o["header"], wm[o["key"]])) + col_pad
 
     los += f"{cl.ENDC}\n"
     # sep
@@ -365,7 +440,7 @@ def pretty_format_inner(
                 fmt = "{0" + w + "}"
                 # Truncation on formatted value (loses ANSI codes if truncated)
                 if visual_len > vs:
-                    val = strip_ansi(val_str)[0 : vs - 3] + "..."
+                    val = clip(strip_ansi(val_str), vs)
                     # Reset width since we stripped ANSI
                     w = f":{align}{vs}"
                     fmt = "{0" + w + "}"
@@ -375,7 +450,7 @@ def pretty_format_inner(
                 if len(ov_visual) > vs:
                     # Truncate based on visual length, keeping ANSI codes intact where possible
                     # For simplicity, strip ANSI first, truncate, then we lose colors on truncated text
-                    val = ov_visual[0 : vs - 3] + "..."
+                    val = clip(ov_visual, vs)
                 else:
                     val = ov
 
