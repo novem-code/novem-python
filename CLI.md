@@ -117,17 +117,21 @@ misses on stderr), so it drops straight into a shell conditional.
 
 
 ## Coding resources: spaces, repos, computers, images
-The coding resources reuse four short flags that already have a job elsewhere:
+`-c` selects a computer and nothing else. The config file it used to name now
+requires `--config` (an alias for `--config-path`) — `-c` was the one flag
+whose two meanings could legitimately appear in the same command, and guessing
+wrong there picks the wrong credentials.
+
+The other three do double duty:
 
 | flag | selects   | everyday meaning                 |
 |------|-----------|----------------------------------|
 | `-s` | spaces    | share group (`-s public -C`)     |
 | `-r` | repos     | read path to stdout (`-r url`)   |
-| `-c` | computers | `--config-path` short form       |
 | `-i` | images    | `--input` upload dir (with `-R`) |
 
-The rule: when nothing else claims the invocation (no `-p`/`-g`/`-m`/`-d`/`-j`
-selector and no standalone command like `--init` or `--get`), the *first*
+The rule: when nothing else claims the invocation (no `-p`/`-g`/`-m`/`-d`/`-j`/
+`-c` selector and no standalone command like `--init` or `--get`), the *first*
 occurrence of one of these flags selects the resource — every later occurrence
 keeps its everyday meaning. Long forms `--space`, `--repo`, `--computer` and
 `--image` always work.
@@ -175,8 +179,8 @@ unchanged: `novem -p plot_name -s public -C` still shares a plot, and
 `novem -j job_name -R -i data/` still uploads a directory to a job run.
 
 With `-O org -G group`, a *bare* code selector lists what is shared with that
-group (a valued one keeps its everyday meaning, so `-c ./conf` still reads a
-config file there):
+group (a valued one keeps its everyday meaning, so `-i ./data` is still an
+input directory there):
 
 ```bash
   novem -O org_name -G group_name -s    # spaces shared with the group

@@ -32,10 +32,11 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
 
 # The overloaded short flags: each doubles as a coding-resource selector when
 # nothing else claims the invocation (see promote_code_selectors).
+# -c is deliberately absent: it belongs to --computer outright, and the config
+# file it used to name now requires --config / --config-path.
 _CODE_SELECTOR_MAP = {
     "-s": "--space",
     "-r": "--repo",
-    "-c": "--computer",
     "-i": "--image",
 }
 
@@ -44,7 +45,7 @@ _CODE_SELECTOR_MAP = {
 # -O/-G are handled separately: they restrict promotion to BARE flags (see
 # promote_code_selectors) instead of disabling it, so that
 # `novem -O org -G group -s` lists the group's spaces while
-# `novem -O org -G group -c ./conf ...` keeps reading a config file.
+# `novem -O org -G group -i ./data ...` keeps reading an input directory.
 _PRIMARY_SELECTOR_FLAGS = {
     "-p",
     "-g",
@@ -52,6 +53,7 @@ _PRIMARY_SELECTOR_FLAGS = {
     "-d",
     "-j",
     "-u",
+    "-c",
     "--invites",
     "--space",
     "--repo",
@@ -60,7 +62,7 @@ _PRIMARY_SELECTOR_FLAGS = {
 }
 
 # Early-exit commands that historically pair with the legacy meanings of the
-# overloaded shorts (-c config file, -i input dir, ...) and never combine with
+# overloaded shorts (-i input dir, -r read path, ...) and never combine with
 # a resource selector. Their presence disables promotion entirely.
 # --gql is special-cased: a VALUED --gql (@file / inline query) runs standalone
 # and blocks, while a bare --gql only toggles debug output and does not.
@@ -94,6 +96,7 @@ _PROMOTION_NEUTRAL = {
     "--cc",
     "--color",
     "--comments",
+    "--config",
     "--config-path",
     "--debug",
     "--dry-run",
@@ -121,17 +124,21 @@ _VALUED_SHORT_FLAGS = {"-p", "-g", "-m", "-d", "-j", "-u", "-O", "-G", "-s", "-t
 
 
 def promote_code_selectors(raw_args: Any) -> Any:
-    """Rewrite a leading ``-s``/``-r``/``-c``/``-i`` into its selector form.
+    """Rewrite a leading ``-s``/``-r``/``-i`` into its selector form.
 
-    The coding resources reuse short flags that already have a job:
+    Three coding resources reuse short flags that already have a job:
 
         -s  spaces     (legacy: share group)
         -r  repos      (legacy: read path to stdout)
-        -c  computers  (legacy: --config-path)
         -i  images     (legacy: --input upload dir)
 
-    When no other resource selector (``-p``/``-g``/``-m``/``-d``/``-j``/…) and
-    no early-exit command (``--init``/``--info``/…) is present, the FIRST
+    ``-c`` is not among them: it selects a computer and nothing else, and the
+    config file it used to name needs ``--config`` / ``--config-path``. That is
+    the one overload where both meanings could legitimately appear in the same
+    invocation, and guessing wrong there picks the wrong credentials.
+
+    When no other resource selector (``-p``/``-g``/``-m``/``-d``/``-j``/``-c``/…)
+    and no early-exit command (``--init``/``--info``/…) is present, the FIRST
     occurrence of one of these shorts is the resource selector and is
     rewritten to its long form (``-s`` → ``--space``, …). Every later
     occurrence keeps its legacy meaning, so
@@ -161,7 +168,7 @@ def promote_code_selectors(raw_args: Any) -> Any:
         return nxt is None or nxt.startswith("-")
 
     # in these contexts only BARE code-selector flags promote; valued ones
-    # keep their legacy meaning (-c ./conf stays the config file):
+    # keep their legacy meaning (-i ./data stays the input directory):
     #  - group management (-O/-G): a bare selector lists the group's resources
     #  - bare --gql (debug output): a bare selector is the listing to debug
     bare_only = False
@@ -335,12 +342,12 @@ def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
 
     parser.add_argument(
         "--config-path",
-        "-c",
+        "--config",
         dest="config_path",
         action="store",
         required=False,
         default=None,
-        help="specify configuration file to use",
+        help="specify configuration file to use (-c selects a computer)",
     )
 
     parser.add_argument(
@@ -821,12 +828,13 @@ resource is selected they keep their usual meaning:
 
     code.add_argument(
         "--computer",
+        "-c",
         dest="computer",
         action="store",
         required=False,
         default="",
         nargs="?",
-        help="select computer to operate on (also: -c as first selector), no parameter will list all your computers",
+        help="select computer to operate on, no parameter will list all your computers",
     )
 
     code.add_argument(
@@ -933,6 +941,13 @@ No parameter will list all organisations groups of which you are a member""",
     # )
 
     args = vars(parser.parse_args(raw_args))
+
+    # -c used to name a config file. A path-shaped computer name is almost
+    # certainly that muscle memory, and silently treating it as a computer
+    # would run against the default profile's credentials.
+    computer = args.get("computer")
+    if computer and ("/" in computer or computer.startswith("~")):
+        parser.error(f'-c "{computer}" looks like a path - the config file is now --config / --config-path')
 
     # -C and -D are counted: each occurrence covers one action. The share and
     # tag fixups below each consume one; whatever remains covers the resource

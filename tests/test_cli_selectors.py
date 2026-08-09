@@ -22,15 +22,20 @@ def test_first_s_becomes_space_selector():
     assert promoted(["-s", "my-space", "-s", "public", "-C"]) == ["--space", "my-space", "-s", "public", "-C"]
 
 
-def test_first_c_becomes_computer_selector():
-    assert promoted(["-c", "my-box", "-w", "status", "reboot"]) == ["--computer", "my-box", "-w", "status", "reboot"]
+def test_c_needs_no_promotion():
+    # -c belongs to --computer outright, so promotion leaves it alone and
+    # it also claims the invocation for the later shorts
+    argv = ["-c", "my-box", "-w", "status", "reboot"]
+    assert promoted(argv) == argv
+    argv = ["-c", "my-box", "-r", "log"]
+    assert promoted(argv) == argv
 
 
 def test_first_i_becomes_image_selector():
     assert promoted(["-i"]) == ["--image"]
 
 
-def test_only_first_of_the_four_is_promoted():
+def test_only_the_first_selector_is_promoted():
     # -s claims the invocation; the later -r keeps its read meaning
     assert promoted(["-s", "sp", "-r", "url"]) == ["--space", "sp", "-r", "url"]
 
@@ -65,27 +70,29 @@ def test_job_upload_dir_keeps_i():
     assert promoted(argv) == argv
 
 
-def test_config_path_with_resource_keeps_c():
-    argv = ["-c", "./test.conf", "-p", "my-plot"]
+def test_config_path_is_long_form_only():
+    argv = ["--config", "./test.conf", "-p", "my-plot"]
+    assert promoted(argv) == argv
+    argv = ["--config-path", "./test.conf", "-s", "public", "-C", "-p", "my-plot"]
     assert promoted(argv) == argv
 
 
 def test_early_exit_commands_block_promotion():
     for blocker in (["--init"], ["--info"], ["--refresh"], ["--version"], ["--add-ssh-key"]):
-        argv = blocker + ["-c", "./test.conf"]
+        argv = blocker + ["-i", "data/"]
         assert promoted(argv) == argv, blocker
 
 
 def test_raw_http_blocks_promotion():
-    argv = ["--get", "/vis/plots", "-c", "./test.conf"]
+    argv = ["--get", "/vis/plots", "-i", "data/"]
     assert promoted(argv) == argv
 
 
 def test_gql_bare_only_promotion():
     # bare --gql + bare selector: promote (debug the listing)
     assert promoted(["--gql", "-s"]) == ["--gql", "--space"]
-    # bare --gql + valued short: legacy meaning holds (stdin query + config)
-    argv = ["--gql", "-c", "./test.conf"]
+    # bare --gql + valued short: legacy meaning holds (stdin query + input dir)
+    argv = ["--gql", "-i", "data/"]
     assert promoted(argv) == argv
 
 
@@ -93,13 +100,12 @@ def test_org_group_bare_selector_promotes():
     # bare -s with -O/-G means "list the group's spaces"
     assert promoted(["-O", "myorg", "-G", "mygroup", "-s"]) == ["-O", "myorg", "-G", "mygroup", "--space"]
     assert promoted(["-O", "myorg", "-G", "mygroup", "-r"]) == ["-O", "myorg", "-G", "mygroup", "--repo"]
-    assert promoted(["-O", "myorg", "-G", "mygroup", "-c"]) == ["-O", "myorg", "-G", "mygroup", "--computer"]
     assert promoted(["-O", "myorg", "-G", "mygroup", "-i"]) == ["-O", "myorg", "-G", "mygroup", "--image"]
 
 
 def test_org_group_valued_selector_keeps_legacy():
-    # a valued -c in group context is still the config file
-    argv = ["-O", "myorg", "-G", "mygroup", "-c", "./test.conf", "-C"]
+    # a valued -i in group context is still the input directory
+    argv = ["-O", "myorg", "-G", "mygroup", "-i", "data/", "-C"]
     assert promoted(argv) == argv
 
 
@@ -174,7 +180,7 @@ def test_setup_bare_selectors_list():
 
 
 def test_setup_plot_keeps_legacy_flags():
-    _, args = setup(["-p", "my-plot", "-r", "url", "-c", "./test.conf"])
+    _, args = setup(["-p", "my-plot", "-r", "url", "--config", "./test.conf"])
     assert args["plot"] == "my-plot"
     assert args["out"] == "url"
     assert args["config_path"] == "./test.conf"
@@ -277,4 +283,42 @@ def test_every_long_flag_is_classified():
 
 def test_inbox_blocks_promotion():
     # --inbox is a standalone listing; -c keeps its config-path meaning
-    assert promoted(["--inbox", "-c", "~/my.conf"]) == ["--inbox", "-c", "~/my.conf"]
+    assert promoted(["--inbox", "-i", "data/"]) == ["--inbox", "-i", "data/"]
+
+
+def test_config_alias_and_c_is_computer_only():
+    """-c belongs to --computer outright; the config file needs the long form."""
+    # --config is an alias for --config-path
+    _, args = setup(["--config", "./test.conf", "-p", "my-plot"])
+    assert args["config_path"] == "./test.conf"
+    _, args = setup(["--config-path", "./test.conf", "-p", "my-plot"])
+    assert args["config_path"] == "./test.conf"
+
+    # -c selects a computer, and never touches config_path
+    _, args = setup(["-c", "my-box"])
+    assert args["computer"] == "my-box"
+    assert args["config_path"] is None
+
+    # the attached form comes for free now that argparse owns -c
+    _, args = setup(["-cmy-box"])
+    assert args["computer"] == "my-box"
+
+    # -c claims the invocation, so the later shorts keep their legacy meaning
+    _, args = setup(["-c", "my-box", "-r", "log"])
+    assert args["computer"] == "my-box"
+    assert args["out"] == "log"
+
+
+def test_path_shaped_computer_name_is_rejected():
+    """The old `-c ~/my.conf` muscle memory must not silently run against the
+    default profile's credentials."""
+    for bad in ("./test.conf", "~/my.conf", "/etc/novem/conf"):
+        try:
+            setup(["-c", bad])
+            assert False, f"should have errored on {bad}"
+        except SystemExit as e:
+            assert e.code == 2
+
+    # a plain computer name is untouched
+    _, args = setup(["-c", "my-box"])
+    assert args["computer"] == "my-box"
