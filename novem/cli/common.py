@@ -9,6 +9,7 @@ from novem.cli.editor import edit
 from novem.cli.gql import NovemGQL, _build_var_lookup, _fetch_vde_topics_gql, render_topics
 from novem.cli.setup import Share, Tag
 from novem.cli.vis import (
+    check_membership,
     list_code_shares,
     list_code_tags,
     list_code_vis,
@@ -274,6 +275,10 @@ class VisBase:
             list_vis_shares(name, args, self.title)
             return
 
+        if share_op is Share.CHECK:
+            # `-s TARGET` without -C/-D: the exit code is the answer
+            check_membership(self.title.lower(), name, args, "shared", [share_target])
+
         # check if we are changing any tags (supports multiple comma-separated tags)
         tag_op, tag_targets = args["tag"]
         if tag_op is Tag.CREATE:
@@ -290,6 +295,10 @@ class VisBase:
             # check if we should print our tags, we will not provide other outputs
             list_vis_tags(name, args, self.title)
             return
+
+        if tag_op is Tag.CHECK:
+            # `-t TAG` without -C/-D: the exit code is the answer
+            check_membership(self.title.lower(), name, args, "tags", tag_targets)
 
         # E-mail needs sending/testing
         if isinstance(vis, Mail):
@@ -490,6 +499,9 @@ def job(args: CliArgs) -> None:
         list_job_shares(name, args)
         return
 
+    if share_op is Share.CHECK:
+        check_membership("job", name, args, "shared", [share_target])
+
     # -t (tag): manage tags (supports multiple comma-separated tags)
     tag_op, tag_targets = args["tag"]
     if tag_op is Tag.CREATE:
@@ -503,6 +515,9 @@ def job(args: CliArgs) -> None:
     if tag_op is Tag.LIST:
         list_job_tags(name, args)
         return
+
+    if tag_op is Tag.CHECK:
+        check_membership("job", name, args, "tags", tag_targets)
 
     # -r (read output)
     out = args["out"]
@@ -663,6 +678,9 @@ def code_resource(args: CliArgs, kind: str) -> None:
         list_code_shares(kind, name, args)
         return
 
+    if share_op is Share.CHECK:
+        check_membership(kind, name, args, "shared", [share_target])
+
     # -t (tag): manage tags (supports multiple comma-separated tags)
     tag_op, tag_targets = args["tag"]
     if tag_op is Tag.CREATE:
@@ -676,6 +694,9 @@ def code_resource(args: CliArgs, kind: str) -> None:
     if tag_op is Tag.LIST:
         list_code_tags(kind, name, args)
         return
+
+    if tag_op is Tag.CHECK:
+        check_membership(kind, name, args, "tags", tag_targets)
 
     # -r (read output)
     out = args["out"]

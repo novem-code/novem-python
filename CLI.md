@@ -87,8 +87,7 @@ bare `-s`.
 
 ## Tagging
 Tags work like shares: `-C` to add, `-D` to remove, bare `-t` to list. Multiple
-tags can be comma-separated. A `-t TAG` with neither `-C` nor `-D` has nothing
-to apply, so it lists the tags too.
+tags can be comma-separated.
 ```bash
   # list current tags
   novem -p plot_name -t
@@ -97,6 +96,23 @@ to apply, so it lists the tags too.
   novem -p plot_name -t fav -C
   novem -p plot_name -t fav,+demo -C
   novem -p plot_name -t fav -D
+```
+
+
+## Checking a share or a tag
+A `-s`/`-t` that names a target but gives neither `-C` nor `-D` asks whether
+that target is already there. Nothing is printed and the exit code is the
+answer: `0` when every named share/tag is present, `1` otherwise (with the
+misses on stderr), so it drops straight into a shell conditional.
+```bash
+  # is this plot public?
+  novem -p plot_name -s public && echo "yes"
+
+  # every tag must be present for the check to pass
+  novem -p plot_name -t fav,+demo || echo "not fully tagged"
+
+  # works for the coding resources too
+  novem -s my-space -s +acme~crew
 ```
 
 

@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+import sys
 from datetime import timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -650,6 +651,54 @@ def list_code_tags(kind: str, name: str, args: CliArgs) -> None:
         tag_pretty_print(plist, striped=striped)
 
     return
+
+
+# the vis types live under vis/, everything else (jobs and the coding
+# resources) under code/
+_VIS_KINDS = {"plot", "grid", "mail"}
+
+
+def resource_collection_path(kind: str, name: str, args: CliArgs, collection: str) -> str:
+    """The API path of a resource's ``shared`` or ``tags`` collection.
+
+    ``kind`` is a vis type (plot/grid/mail), ``job``, or a coding resource
+    (space/repo/computer/image).
+    """
+    k = kind.lower()
+    root = "vis" if k in _VIS_KINDS else "code"
+
+    for_user = args.get("for_user")
+    if for_user:
+        return f"users/{for_user}/{root}/{k}s/{name}/{collection}"
+
+    return f"{root}/{k}s/{name}/{collection}"
+
+
+def check_membership(kind: str, name: str, args: CliArgs, collection: str, targets: List[str]) -> None:
+    """Answer whether a resource carries every one of ``targets``.
+
+    ``-s public`` / ``-t fav`` without -C or -D is a question, not an
+    operation, so the answer is the exit status: 0 when all the targets are
+    present, 1 (with the misses on stderr) when any is not. Nothing is
+    written to stdout, so it composes in a shell conditional.
+    """
+    novem = NovemAPI(**config_from_args(args), is_cli=True)
+
+    path = resource_collection_path(kind, name, args, collection)
+
+    try:
+        current = {p["name"] for p in json.loads(novem.read(path))}
+    except Novem404:
+        current = set()
+
+    missing = [t for t in targets if t not in current]
+    if missing:
+        noun = "share" if collection == "shared" else "tag"
+        plural = "" if len(missing) == 1 else "s"
+        print(f"{kind} {name} does not have the {noun}{plural} {', '.join(missing)}", file=sys.stderr)
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 def list_users(args: CliArgs) -> None:

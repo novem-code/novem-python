@@ -226,16 +226,30 @@ def test_setup_counted_delete():
     assert args["delete"] is True
 
 
-def test_bare_tag_value_lists_tags():
-    from novem.cli.setup import Tag
+def test_valued_share_and_tag_without_an_op_are_checks():
+    from novem.cli.setup import Share, Tag
 
-    # -t TAG with neither -C nor -D has no operation to perform, so it falls
-    # back to the listing a bare -t gives rather than erroring out
-    _, args = setup(["-p", "my-plot", "-t", "fav"])
-    assert args["tag"] == (Tag.LIST, None)
-
+    # bare -s/-t still list
+    _, args = setup(["-p", "my-plot", "-s"])
+    assert args["share"] == (Share.LIST, None)
     _, args = setup(["-p", "my-plot", "-t"])
     assert args["tag"] == (Tag.LIST, None)
+
+    # with a value and no -C/-D they ask whether it is already there
+    _, args = setup(["-p", "my-plot", "-s", "public"])
+    assert args["share"] == (Share.CHECK, "public")
+    _, args = setup(["-p", "my-plot", "-t", "fav"])
+    assert args["tag"] == (Tag.CHECK, ["fav"])
+
+    # a comma-separated list checks every tag
+    _, args = setup(["-p", "my-plot", "-t", "fav,+demo"])
+    assert args["tag"] == (Tag.CHECK, ["fav", "+demo"])
+
+    # -C/-D still create and delete
+    _, args = setup(["-p", "my-plot", "-s", "public", "-C"])
+    assert args["share"] == (Share.CREATE, "public")
+    _, args = setup(["-p", "my-plot", "-t", "fav", "-D"])
+    assert args["tag"] == (Tag.DELETE, ["fav"])
 
 
 def test_every_long_flag_is_classified():

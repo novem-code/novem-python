@@ -13,6 +13,8 @@ class Share(Enum):
     CREATE = 1
     DELETE = 2
     LIST = 3
+    # `-s TARGET` with neither -C nor -D: a query, answered by the exit code
+    CHECK = 4
 
 
 class Tag(Enum):
@@ -20,6 +22,8 @@ class Tag(Enum):
     CREATE = 1
     DELETE = 2
     LIST = 3
+    # `-t TAG` with neither -C nor -D: a query, answered by the exit code
+    CHECK = 4
 
 
 def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
@@ -947,9 +951,10 @@ No parameter will list all organisations groups of which you are a member""",
         args["delete"] -= 1
         args["share"] = (Share.DELETE, share)
     else:
-        # a bare `-s TARGET` has no operation to perform; previously this
-        # stored a non-tuple None that crashed every consumer
-        parser.error(f"-s {share} requires -C (add the share) or -D (remove the share)")
+        # `-s TARGET` with neither -C nor -D asks whether the share is already
+        # there; the exit code is the answer. (It previously stored a non-tuple
+        # None that crashed every consumer.)
+        args["share"] = (Share.CHECK, share)
 
     # fix up the --tag option (supports comma-separated tags like -t fav,+demo,+test)
     tag = args.pop("tag")
@@ -968,10 +973,11 @@ No parameter will list all organisations groups of which you are a member""",
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.DELETE, tags)
     else:
-        # `-t TAG` with neither -C nor -D has no operation to attach the tag
-        # to, so it falls back to the same listing a bare `-t` gives. (It
-        # previously stored a non-tuple None that crashed every consumer.)
-        args["tag"] = (Tag.LIST, None)
+        # `-t TAG` with neither -C nor -D asks whether the tags are already
+        # there; the exit code is the answer. (It previously stored a non-tuple
+        # None that crashed every consumer.)
+        tags = [t.strip() for t in tag.split(",") if t.strip()]
+        args["tag"] = (Tag.CHECK, tags)
 
     # everything downstream treats create/delete as booleans
     args["create"] = args["create"] > 0

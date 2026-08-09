@@ -317,6 +317,70 @@ def test_computer_tag_fav(cli, requests_mock, fs):
     assert tagged.get("yes")
 
 
+def test_share_check_without_an_op(cli, requests_mock, fs):
+    """`-s TARGET` with neither -C nor -D asks whether the share is already
+    there and answers with the exit code."""
+    write_config(auth_req)
+
+    requests_mock.register_uri("get", f"{api_root}code/spaces/my-space/shared", json=[{"name": "public"}])
+
+    try:
+        cli("-s", "my-space", "-s", "public")
+        assert False, "check always exits"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 0
+        assert out == ""
+
+    try:
+        cli("-s", "my-space", "-s", "@someone")
+        assert False, "check always exits"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 1
+        assert "does not have the share @someone" in err
+
+    # a check never creates the resource: no PUT is registered, so an
+    # attempted create would fail with a requests_mock NoMockAddress error
+
+
+def test_tag_check_without_an_op(cli, requests_mock, fs):
+    """`-t TAG` likewise, and every tag in a comma-separated list must be
+    present for the check to succeed."""
+    write_config(auth_req)
+
+    requests_mock.register_uri("get", f"{api_root}code/computers/my-box/tags", json=[{"name": "fav"}])
+
+    try:
+        cli("-c", "my-box", "-t", "fav")
+        assert False, "check always exits"
+    except CliExit as e:
+        assert e.code == 0
+
+    try:
+        cli("-c", "my-box", "-t", "fav,+demo")
+        assert False, "check always exits"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 1
+        assert "does not have the tag +demo" in err
+
+
+def test_share_check_on_a_plot(cli, requests_mock, fs):
+    """The check reaches the vis resources under vis/ too."""
+    write_config(auth_req)
+
+    # no PUT registered: a check must not create the plot, or requests_mock
+    # fails the test with a NoMockAddress error
+    requests_mock.register_uri("get", f"{api_root}vis/plots/my-plot/shared", json=[{"name": "public"}])
+
+    try:
+        cli("-p", "my-plot", "-s", "public")
+        assert False, "check always exits"
+    except CliExit as e:
+        assert e.code == 0
+
+
 # --- for_user scoping -----------------------------------------------------------
 
 
