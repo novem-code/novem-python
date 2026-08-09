@@ -77,7 +77,6 @@ _PROMOTION_BLOCKERS = {
     "--post",
     "--put",
     "--delete",
-    "--inbox",
     "--invite",
     "--accept",
     "--reject",
@@ -857,15 +856,6 @@ resource is selected they keep their usual meaning:
         default="",
         nargs="?",
         help="select invite to operate on, no parameter will list all pending invitations",
-    )
-
-    invite.add_argument(
-        "--inbox",
-        dest="inbox",
-        action="store_true",
-        required=False,
-        default=False,
-        help="list your pending invitations (group, organisation and connection requests)",
     )
 
     invite.add_argument(

@@ -194,14 +194,19 @@ dives (`-O org -G group -r repo_name -r url`) and currently does nothing.
 
 
 ## Invitations
-```bash
-  # your invitation inbox: group and organisation invites plus
-  # connection requests
-  novem --inbox
+`novem --invites` is your inbox. It lists everything pending: inbound group
+and organisation invitations, inbound connection requests, your own personal
+invites still awaiting an answer, and your active invite URLs.
 
-  # accept / reject a group or organisation invite
+```bash
+  # list every pending invitation
+  novem --invites
+
+  # accept / reject — one endpoint answers them all, connection
+  # requests (a bare @username) included
   novem --invites +org_name~group_name --accept
-  novem --invites +org_name~group_name --reject
+  novem --invites @username --accept
+  novem --invites @username --reject
 
   # invite a user to a group (requires -G, and -O for org groups)
   novem -O org_name -G group_name --invite username

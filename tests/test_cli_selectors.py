@@ -281,9 +281,15 @@ def test_every_long_flag_is_classified():
     assert not stale, f"classified flags the parser no longer has: {stale}"
 
 
-def test_inbox_blocks_promotion():
-    # --inbox is a standalone listing; -c keeps its config-path meaning
-    assert promoted(["--inbox", "-i", "data/"]) == ["--inbox", "-i", "data/"]
+def test_invite_flags_block_promotion():
+    # the invite verbs are a standalone flow; -i keeps its input-dir meaning
+    assert promoted(["--invites", "@friend", "--accept", "-i", "data/"]) == [
+        "--invites",
+        "@friend",
+        "--accept",
+        "-i",
+        "data/",
+    ]
 
 
 def test_config_alias_and_c_is_computer_only():

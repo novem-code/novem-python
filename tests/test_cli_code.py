@@ -532,75 +532,74 @@ def test_org_group_invite_with_config_path(cli, requests_mock, fs):
 # --- invitations -------------------------------------------------------------------
 
 
-def test_inbox_merges_group_and_social_invites(cli, requests_mock, fs):
+def test_invites_lists_every_pending_shape(cli, requests_mock, fs):
+    """/admin/invites is the whole pending picture: group and org invitations,
+    inbound connection requests, your own pending personal invites and your
+    active invite URLs (see gaia db/functions/api_get_invites.sql)."""
     write_config(auth_req)
 
+    on = "Thu, 17 Mar 2022 12:19:02 UTC"
     requests_mock.register_uri(
         "get",
         f"{api_root}/admin/invites/",
-        json=[{"name": "+acme~crew", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
-        status_code=200,
-    )
-    requests_mock.register_uri(
-        "get",
-        f"{api_root}/admin/social/invites/",
-        json=[{"name": "@friend", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
-        status_code=200,
-    )
-
-    out, err = cli("--inbox", "-l")
-    assert out.split() == ["+acme~crew", "@friend"]
-
-    out, err = cli("--inbox")
-    assert "connection" in out
-    assert "organisation group" in out
-
-
-def test_invites_listing_unchanged(cli, requests_mock, fs):
-    """bare --invites keeps listing only the group/org invitations."""
-    write_config(auth_req)
-
-    requests_mock.register_uri(
-        "get",
-        f"{api_root}/admin/invites/",
-        json=[{"name": "+acme~crew", "created_on": "Thu, 17 Mar 2022 12:19:02 UTC"}],
+        json=[
+            {"name": "+acme~crew", "created_on": on},
+            {"name": "@friend", "created_on": on},
+            {"name": "@someone~devs", "created_on": on},
+            {"name": "+acme", "created_on": on},
+            {"name": "I-new@example.com", "created_on": on},
+            {"name": "myhandle", "created_on": on},
+        ],
         status_code=200,
     )
 
     out, err = cli("--invites", "-l")
-    assert out.split() == ["+acme~crew"]
+    assert out.split() == [
+        "+acme",
+        "+acme~crew",
+        "@friend",
+        "@someone~devs",
+        "I-new@example.com",
+        "myhandle",
+    ]
+
+    out, err = cli("--invites")
+    for expected in (
+        "organisation group",
+        "connection",
+        "user group",
+        "organisation",
+        "personal invite",
+        "invite url",
+    ):
+        assert expected in out, expected
+    # every shape is classified: nothing falls through
+    assert "unkown" not in out
 
 
-def test_accept_routes_connection_requests_to_the_social_endpoint(cli, requests_mock, fs):
-    """A connection request surfaced by --inbox must be answerable: it lives
-    under /admin/social/invites, not the group/org /admin/invites root."""
+def test_accept_uses_the_one_invites_endpoint(cli, requests_mock, fs):
+    """Every pending invite is answered on /admin/invites/{name}/accept -
+    api_accept_invite recognises a bare "@user" as a connection request."""
     write_config(auth_req)
 
     answered = {}
 
-    def on_accept(request, context):
-        answered["social"] = request.body
+    def on_accept(key, request, context):
+        answered[key] = request.body
         return ""
 
-    def on_group_accept(request, context):
-        answered["group"] = request.body
-        return ""
-
-    requests_mock.register_uri("post", f"{api_root}/admin/social/invites/@friend/accept", text=on_accept)
-    requests_mock.register_uri("post", f"{api_root}/admin/invites/+acme~crew/accept", text=on_group_accept)
-    # a user GROUP invite is not a connection request and keeps the old root
-    requests_mock.register_uri("post", f"{api_root}/admin/invites/@friend~crew/accept", text=on_group_accept)
+    requests_mock.register_uri(
+        "post", f"{api_root}/admin/invites/@friend/accept", text=partial(on_accept, "connection")
+    )
+    requests_mock.register_uri("post", f"{api_root}/admin/invites/+acme~crew/accept", text=partial(on_accept, "group"))
 
     cli("--invites", "@friend", "--accept")
-    assert answered["social"] == b"yes"
+    assert answered["connection"] == b"yes"
 
     cli("--invites", "@friend", "--reject")
-    assert answered["social"] == b"no"
+    assert answered["connection"] == b"no"
 
     cli("--invites", "+acme~crew", "--accept")
-    assert answered["group"] == b"yes"
-
-    cli("--invites", "@friend~crew", "--accept")
     assert answered["group"] == b"yes"
 
 

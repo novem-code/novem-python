@@ -30,7 +30,6 @@ CliArgs = TypedDict(
         "computer": str,
         "image": str,
         "invite": str,
-        "inbox": bool,
         # group subcommand (only present for `novem group ...`)
         "org": Optional[str],
         "group": Optional[str],
