@@ -435,6 +435,7 @@ def test_open_pty_uses_stdin_for_size_and_has_a_fallback(monkeypatch):
 @pytest.mark.skipif(os.name == "nt", reason="PTY handling is Unix-only")
 def test_pty_hangup_sends_eof_once_without_spinning(monkeypatch):
     import pty
+    import termios
 
     class RecordingChannel:
         def __init__(self):
@@ -465,6 +466,15 @@ def test_pty_hangup_sends_eof_once_without_spinning(monkeypatch):
     master_fd, slave_fd = pty.openpty()
     stdin = os.fdopen(os.dup(slave_fd), "rb", buffering=0)
     monkeypatch.setattr(sys, "stdin", stdin)
+
+    original_tcsetattr = termios.tcsetattr
+
+    def tcsetattr(fd, when, attributes):
+        if when == termios.TCSADRAIN:
+            raise termios.error(5, "Input/output error")
+        return original_tcsetattr(fd, when, attributes)
+
+    monkeypatch.setattr(termios, "tcsetattr", tcsetattr)
 
     async def check():
         channel = RecordingChannel()

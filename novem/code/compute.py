@@ -1063,7 +1063,7 @@ async def _pty_interactive(ch: Channel) -> Tuple[int, Optional[str]]:
             pass
         try:
             termios.tcsetattr(fd, termios.TCSADRAIN, saved)
-        except OSError:  # terminal already hung up
+        except (OSError, termios.error):  # terminal already hung up
             pass
 
 
