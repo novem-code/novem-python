@@ -15,6 +15,14 @@ a path-indexed mapping on ``Space.content``:
     for entry in docs:                             # SpaceEntry records
         print(entry.name, entry.kind, entry.size)
 
+The same tree also has a pathlib-inspired object interface via ``Space / path``:
+
+    document = s / "path/to/document.json"
+    body = document.content
+    document.content = '{"a": 2}'
+    print(document.size)
+    document.unlink()
+
 Text in, text out by default (UTF-8), matching the rest of the library;
 ``read_bytes``/``write_bytes`` handle binary content. Explicit methods
 expose the API's optimistic-concurrency machinery (``if_match`` /
@@ -122,6 +130,65 @@ class SpaceDir:
     @property
     def dirs(self) -> List[SpaceEntry]:
         return [e for e in self.ls() if e.kind == "dir"]
+
+
+class SpacePath:
+    """A pathlib-inspired view of one path in a space.
+
+    Paths can be constructed in one step or joined incrementally::
+
+        report = space / "reports" / "q3.csv"
+
+    Reading or assigning :attr:`content`, inspecting :attr:`size`, and
+    removing the path delegate to the same :class:`SpaceContent` API exposed
+    on ``space.content``.
+    """
+
+    def __init__(self, content: "SpaceContent", path: str) -> None:
+        self._space_content = content
+        self._path = _norm(path)
+
+    def __repr__(self) -> str:
+        return f"SpacePath({self._path!r})"
+
+    def __str__(self) -> str:
+        return self._path
+
+    def __truediv__(self, child: str) -> "SpacePath":
+        base = self._path.rstrip("/")
+        rel = _norm(child)
+        return SpacePath(self._space_content, f"{base}/{rel}" if base else rel)
+
+    @property
+    def path(self) -> str:
+        """The path relative to the root of the space."""
+        return self._path
+
+    @property
+    def content(self) -> str:
+        """Read or replace the file's UTF-8 content."""
+        return self._space_content.read(self._path)
+
+    @content.setter
+    def content(self, value: Union[str, bytes]) -> None:
+        self._space_content[self._path] = value
+
+    @property
+    def size(self) -> Optional[int]:
+        """The file size in bytes, without downloading its content."""
+        return self._space_content.stat(self._path).size
+
+    def remove(self, recursive: bool = False) -> None:
+        """Remove this path; non-empty folders require ``recursive=True``."""
+        self._space_content.remove(self._path, recursive=recursive)
+
+    def rm(self, recursive: bool = False) -> None:
+        """Alias for :meth:`remove`."""
+        self.remove(recursive=recursive)
+
+    def unlink(self, recursive: bool = False) -> None:
+        """Alias for :meth:`remove`."""
+        self.remove(recursive=recursive)
 
 
 class SpaceContent:
@@ -391,6 +458,7 @@ def space_changes(
 
 __all__ = [
     "SpaceContent",
+    "SpacePath",
     "SpaceDir",
     "SpaceEntry",
     "SpaceFileInfo",

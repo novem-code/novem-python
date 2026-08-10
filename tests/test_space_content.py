@@ -289,6 +289,48 @@ def test_paths_are_url_quoted(requests_mock):
     assert s.content["with space/a file.txt"] == "ok"
 
 
+# --- pathlib-style paths -----------------------------------------------------
+
+
+def test_space_path_content_and_size(requests_mock):
+    s, base = _space(requests_mock)
+    seen = {}
+
+    def on_get(request, context):
+        context.status_code = 200
+        if request.headers.get("Accept") == "application/json":
+            return json.dumps({"kind": "file", "name": "document.json", "size": 123})
+        return '{"a": 1}'
+
+    def on_put(request, context):
+        seen["body"] = request.body
+        seen["content_type"] = request.headers.get("Content-Type")
+        context.status_code = 200
+        return ""
+
+    url = f"{base}/path/to/document.json"
+    requests_mock.register_uri("get", url, text=on_get)
+    requests_mock.register_uri("put", url, text=on_put)
+
+    path = s / "path" / "to/document.json"
+    assert str(path) == "path/to/document.json"
+    assert path.path == "path/to/document.json"
+    assert path.content == '{"a": 1}'
+
+    path.content = "this is new content"
+    assert seen == {"body": b"this is new content", "content_type": "application/json"}
+    assert path.size == 123
+
+
+@pytest.mark.parametrize("method", ["rm", "remove", "unlink"])
+def test_space_path_remove_aliases(requests_mock, method):
+    s, base = _space(requests_mock)
+    requests_mock.register_uri("delete", f"{base}/tmp.txt", status_code=200)
+
+    path = s / "/tmp.txt"
+    getattr(path, method)()
+
+
 # --- change journal ------------------------------------------------------------
 
 

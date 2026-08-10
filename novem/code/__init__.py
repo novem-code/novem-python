@@ -23,7 +23,7 @@ from ..sync import NovemTreeSync
 from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
-from .space_content import SpaceChange, SpaceContent, SpaceDir, SpaceEntry, SpaceFileInfo, space_changes
+from .space_content import SpaceChange, SpaceContent, SpaceDir, SpaceEntry, SpaceFileInfo, SpacePath, space_changes
 
 
 class NovemCodeConfig:
@@ -444,6 +444,10 @@ class Space(NovemCodeAPI):
         for entry in s.content["docs/"]:             # navigate folders
             ...
 
+        path = s / "path/to/document.json"           # pathlib-style view
+        path.content = "new content"
+        print(path.size)
+
     See :mod:`novem.code.space_content` for the full surface (bytes,
     stat, mkdir, move, remove, walk) and :meth:`changes` for the journal.
     """
@@ -457,6 +461,10 @@ class Space(NovemCodeAPI):
         self.id = id
         super().__init__(**kwargs)
         self.content = SpaceContent(self)
+
+    def __truediv__(self, path: str) -> "SpacePath":
+        """Return a pathlib-inspired view of ``path`` in this space."""
+        return SpacePath(self.content, path)
 
     def changes(self, since: int = 0) -> Iterator["SpaceChange"]:
         """Iterate the space's change journal, oldest first, auto-paging.
@@ -541,6 +549,7 @@ __all__ = [
     "Computer",
     "Image",
     "SpaceContent",
+    "SpacePath",
     "SpaceDir",
     "SpaceEntry",
     "SpaceFileInfo",
