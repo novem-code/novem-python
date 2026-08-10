@@ -27,8 +27,9 @@ from .compute import (
     ComputeConnection,
     ExecResult,
     NovemComputeError,
-    _exec_collect,
-    _exec_stream,
+    _exec_collect_channel,
+    _exec_stream_channel,
+    _open_interactive_pty,
     _pty_interactive,
     _run_sync,
     _split_argv,
@@ -545,7 +546,7 @@ class Computer(NovemCodeAPI):
         return ComputeConnection(
             ws_url(self._api_root),
             self.token or "",
-            ignore_ssl=bool(getattr(self, "_ignore_ssl", False)),
+            ignore_ssl=self._config.ignore_ssl,
             debug=self._debug,
         )
 
@@ -571,9 +572,18 @@ class Computer(NovemCodeAPI):
         """
         command, args = _split_argv(argv, mode)
         payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
+        target = self._compute_target()
         return _run_sync(
             _with_retry(
-                lambda conn: _exec_collect(conn, self._compute_target(), command, args, mode, cwd, payload, timeout),
+                lambda conn: conn.open_exec(
+                    target,
+                    command,
+                    args,
+                    mode=mode,
+                    cwd=cwd,
+                    timeout_seconds=timeout,
+                ),
+                lambda channel: _exec_collect_channel(channel, payload),
                 self.connect,
                 retry_seconds,
             )
@@ -595,11 +605,20 @@ class Computer(NovemCodeAPI):
         """
         command, args = _split_argv(argv, mode)
         payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
+        target = self._compute_target()
         return cast(
             Tuple[int, Optional[str]],
             _run_sync(
                 _with_retry(
-                    lambda conn: _exec_stream(conn, self._compute_target(), command, args, mode, cwd, payload, timeout),
+                    lambda conn: conn.open_exec(
+                        target,
+                        command,
+                        args,
+                        mode=mode,
+                        cwd=cwd,
+                        timeout_seconds=timeout,
+                    ),
+                    lambda channel: _exec_stream_channel(channel, payload),
                     self.connect,
                     retry_seconds,
                 )
@@ -608,11 +627,13 @@ class Computer(NovemCodeAPI):
 
     def shell(self, retry_seconds: float = 0.0) -> Tuple[int, Optional[str]]:
         """Attach an interactive shell, taking over the local terminal."""
+        target = self._compute_target()
         return cast(
             Tuple[int, Optional[str]],
             _run_sync(
                 _with_retry(
-                    lambda conn: _pty_interactive(conn, self._compute_target()),
+                    lambda conn: _open_interactive_pty(conn, target),
+                    _pty_interactive,
                     self.connect,
                     retry_seconds,
                 )

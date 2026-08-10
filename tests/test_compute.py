@@ -1,8 +1,8 @@
 """Tests for the novem.compute.v1 client.
 
-The protocol tests run against a real WebSocket server that speaks the
-server's side of the contract, so the aiohttp client path, the frame codec
-and the message dispatch are all exercised for real rather than mocked.
+The integration tests use a local WebSocket peer speaking the public
+protocol, exercising the aiohttp client path, frame codec and message
+dispatch without mocking the transport.
 """
 
 import asyncio
@@ -10,7 +10,9 @@ import base64
 import json
 import secrets
 
+import aiohttp
 import pytest
+from aiohttp import web
 
 from novem.code.compute import (
     MAX_DATA_BYTES,
@@ -19,15 +21,14 @@ from novem.code.compute import (
     STREAM_STDOUT,
     ComputeConnection,
     NovemComputeError,
+    _exec_collect_channel,
     _split_argv,
+    _with_retry,
     decode_frame,
     encode_frame,
     target_for,
     ws_url,
 )
-
-aiohttp = pytest.importorskip("aiohttp")
-web = pytest.importorskip("aiohttp.web")
 
 TARGET = "/v1/users/alice/code/computers/box"
 
@@ -76,7 +77,7 @@ def test_split_argv():
         _split_argv([], "argv")
 
 
-def test_open_validation_matches_server_rules():
+def test_open_validation_matches_protocol_rules():
     async def check():
         conn = ComputeConnection("ws://unused/ws-cu", "nut-x")
         with pytest.raises(ValueError, match="shell mode"):
@@ -245,6 +246,86 @@ def test_error_before_ready_raises_with_stable_code():
     assert err.code == "not_running"
     assert err.retryable is True
     assert "novem -c" in err.cli_message  # the hint tells you how to start it
+
+
+def test_retry_reopens_after_retryable_admission_error():
+    attempts = 0
+
+    async def script(ws, msg, server):
+        nonlocal attempts
+        if msg["type"] != "open":
+            return
+
+        attempts += 1
+        if attempts == 1:
+            await ws.send_str(
+                json.dumps(
+                    {
+                        "type": "error",
+                        "request_id": msg["request_id"],
+                        "code": "not_running",
+                        "message": "Computer is starting",
+                    }
+                )
+            )
+            return
+
+        channel = _channel()
+        await ws.send_str(
+            json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": channel, "kind": "exec"})
+        )
+        await ws.send_str(json.dumps({"type": "exit", "channel": channel, "code": 0, "signal": None}))
+
+    async def body(url):
+        return await _with_retry(
+            lambda conn: conn.open_exec(TARGET, "true"),
+            lambda channel: _exec_collect_channel(channel, None),
+            lambda: ComputeConnection(url, "nut-x"),
+            1.0,
+        )
+
+    result = _drive(FakeServer(script), body)
+    assert result.code == 0
+    assert attempts == 2
+
+
+def test_retry_does_not_replay_a_command_after_ready():
+    attempts = 0
+
+    async def script(ws, msg, server):
+        nonlocal attempts
+        if msg["type"] != "open":
+            return
+
+        attempts += 1
+        channel = _channel()
+        await ws.send_str(
+            json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": channel, "kind": "exec"})
+        )
+        await ws.send_str(
+            json.dumps(
+                {
+                    "type": "error",
+                    "channel": channel,
+                    "code": "upstream_unavailable",
+                    "message": "Connection was interrupted",
+                }
+            )
+        )
+
+    async def body(url):
+        with pytest.raises(NovemComputeError) as exc_info:
+            await _with_retry(
+                lambda conn: conn.open_exec(TARGET, "touch", ["marker"]),
+                lambda channel: _exec_collect_channel(channel, None),
+                lambda: ComputeConnection(url, "nut-x"),
+                1.0,
+            )
+        return exc_info.value
+
+    error = _drive(FakeServer(script), body)
+    assert error.code == "upstream_unavailable"
+    assert attempts == 1
 
 
 def test_not_found_never_claims_permission_denied():

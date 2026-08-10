@@ -1,5 +1,5 @@
 from inspect import Parameter, signature
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, get_args, get_origin
 
 from .plot import Plot
 
@@ -46,9 +46,10 @@ class NovemEmailSectionApi(NovemEmailSection):
                 continue
 
             v = locs[k]
+            annotation_args = get_args(p.annotation)
 
             # #find out if k is string, bool or list
-            if p.annotation is str or p.annotation is Optional[str]:
+            if p.annotation is str or set(annotation_args) == {str, type(None)}:
                 # This is a string argument, if value is not None add it
                 if v:
                     ts = f"{k.replace('_', ' ')}: {v}"
@@ -58,7 +59,7 @@ class NovemEmailSectionApi(NovemEmailSection):
                 ts = f"{k.replace('_', ' ')}: {'true' if v else 'false'}"
                 self._kwparams.append(ts)
 
-            elif p.annotation is List[str]:
+            elif get_origin(p.annotation) is list and annotation_args == (str,):
                 print("Treat as list of str")
 
         self._process_common_params(**kwargs)

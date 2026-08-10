@@ -178,6 +178,7 @@ been built) and cannot be created or deleted directly — everything else
 (shares, tags, `-w name`, `-r ...`) works like the other resources.
 
 ### Running commands and attaching a shell
+
 `-R` runs a workload and `-A` attaches an interactive shell. Everything after a
 standalone `--` is the invocation to run, passed through verbatim:
 
@@ -200,7 +201,11 @@ Both need the computer to be running, and both wait while it finishes booting
 rather than failing immediately. A command killed by a signal reports
 `128 + signal`, the way a shell does.
 
+Live computer connections use the optional compute dependencies. Install them
+with `pip install 'novem[compute]'` when installing the library directly.
+
 ### Job inputs and outputs
+
 `-R` triggers a job run; files travel on `-i` and `-o`. An `@` prefix means one
 file, a bare path means a directory, and both are repeatable:
 

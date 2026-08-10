@@ -10,16 +10,14 @@ client side of that protocol:
     res = c.run(["ls", "-la"], cwd="/home/user")
     print(res.stdout, res.code)
 
-    # streamed, as it arrives
-    for stream, data in c.stream(["tail", "-f", "/var/log/app.log"]):
-        ...
+    # streamed straight to local stdout/stderr
+    code, signal = c.stream(["tail", "-f", "/var/log/app.log"])
 
     # interactive shell (takes over the terminal)
     c.shell()
 
-The protocol is transcribed from the server's own schemas: text messages are
-strict JSON (unknown fields are rejected by the server), and byte data uses a
-single binary layout::
+Text control messages are strict JSON, and byte data uses a single binary
+layout::
 
     byte 0       stream discriminator (0 pty/tcp + all client input,
                                        1 exec stdout, 2 exec stderr)
@@ -290,7 +288,7 @@ class ComputeConnection:
         try:
             import aiohttp
         except ImportError:
-            raise ImportError('The "compute" extra is required. Install with: pip install novem[compute]')
+            raise ImportError("The compute extra is required. Install with: pip install 'novem[compute]'") from None
         return aiohttp
 
     async def __aenter__(self) -> "ComputeConnection":
@@ -535,39 +533,34 @@ def _split_argv(argv: Any, mode: str) -> Tuple[str, List[str]]:
     return argv[0], list(argv[1:])
 
 
-async def _with_retry(op: Any, connect: Any, retry_seconds: float) -> Any:
-    """Run ``op`` against a fresh connection, retrying retryable states.
+async def _with_retry(open_channel: Any, use_channel: Any, connect: Any, retry_seconds: float) -> Any:
+    """Open and use a channel, retrying only failed admission attempts.
 
     A computer that has just been told to boot reports ``not_running`` (and
     friends) until its agent is reachable, so a bounded retry turns the boot
-    race into a wait rather than a failure.
+    race into a wait rather than a failure. Once a channel is ready,
+    ``use_channel`` runs outside the retry handler so an interrupted command is
+    never replayed.
     """
     import time
 
     deadline = time.monotonic() + max(0.0, retry_seconds)
     delay = 0.5
     while True:
-        try:
-            async with connect() as conn:
-                return await op(conn)
-        except NovemComputeError as e:
-            if not e.retryable or time.monotonic() >= deadline:
-                raise
+        async with connect() as conn:
+            try:
+                channel = await open_channel(conn)
+            except NovemComputeError as e:
+                if not e.retryable or time.monotonic() >= deadline:
+                    raise
+            else:
+                return await use_channel(channel)
         await asyncio.sleep(delay)
         delay = min(delay * 1.5, 3.0)
 
 
-async def _exec_collect(
-    conn: ComputeConnection,
-    target: str,
-    command: str,
-    args: List[str],
-    mode: str,
-    cwd: str,
-    stdin: Optional[bytes],
-    timeout_seconds: int,
-) -> ExecResult:
-    ch = await conn.open_exec(target, command, args, mode=mode, cwd=cwd, timeout_seconds=timeout_seconds)
+async def _exec_collect_channel(ch: Channel, stdin: Optional[bytes]) -> ExecResult:
+    """Collect output from an admitted exec channel."""
     if stdin:
         await ch.send(stdin)
     await ch.stdin_eof()
@@ -585,6 +578,33 @@ async def _exec_collect(
     )
 
 
+async def _exec_collect(
+    conn: ComputeConnection,
+    target: str,
+    command: str,
+    args: List[str],
+    mode: str,
+    cwd: str,
+    stdin: Optional[bytes],
+    timeout_seconds: int,
+) -> ExecResult:
+    ch = await conn.open_exec(target, command, args, mode=mode, cwd=cwd, timeout_seconds=timeout_seconds)
+    return await _exec_collect_channel(ch, stdin)
+
+
+async def _exec_stream_channel(ch: Channel, stdin: Optional[bytes]) -> Tuple[int, Optional[str]]:
+    """Stream output from an admitted exec channel to local stdout/stderr."""
+    if stdin:
+        await ch.send(stdin)
+    await ch.stdin_eof()
+
+    async for stream, data in ch:
+        sink = sys.stderr.buffer if stream == STREAM_STDERR else sys.stdout.buffer
+        sink.write(data)
+        sink.flush()
+    return await ch.wait()
+
+
 async def _exec_stream(
     conn: ComputeConnection,
     target: str,
@@ -597,31 +617,25 @@ async def _exec_stream(
 ) -> Tuple[int, Optional[str]]:
     """Stream straight to local stdout/stderr and return the exit status."""
     ch = await conn.open_exec(target, command, args, mode=mode, cwd=cwd, timeout_seconds=timeout_seconds)
-    if stdin:
-        await ch.send(stdin)
-    await ch.stdin_eof()
-
-    async for stream, data in ch:
-        sink = sys.stderr.buffer if stream == STREAM_STDERR else sys.stdout.buffer
-        sink.write(data)
-        sink.flush()
-    return await ch.wait()
+    return await _exec_stream_channel(ch, stdin)
 
 
-async def _pty_interactive(conn: ComputeConnection, target: str) -> Tuple[int, Optional[str]]:
-    """Attach the local terminal to a PTY channel."""
+async def _open_interactive_pty(conn: ComputeConnection, target: str) -> Channel:
+    """Validate the local terminal and request an interactive PTY channel."""
     if os.name == "nt":  # pragma: no cover - platform guard
         raise NovemException("An interactive shell is not supported on Windows yet.")
-
-    import signal as signalmod
-    import termios
-    import tty
-
     if not sys.stdin.isatty():
         raise NovemException("An interactive shell requires a terminal. Use -R to run a command instead.")
 
     size = os.get_terminal_size()
-    ch = await conn.open_pty(target, rows=size.lines, cols=size.columns)
+    return await conn.open_pty(target, rows=size.lines, cols=size.columns)
+
+
+async def _pty_interactive(ch: Channel) -> Tuple[int, Optional[str]]:
+    """Attach the local terminal to an admitted PTY channel."""
+    import signal as signalmod
+    import termios
+    import tty
 
     loop = asyncio.get_event_loop()
     fd = sys.stdin.fileno()

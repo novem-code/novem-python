@@ -43,6 +43,7 @@ novem = "novem.cli:run_cli"
 
 [dependency-groups]
 dev = [
+    "aiohttp>=3.9",
     "flake8>=7.1.1",
     "isort>=5.13.2,<9.0.0",
     "mypy>=1.11.2",

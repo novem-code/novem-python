@@ -696,6 +696,28 @@ def test_computer_run_streams_and_exits_with_the_command_code(cli, requests_mock
     assert seen["argv"] == ["ls", "-la"]
 
 
+def test_computer_run_forwards_piped_stdin(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    seen = {}
+
+    def fake_stream(self, argv, **kwargs):
+        seen["stdin"] = kwargs.get("stdin")
+        return (0, None)
+
+    monkeypatch.setattr("novem.code.Computer.stream", fake_stream)
+
+    try:
+        cli("-c", "my-box", "-R", "--", "wc", "-l", stdin="a\nb\n")
+        assert False, "should exit with the command's code"
+    except CliExit as e:
+        assert e.code == 0
+
+    assert seen["stdin"] == "a\nb\n"
+
+
 def test_computer_run_reports_signals_shell_style(cli, requests_mock, fs, monkeypatch):
     write_config(auth_req)
     requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)

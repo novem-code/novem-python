@@ -74,7 +74,7 @@ CliArgs = TypedDict(
         # io / tree dump-load
         "dump": Optional[str],
         "load": Optional[str],
-        "input": Optional[str],
+        "input": Optional[List[List[str]]],  # -w, action="append", nargs="+"
         "input_dir": Optional[List[str]],  # action="append"
         "output_dir": Optional[List[str]],  # action="append"
         "out": Optional[str],

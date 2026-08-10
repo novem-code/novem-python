@@ -116,6 +116,13 @@ def test_computer_status_and_config(requests_mock):
     assert gcheck["config/memory"] == "4Gi"
 
 
+def test_computer_compute_connection_uses_resolved_ssl_setting():
+    computer = Computer("box", config_path=CONFIG_FILE, ignore_ssl=True, create=False)
+    connection = computer.connect()
+
+    assert connection._ignore_ssl is True
+
+
 def test_image_read_only(requests_mock):
     api_root = _api_root()
     gcheck = {"create": False}

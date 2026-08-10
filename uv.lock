@@ -1312,6 +1312,7 @@ mcp = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "aiohttp" },
     { name = "black" },
     { name = "flake8" },
     { name = "isort" },
@@ -1342,6 +1343,7 @@ provides-extras = ["events", "compute", "mcp"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "aiohttp", specifier = ">=3.9" },
     { name = "black", specifier = ">=24.8.0" },
     { name = "flake8", specifier = ">=7.1.1" },
     { name = "isort", specifier = ">=5.13.2,<9.0.0" },

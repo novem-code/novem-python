@@ -678,12 +678,15 @@ def code_resource(args: CliArgs, kind: str) -> None:
             obj.api_write("/config/image", image_ref)
 
         found_stdin = False
-        stdin_data = data_on_stdin()
+        inputs = args["input"] or []
+        # Leave piped data untouched unless a bare -w PATH needs it. Computer
+        # commands consume stdin later, when the live session starts.
+        stdin_data = data_on_stdin() if any(len(item) == 1 for item in inputs) else None
         stdin_has_data = bool(stdin_data)
 
         # check if we have any explicit inputs [-w's]
-        if args["input"] and len(args["input"]):
-            for i in args["input"]:
+        if inputs:
+            for i in inputs:
                 path = f"/{i[0]}"
 
                 if len(i) == 1:
