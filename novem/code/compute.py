@@ -163,7 +163,6 @@ _HINTS = {
     "timeout": "The operation timed out.",
     "backpressure_timeout": "The data stream stalled. Wait briefly and try again.",
     "process_start_failed": "The command could not be started.",
-    "connection_failed": "The connection to the computer failed.",
     "protocol_error": "The compute protocol was rejected. Upgrade the CLI and try again.",
 }
 

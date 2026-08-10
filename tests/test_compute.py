@@ -138,6 +138,12 @@ def test_transport_errors_include_their_code_hint():
     )
 
 
+def test_connection_failure_does_not_repeat_a_generic_hint():
+    error = NovemComputeTransportError("The connection to the computer stopped responding.")
+
+    assert error.cli_message == "The connection to the computer stopped responding."
+
+
 def test_unknown_or_invalid_ready_is_a_transport_error():
     async def check():
         unknown = ComputeConnection("ws://unused/ws-cu", "nut-x")
