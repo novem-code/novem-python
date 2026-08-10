@@ -13,7 +13,7 @@ subclasses set ``_collection``/``_label`` and add their own properties.
 """
 
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
@@ -23,6 +23,7 @@ from ..sync import NovemTreeSync
 from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
+from .space_content import SpaceChange, SpaceContent, SpaceDir, SpaceEntry, SpaceFileInfo, SpacePath, space_changes
 
 
 class NovemCodeConfig:
@@ -435,16 +436,44 @@ class NovemCodeAPI(NovemTreeSync, NovemAPI):
 class Space(NovemCodeAPI):
     """A novem space — cloud file storage under ``code/spaces/{id}``.
 
-    File content lives under ``content/*`` and is reachable through
-    ``api_read``/``api_write``/``api_delete`` with a ``/content/...`` path.
+    File content is exposed as a path-indexed mapping on :attr:`content`::
+
+        s = Space("my-space")
+        body = s.content["path/to/document.json"]   # read (str)
+        s.content["reports/q3.csv"] = csv_string     # write
+        for entry in s.content["docs/"]:             # navigate folders
+            ...
+
+        path = s / "path/to/document.json"           # pathlib-style view
+        path.content = "new content"
+        print(path.size)
+
+    See :mod:`novem.code.space_content` for the full surface (bytes,
+    stat, mkdir, move, remove, walk) and :meth:`changes` for the journal.
     """
 
     _collection = "spaces"
     _label = "space"
 
+    content: "SpaceContent"
+
     def __init__(self, id: str, **kwargs: Any) -> None:
         self.id = id
         super().__init__(**kwargs)
+        self.content = SpaceContent(self)
+
+    def __truediv__(self, path: str) -> "SpacePath":
+        """Return a pathlib-inspired view of ``path`` in this space."""
+        return SpacePath(self.content, path)
+
+    def changes(self, since: int = 0) -> Iterator["SpaceChange"]:
+        """Iterate the space's change journal, oldest first, auto-paging.
+
+        Each :class:`SpaceChange` carries ``seq``, ``path``, ``change``
+        (create/update/move/delete), ``old_path`` for moves, ``etag`` and
+        ``size_bytes``. Resume by passing the highest ``seq`` processed.
+        """
+        return space_changes(self, since=since)
 
 
 class Computer(NovemCodeAPI):
@@ -513,4 +542,16 @@ class Image(NovemCodeAPI):
         return self.api_read("/config/repo").strip()
 
 
-__all__ = ["NovemCodeAPI", "NovemCodeConfig", "Space", "Computer", "Image"]
+__all__ = [
+    "NovemCodeAPI",
+    "NovemCodeConfig",
+    "Space",
+    "Computer",
+    "Image",
+    "SpaceContent",
+    "SpacePath",
+    "SpaceDir",
+    "SpaceEntry",
+    "SpaceFileInfo",
+    "SpaceChange",
+]
