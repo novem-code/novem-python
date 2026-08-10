@@ -185,6 +185,7 @@ def test_close_codes_map_to_distinct_transport_errors(close_code, reason, messag
         assert conn._fatal.close_code == close_code
         assert conn._fatal.code == reason
         assert message in str(conn._fatal)
+        assert conn._fatal.cli_message == str(conn._fatal)
 
     asyncio.run(check())
 
@@ -828,6 +829,24 @@ def test_429_handshake_exposes_retry_after_and_hint():
     assert "Wait briefly and try again" in error.cli_message
 
 
+def test_429_handshake_ignores_overflowing_retry_after():
+    async def script(ws, msg, server):
+        pass
+
+    server = FakeServer(script, reject_statuses=[(429, {"Retry-After": "9" * 309})])
+
+    async def body(url):
+        connection = ComputeConnection(url, "nut-x")
+        with pytest.raises(NovemComputeTransportError) as exc_info:
+            await connection.__aenter__()
+        return exc_info.value
+
+    error = _drive(server, body)
+    assert error.code == "limit_exceeded"
+    assert error.retryable is True
+    assert error.retry_after is None
+
+
 def test_retryable_transport_honours_retry_after(monkeypatch):
     attempts = 0
     waits = []
@@ -865,6 +884,41 @@ def test_retryable_transport_honours_retry_after(monkeypatch):
     assert result == "done"
     assert attempts == 2
     assert waits == [2.0]
+
+
+def test_retry_after_beyond_budget_fails_without_waiting(monkeypatch):
+    attempts = 0
+    waits = []
+    retries = []
+
+    class Context:
+        async def __aenter__(self):
+            nonlocal attempts
+            attempts += 1
+            raise NovemComputeTransportError(
+                "temporarily at capacity",
+                code="limit_exceeded",
+                retryable=True,
+                retry_after=120.0,
+            )
+
+        async def __aexit__(self, *exc):
+            pass
+
+    async def sleep(delay):
+        waits.append(delay)
+
+    async def unused(value):
+        raise AssertionError("no channel should open")
+
+    monkeypatch.setattr(asyncio, "sleep", sleep)
+    with pytest.raises(NovemComputeTransportError) as exc_info:
+        asyncio.run(_with_retry(unused, unused, Context, 1.0, retries.append))
+
+    assert attempts == 1
+    assert waits == []
+    assert retries == []
+    assert "--connect-timeout" in exc_info.value.cli_message
 
 
 def test_handshake_validation_failure_closes_all_resources(monkeypatch):

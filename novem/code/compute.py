@@ -123,12 +123,22 @@ class NovemComputeTransportError(NovemException):
         self.code = code
         self.retryable = retryable
         self.retry_after = retry_after
+        self._retry_after_exceeds_timeout = False
         detail = f"{message} (WebSocket close code {close_code})" if close_code is not None else message
         super().__init__(detail)
 
     @property
     def cli_message(self) -> str:
         base = str(self)
+        if self._retry_after_exceeds_timeout:
+            return (
+                f"{base}\nThe service requested a retry delay longer than --connect-timeout allows. "
+                "Increase --connect-timeout and try again."
+            )
+        # Close-frame messages are curated for the specific close code and
+        # already contain any action the user can take.
+        if self.close_code is not None:
+            return base
         hint = _HINTS.get(self.code)
         if not hint:
             return base
@@ -186,7 +196,12 @@ def _retry_after_seconds(value: Optional[str]) -> Optional[float]:
         if when.tzinfo is None:
             when = when.replace(tzinfo=timezone.utc)
         return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
-    return float(seconds) if seconds >= 0 else None
+    if seconds < 0:
+        return None
+    try:
+        return float(seconds)
+    except OverflowError:
+        return None
 
 
 @dataclass
@@ -765,9 +780,10 @@ async def _with_retry(
         retry_after = getattr(error, "retry_after", None)
         wait = max(delay, retry_after or 0.0)
         if retry_after is not None and retry_after > remaining:
-            if remaining:
-                await asyncio.sleep(remaining)
+            if isinstance(error, NovemComputeTransportError):
+                error._retry_after_exceeds_timeout = True
             return False
+        notify(error)
         await asyncio.sleep(min(wait, remaining))
         delay = min(delay * 1.5, 3.0)
         return True
@@ -783,7 +799,6 @@ async def _with_retry(
         except NovemComputeTransportError as e:
             if not e.retryable or time.monotonic() >= deadline:
                 raise
-            notify(e)
             if not await wait_before_retry(e):
                 raise
             continue
@@ -796,7 +811,6 @@ async def _with_retry(
             except NovemComputeError as e:
                 if not e.retryable or time.monotonic() >= deadline:
                     raise
-                notify(e)
                 if not await wait_before_retry(e):
                     raise
             else:
