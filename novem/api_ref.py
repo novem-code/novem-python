@@ -123,6 +123,7 @@ class NovemAPI(object):
     """
 
     id: Optional[str] = None
+    token: Optional[str] = None
     _type: Optional[str] = None
     _qpr: Optional[str] = None
 

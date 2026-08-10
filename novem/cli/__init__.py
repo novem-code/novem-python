@@ -472,6 +472,17 @@ def run_cli_wrapped() -> None:
         print(f"novem {__version__}")
         return
 
+    if args.get("attach") and not args.get("computer"):
+        other_resource = any(args.get(key) for key in ("plot", "grid", "mail", "doc", "job", "space", "repo", "image"))
+        if other_resource:
+            print("novem: -A is only available for computers", file=sys.stderr)
+        else:
+            print("novem: -A requires a named computer, e.g. novem -c <name> -A", file=sys.stderr)
+        sys.exit(1)
+    if args.get("run_job") is not None and not (args.get("computer") or args.get("job")):
+        print("novem: -R requires a named computer or job", file=sys.stderr)
+        sys.exit(1)
+
     if args and "debug" in args and args["debug"]:
         """
         Print some sytem information

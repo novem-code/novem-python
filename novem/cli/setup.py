@@ -100,6 +100,7 @@ _PROMOTION_NEUTRAL = {
     "--cc",
     "--color",
     "--comments",
+    "--connect-timeout",
     "--config",
     "--config-path",
     "--image",
@@ -146,6 +147,8 @@ def split_argv_tail(raw_args: Any) -> Tuple[Any, Optional[List[str]]]:
     tokens = list(raw_args)
     for idx, tok in enumerate(tokens):
         if tok == "--":
+            if "-R" not in tokens[:idx]:
+                return tokens, None
             return tokens[:idx], tokens[idx + 1 :]
     return tokens, None
 
@@ -897,6 +900,15 @@ resource is selected they keep their usual meaning:
         required=False,
         default=False,
         help="attach an interactive shell to the selected computer",
+    )
+
+    code.add_argument(
+        "--connect-timeout",
+        dest="connect_timeout",
+        type=float,
+        default=90.0,
+        metavar="SECONDS",
+        help="how long -R/-A waits for a computer connection (default: 90)",
     )
 
     invite = parser.add_argument_group("invite")

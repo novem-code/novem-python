@@ -86,6 +86,7 @@ CliArgs = TypedDict(
         "run_job": Optional[List[str]],  # nargs="*"
         "argv": Optional[List[str]],  # the tail after `--`
         "attach": bool,
+        "connect_timeout": float,
         "events": Optional[List[str]],  # nargs="+"
         # raw http (post/put take PATH [DATA] -> nargs="+")
         "http_get": Optional[str],

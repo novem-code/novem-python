@@ -123,6 +123,12 @@ def test_computer_compute_connection_uses_resolved_ssl_setting():
     assert connection._ignore_ssl is True
 
 
+def test_computer_without_a_resolved_token_builds_a_clean_connection():
+    computer = Computer("box", api_root="https://api.example.test/v1/", ignore_config=True, create=False)
+    assert computer.token is None
+    assert computer.connect()._token == ""
+
+
 def test_image_read_only(requests_mock):
     api_root = _api_root()
     gcheck = {"create": False}

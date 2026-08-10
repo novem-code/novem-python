@@ -198,8 +198,9 @@ standalone `--` is the invocation to run, passed through verbatim:
 ```
 
 Both need the computer to be running, and both wait while it finishes booting
-rather than failing immediately. A command killed by a signal reports
-`128 + signal`, the way a shell does.
+rather than failing immediately. Set the wait with `--connect-timeout SECONDS`.
+A command killed by a signal reports `128 + signal`, the way a shell does;
+the first local Ctrl-C is forwarded to the command and a second exits locally.
 
 Live computer connections use the optional compute dependencies. Install them
 with `pip install 'novem[compute]'` when installing the library directly.

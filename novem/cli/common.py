@@ -3,7 +3,7 @@ import sys
 from typing import Any, Dict, Literal, Optional, cast
 
 from novem import Computer, Doc, Grid, Image, Job, Mail, Plot, Repo, Space
-from novem.api_ref import Novem404, NovemAPI
+from novem.api_ref import Novem404, NovemAPI, NovemException
 from novem.cli.config import config_from_args
 from novem.cli.editor import edit
 from novem.cli.gql import NovemGQL, _build_var_lookup, _fetch_vde_topics_gql, render_topics
@@ -22,7 +22,7 @@ from novem.cli.vis import (
     list_vis_tags,
 )
 from novem.code import NovemCodeAPI
-from novem.utils import API_ROOT, data_on_stdin
+from novem.utils import API_ROOT, data_on_stdin, stream_on_stdin
 from novem.vis import NovemVisAPI
 
 from .args import CliArgs
@@ -671,7 +671,8 @@ def code_resource(args: CliArgs, kind: str) -> None:
         # --image REF sets config/image; a bare --image reads it back, the
         # same way a bare -s lists shares and a bare -t lists tags
         image_ref = args.get("image_ref")
-        if image_ref is None:
+        has_session = args.get("run_job") is not None or args.get("attach")
+        if image_ref is None and not has_session:
             print(obj.api_read("/config/image"), end="")
             return
         elif image_ref:
@@ -679,9 +680,16 @@ def code_resource(args: CliArgs, kind: str) -> None:
 
         found_stdin = False
         inputs = args["input"] or []
+        bare_inputs = any(len(item) == 1 for item in inputs)
+        if bare_inputs and has_session:
+            print(
+                "novem: bare -w and -R/-A cannot both read stdin; provide a value or @file to -w",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         # Leave piped data untouched unless a bare -w PATH needs it. Computer
         # commands consume stdin later, when the live session starts.
-        stdin_data = data_on_stdin() if any(len(item) == 1 for item in inputs) else None
+        stdin_data = data_on_stdin() if bare_inputs else None
         stdin_has_data = bool(stdin_data)
 
         # check if we have any explicit inputs [-w's]
@@ -768,7 +776,7 @@ def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
     just been told to boot answers retryable states until its agent is
     reachable, so both wait rather than failing immediately.
     """
-    from novem.code.compute import NovemComputeError
+    from novem.code.compute import NovemComputeError, NovemComputeTransportError
 
     if kind != "computer":
         print(f"-R and -A are only available for computers, not {kind}s", file=sys.stderr)
@@ -776,14 +784,21 @@ def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
 
     computer = cast(Computer, obj)
     argv = args.get("argv")
-    retry = 90.0
+    retry = float(args.get("connect_timeout", 90.0))
+    wait_reported = False
+
+    def on_retry(_: NovemException) -> None:
+        nonlocal wait_reported
+        if not wait_reported:
+            print("novem: waiting for the computer connection...", file=sys.stderr)
+            wait_reported = True
 
     try:
         if args.get("attach"):
             if args.get("run_job") is not None:
                 print("-A and -R cannot be combined; attach or run one command", file=sys.stderr)
                 sys.exit(1)
-            code, signal = computer.shell(retry_seconds=retry)
+            code, signal = computer.shell(retry_seconds=retry, on_retry=on_retry)
         else:
             if not argv:
                 print(
@@ -791,16 +806,36 @@ def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
                     file=sys.stderr,
                 )
                 sys.exit(1)
-            stdin = data_on_stdin()
-            code, signal = computer.stream(argv, stdin=stdin, retry_seconds=retry)
+            stdin = stream_on_stdin()
+            code, signal = computer.stream(
+                argv,
+                stdin=stdin,
+                retry_seconds=retry,
+                on_retry=on_retry,
+                forward_signals=True,
+            )
+    except KeyboardInterrupt:
+        print("novem: interrupted", file=sys.stderr)
+        sys.exit(130)
+    except NovemComputeTransportError as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        # Keep a lost compute session distinct from the command's own status.
+        sys.exit(255)
     except NovemComputeError as e:
         print(f"novem: {e.cli_message}", file=sys.stderr)
         sys.exit(1)
+    except NovemException as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        sys.exit(255)
 
     # a signalled process has no exit code of its own; report it the way a
     # shell does so callers can branch on it
     if signal:
-        sys.exit(128 + _SIGNAL_NUMBERS.get(signal, 0))
+        signal_number = _SIGNAL_NUMBERS.get(signal)
+        if signal_number is None:
+            print(f"novem: command ended with an unknown signal {signal!r}", file=sys.stderr)
+            sys.exit(255)
+        sys.exit(128 + signal_number)
     sys.exit(code)
 
 

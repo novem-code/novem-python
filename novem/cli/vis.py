@@ -1470,6 +1470,7 @@ def list_code_vis(args: CliArgs, kind: str) -> None:
     for p in plist:
         p["_updated"] = _format_relative_time(p.get("updated", ""))
         if kind == "computer":
+            p["name"] = p.get("name") or "-"
             cpu = p.get("cpu")
             p["_cpu"] = f"{cpu:g}" if isinstance(cpu, (int, float)) else (cpu or "-")
             p["_memory"] = p.get("memory") or "-"

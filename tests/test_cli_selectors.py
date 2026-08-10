@@ -378,6 +378,10 @@ def test_argv_tail_split():
     # the tail is verbatim, including things that look like flags and a second --
     assert split_argv_tail(["-R", "--", "sh", "-c", "x -- y"])[1] == ["sh", "-c", "x -- y"]
     assert split_argv_tail(["-R", "--", "--weird"])[1] == ["--weird"]
+    # A separator on an ordinary command remains argparse's responsibility;
+    # it must not silently discard everything after it.
+    ordinary = ["-p", "plot", "-w", "config/caption", "--", "-5%"]
+    assert split_argv_tail(ordinary) == (ordinary, None)
 
 
 def test_setup_exposes_argv():

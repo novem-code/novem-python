@@ -35,8 +35,9 @@ import json
 import os
 import secrets
 import sys
+import threading
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import IO, Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 from urllib.parse import urlparse
 
 from novem.exceptions import NovemException
@@ -45,14 +46,17 @@ PROTOCOL = "novem.compute.v1"
 PATH = "/ws-cu"
 MAX_DATA_BYTES = 64 * 1024
 BINARY_HEADER = 17
+MAX_MESSAGE_BYTES = 128 * 1024
+HELLO_TIMEOUT_SECONDS = 10.0
 
 # stream discriminators
 STREAM_DATA = 0  # pty/tcp bytes, and every client-to-server frame
 STREAM_STDOUT = 1
 STREAM_STDERR = 2
 
-# The server's stable error vocabulary. Anything outside this set is a
-# protocol violation on the server's side, not ours.
+# Error codes documented when this client was released. This set is
+# informational: a server may add codes during a rolling upgrade, so unknown
+# codes must pass through as terminal, non-retryable errors.
 ERROR_CODES = frozenset(
     {
         "invalid_request",
@@ -76,13 +80,15 @@ ERROR_CODES = frozenset(
 RETRYABLE_CODES = frozenset({"not_running", "upstream_unavailable", "timeout"})
 
 SIGNALS = frozenset({"HUP", "INT", "QUIT", "TERM", "KILL"})
+StdinSource = Union[str, bytes, bytearray, IO[Any]]
 
 
 class NovemComputeError(NovemException):
     """A scoped error from the compute protocol.
 
-    ``code`` is one of the server's stable codes; messages are sanitised
-    server-side and never carry run ids, addresses or command payloads.
+    Known codes may receive client hints or be retried during admission.
+    Unknown codes remain terminal so newer servers stay compatible with older
+    clients.
     """
 
     def __init__(self, code: str, message: str) -> None:
@@ -101,14 +107,47 @@ class NovemComputeError(NovemException):
         return f"{base}\n{hint}" if hint else base
 
 
+class NovemComputeTransportError(NovemException):
+    """The compute connection failed without a remote command exit status."""
+
+    def __init__(
+        self,
+        message: str,
+        close_code: Optional[int] = None,
+        *,
+        code: str = "connection_failed",
+        retryable: bool = False,
+    ) -> None:
+        self.close_code = close_code
+        self.code = code
+        self.retryable = retryable
+        detail = f"{message} (WebSocket close code {close_code})" if close_code is not None else message
+        super().__init__(detail)
+
+
 _HINTS = {
+    "invalid_request": "The compute request was rejected. Check the options and upgrade the CLI if it persists.",
     # A missing entitlement, no access, and no such computer are
     # deliberately indistinguishable — never claim "permission denied".
     "not_found": "The computer was not found, or you do not have access to it.",
     "not_running": "The computer is not running. Start it with: novem -c <name> -w status online",
     "agent_upgrade_required": "The computer is running an older agent. Restart it to pick up the new one.",
-    "limit_exceeded": "Too many open connections or channels. Close one and try again.",
+    "limit_exceeded": "The service is busy. Wait briefly and try again.",
     "upstream_unavailable": "The compute service is temporarily unavailable.",
+    "authorization_revoked": "Authorization for the session ended. Connect again.",
+    "computer_restarted": "The computer restarted during the session. Connect again.",
+    "timeout": "The operation timed out.",
+    "backpressure_timeout": "The data stream stalled. Wait briefly and try again.",
+    "process_start_failed": "The command could not be started.",
+    "connection_failed": "The connection to the computer failed.",
+    "protocol_error": "The compute protocol was rejected. Upgrade the CLI and try again.",
+}
+
+
+_CLOSE_REASONS = {
+    1001: ("session_ended", "The compute session ended."),
+    1008: ("protocol_error", "The compute protocol was rejected. Upgrade the CLI and try again."),
+    1011: ("upstream_unavailable", "The compute service ended the session."),
 }
 
 
@@ -167,9 +206,10 @@ def ws_url(api_root: str) -> str:
     path must match exactly — no trailing slash, query or fragment.
     """
     parsed = urlparse(api_root)
+    if parsed.scheme not in ("http", "https", "ws", "wss") or not parsed.netloc:
+        raise ValueError("api_root must include an http:// or https:// scheme and host")
     scheme = "wss" if parsed.scheme in ("https", "wss") else "ws"
-    netloc = parsed.netloc or parsed.path
-    return f"{scheme}://{netloc}{PATH}"
+    return f"{scheme}://{parsed.netloc}{PATH}"
 
 
 def target_for(owner: str, computer: str) -> str:
@@ -216,8 +256,9 @@ class Channel:
 
     async def send(self, payload: bytes) -> None:
         """Write bytes to the channel's stdin (or the TCP stream)."""
-        for i in range(0, len(payload), MAX_DATA_BYTES):
-            await self._conn._send_binary(encode_frame(self.id, payload[i : i + MAX_DATA_BYTES]))
+        chunk_size = self._conn.max_data_bytes
+        for i in range(0, len(payload), chunk_size):
+            await self._conn._send_binary(encode_frame(self.id, payload[i : i + chunk_size]))
 
     async def stdin_eof(self) -> None:
         """Close stdin without closing the channel.
@@ -276,10 +317,15 @@ class ComputeConnection:
         self._ws: Any = None
         self._session: Any = None
         self._reader: Optional["asyncio.Task[None]"] = None
+        self._watchdog: Optional["asyncio.Task[None]"] = None
         self.hello: Optional[Hello] = None
+        self.max_data_bytes = MAX_DATA_BYTES
+        self._receive_max_data_bytes = MAX_DATA_BYTES
+        self._last_inbound = 0.0
         self._channels: Dict[str, Channel] = {}
         self._pending: Dict[str, "asyncio.Future[Channel]"] = {}
         self._fatal: Optional[BaseException] = None
+        self._hello_event: Optional[asyncio.Event] = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -305,25 +351,59 @@ class ComputeConnection:
                 self._url,
                 protocols=(PROTOCOL,),
                 headers={"Authorization": f"Bearer {self._token}"},
-                max_msg_size=128 * 1024,
+                max_msg_size=MAX_MESSAGE_BYTES,
                 ssl=False if self._ignore_ssl else True,
-                autoping=True,
+                autoping=False,
             )
-        except Exception:
-            await self._session.close()
+            if self._ws.protocol != PROTOCOL:
+                raise NovemComputeTransportError("compute connection did not negotiate the expected protocol")
+
+            if self._debug:
+                print(f"WS: {self._url} ({PROTOCOL})", file=sys.stderr)
+
+            self._hello_event = asyncio.Event()
+            self._last_inbound = asyncio.get_running_loop().time()
+            self._reader = asyncio.create_task(self._read_loop())
+            await self._await_hello()
+            self._watchdog = asyncio.create_task(self._watch_liveness())
+            if self._fatal is not None:
+                raise self._fatal
+            return self
+        except NovemComputeTransportError:
+            await self.aclose()
             raise
-
-        if self._debug:
-            print(f"WS: {self._url} ({PROTOCOL})", file=sys.stderr)
-
-        self._reader = asyncio.ensure_future(self._read_loop())
-        await self._await_hello()
-        return self
+        except aiohttp.WSServerHandshakeError as e:
+            await self.aclose()
+            if e.status == 429:
+                raise NovemComputeTransportError(
+                    "compute connection is temporarily at capacity",
+                    code="limit_exceeded",
+                    retryable=True,
+                ) from e
+            if e.status == 503:
+                raise NovemComputeTransportError(
+                    "compute service is temporarily unavailable",
+                    code="upstream_unavailable",
+                    retryable=True,
+                ) from e
+            raise NovemComputeTransportError(f"compute connection could not be established (HTTP {e.status})") from e
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            await self.aclose()
+            raise NovemComputeTransportError("compute connection could not be established") from e
+        except BaseException:
+            await self.aclose()
+            raise
 
     async def __aexit__(self, *exc: Any) -> None:
         await self.aclose()
 
     async def aclose(self) -> None:
+        if self._watchdog:
+            self._watchdog.cancel()
+            try:
+                await self._watchdog
+            except (asyncio.CancelledError, Exception):
+                pass
         if self._reader:
             self._reader.cancel()
             try:
@@ -337,13 +417,15 @@ class ComputeConnection:
 
     async def _await_hello(self) -> None:
         # Clients must wait for and validate hello before opening channels.
-        for _ in range(200):
-            if self.hello is not None:
-                return
-            if self._fatal is not None:
-                raise self._fatal
-            await asyncio.sleep(0.01)
-        raise NovemException("compute connection did not send hello")
+        assert self._hello_event is not None
+        try:
+            await asyncio.wait_for(self._hello_event.wait(), timeout=HELLO_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            raise NovemComputeTransportError("compute connection did not send hello") from None
+        if self._fatal is not None:
+            raise self._fatal
+        if self.hello is None:
+            raise NovemComputeTransportError("compute connection did not send hello")
 
     # -- plumbing ----------------------------------------------------------
 
@@ -361,24 +443,56 @@ class ComputeConnection:
         aiohttp = self._aiohttp()
         try:
             async for msg in self._ws:
+                self._last_inbound = asyncio.get_running_loop().time()
                 if msg.type == aiohttp.WSMsgType.TEXT:
                     self._on_text(json.loads(msg.data))
                 elif msg.type == aiohttp.WSMsgType.BINARY:
                     stream, channel, payload = decode_frame(msg.data)
+                    if len(payload) > self._receive_max_data_bytes:
+                        raise ValueError("binary frame exceeds the negotiated payload limit")
                     ch = self._channels.get(channel)
                     if ch is not None:
                         ch._feed(stream, payload)
+                elif msg.type == aiohttp.WSMsgType.PING:
+                    await self._ws.pong(msg.data)
+                elif msg.type == aiohttp.WSMsgType.PONG:
+                    continue
                 elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                     break
         except asyncio.CancelledError:
             raise
-        except Exception as e:  # pragma: no cover - transport failure
-            self._abort(e)
+        except Exception:  # pragma: no cover - exact transport failure varies by platform
+            self._abort(NovemComputeTransportError("compute connection failed"))
             return
-        self._abort(NovemException("compute connection closed"))
+        close_code = getattr(self._ws, "close_code", None)
+        reason, message = _CLOSE_REASONS.get(
+            close_code or 0,
+            ("connection_failed", "The connection to the computer was lost."),
+        )
+        self._abort(NovemComputeTransportError(message, close_code, code=reason))
+
+    async def _watch_liveness(self) -> None:
+        """Fail a connection whose advertised heartbeat has gone silent."""
+
+        assert self.hello is not None
+        heartbeat = float(self.hello.heartbeat_seconds)
+        interval = max(0.05, heartbeat)
+        loop = asyncio.get_running_loop()
+        while True:
+            await asyncio.sleep(interval)
+            if loop.time() - self._last_inbound <= heartbeat * 2:
+                continue
+            self._abort(NovemComputeTransportError("The connection to the computer stopped responding."))
+            if self._ws is not None:
+                await self._ws.close()
+            return
 
     def _abort(self, err: BaseException) -> None:
+        if self._fatal is not None:
+            return
         self._fatal = err
+        if self._hello_event is not None:
+            self._hello_event.set()
         for fut in self._pending.values():
             if not fut.done():
                 fut.set_exception(err)
@@ -392,22 +506,52 @@ class ComputeConnection:
         kind = msg.get("type")
 
         if kind == "hello":
-            self.hello = Hello(
+            hello = Hello(
                 protocol=msg.get("protocol", ""),
                 max_channels=int(msg.get("max_channels", 0)),
                 max_data_bytes=int(msg.get("max_data_bytes", 0)),
                 heartbeat_seconds=int(msg.get("heartbeat_seconds", 0)),
             )
-            if self.hello.protocol != PROTOCOL:
-                self._abort(NovemException(f"unexpected compute protocol {self.hello.protocol!r}"))
+            if hello.protocol != PROTOCOL:
+                self._abort(NovemComputeTransportError(f"unexpected compute protocol {hello.protocol!r}"))
+                return
+            if hello.max_channels <= 0:
+                self._abort(NovemComputeTransportError("compute connection sent an invalid channel limit"))
+                return
+            if hello.max_data_bytes <= 0 or hello.max_data_bytes + BINARY_HEADER > MAX_MESSAGE_BYTES:
+                self._abort(NovemComputeTransportError("compute connection sent an invalid payload limit"))
+                return
+            if hello.heartbeat_seconds <= 0:
+                self._abort(NovemComputeTransportError("compute connection sent an invalid heartbeat interval"))
+                return
+            self.hello = hello
+            self.max_data_bytes = min(MAX_DATA_BYTES, hello.max_data_bytes)
+            self._receive_max_data_bytes = hello.max_data_bytes
+            if self._hello_event is not None:
+                self._hello_event.set()
             return
 
         if kind == "ready":
-            fut = self._pending.pop(msg.get("request_id", ""), None)
-            channel = Channel(self, msg["channel"], msg.get("kind", ""))
+            request_id = msg.get("request_id", "")
+            fut = self._pending.get(request_id)
+            if fut is None or fut.done():
+                self._abort(NovemComputeTransportError("compute connection sent an unexpected ready message"))
+                return
+            channel_id = msg.get("channel")
+            if not isinstance(channel_id, str):
+                self._abort(NovemComputeTransportError("compute connection sent an invalid ready message"))
+                return
+            try:
+                valid_channel = len(_channel_bytes(channel_id)) == 16
+            except Exception:
+                valid_channel = False
+            if not valid_channel:
+                self._abort(NovemComputeTransportError("compute connection sent an invalid ready message"))
+                return
+            self._pending.pop(request_id, None)
+            channel = Channel(self, channel_id, msg.get("kind", ""))
             self._channels[channel.id] = channel
-            if fut is not None and not fut.done():
-                fut.set_result(channel)
+            fut.set_result(channel)
             return
 
         if kind == "error":
@@ -423,28 +567,39 @@ class ComputeConnection:
             ch = self._channels.get(msg.get("channel", ""))
             if ch is not None:
                 ch._fail(err)
+                self._channels.pop(ch.id, None)
             return
 
         if kind == "exit":
             ch = self._channels.get(msg.get("channel", ""))
             if ch is not None:
                 ch._finish(int(msg.get("code", 0)), msg.get("signal"))
+                self._channels.pop(ch.id, None)
             return
 
         if kind == "closed":
             ch = self._channels.get(msg.get("channel", ""))
             if ch is not None:
                 ch._closed_by_server()
+                self._channels.pop(ch.id, None)
             return
 
     # -- opening channels --------------------------------------------------
 
     async def _open(self, spec: Dict[str, Any]) -> Channel:
+        if self.hello is not None and len(self._channels) + len(self._pending) >= self.hello.max_channels:
+            raise NovemComputeError("limit_exceeded", "The connection has reached its channel limit")
         request_id = spec["request_id"]
         fut: "asyncio.Future[Channel]" = asyncio.get_event_loop().create_future()
         self._pending[request_id] = fut
-        await self._send_json(spec)
-        return await fut
+        try:
+            await self._send_json(spec)
+            return await fut
+        except BaseException:
+            self._pending.pop(request_id, None)
+            if not fut.done():
+                fut.cancel()
+            raise
 
     async def open_exec(
         self,
@@ -533,7 +688,13 @@ def _split_argv(argv: Any, mode: str) -> Tuple[str, List[str]]:
     return argv[0], list(argv[1:])
 
 
-async def _with_retry(open_channel: Any, use_channel: Any, connect: Any, retry_seconds: float) -> Any:
+async def _with_retry(
+    open_channel: Any,
+    use_channel: Any,
+    connect: Any,
+    retry_seconds: float,
+    on_retry: Optional[Callable[[NovemException], None]] = None,
+) -> Any:
     """Open and use a channel, retrying only failed admission attempts.
 
     A computer that has just been told to boot reports ``not_running`` (and
@@ -546,36 +707,210 @@ async def _with_retry(open_channel: Any, use_channel: Any, connect: Any, retry_s
 
     deadline = time.monotonic() + max(0.0, retry_seconds)
     delay = 0.5
+    notified = False
+
+    def notify(error: NovemException) -> None:
+        nonlocal notified
+        if on_retry is not None and not notified:
+            on_retry(error)
+        notified = True
+
+    # Retrying a failed upgrade is safe because no open request was sent. Once
+    # connected, explicit admission errors reuse that connection; a transport
+    # failure after an open request is never replayed because readiness may
+    # have been lost in transit.
     while True:
-        async with connect() as conn:
+        context = connect()
+        try:
+            conn = await context.__aenter__()
+        except NovemComputeTransportError as e:
+            if not e.retryable or time.monotonic() >= deadline:
+                raise
+            notify(e)
+            await asyncio.sleep(min(delay, max(0.0, deadline - time.monotonic())))
+            delay = min(delay * 1.5, 3.0)
+            continue
+        break
+
+    try:
+        while True:
             try:
                 channel = await open_channel(conn)
             except NovemComputeError as e:
                 if not e.retryable or time.monotonic() >= deadline:
                     raise
+                notify(e)
             else:
                 return await use_channel(channel)
-        await asyncio.sleep(delay)
-        delay = min(delay * 1.5, 3.0)
+            await asyncio.sleep(min(delay, max(0.0, deadline - time.monotonic())))
+            delay = min(delay * 1.5, 3.0)
+    finally:
+        await context.__aexit__(*sys.exc_info())
 
 
-async def _exec_collect_channel(ch: Channel, stdin: Optional[bytes]) -> ExecResult:
+async def _pump_stdin(ch: Channel, stdin: Optional[StdinSource]) -> None:
+    """Forward stdin incrementally without blocking the event loop.
+
+    File reads run in one bounded daemon worker. At most one chunk waits
+    locally while the previous chunk is written, and cancellation does not
+    wait for a pipe producer that keeps its end open.
+    """
+
+    if stdin is None:
+        await ch.stdin_eof()
+        return
+    if isinstance(stdin, str):
+        if stdin:
+            await ch.send(stdin.encode("utf-8"))
+        await ch.stdin_eof()
+        return
+    if isinstance(stdin, (bytes, bytearray)):
+        if stdin:
+            await ch.send(bytes(stdin))
+        await ch.stdin_eof()
+        return
+
+    loop = asyncio.get_running_loop()
+    queue: "asyncio.Queue[Tuple[Any, Optional[BaseException]]]" = asyncio.Queue()
+    may_read = threading.Event()
+    stopped = threading.Event()
+    may_read.set()
+
+    def deliver(chunk: Any, error: Optional[BaseException]) -> bool:
+        try:
+            loop.call_soon_threadsafe(queue.put_nowait, (chunk, error))
+            return True
+        except RuntimeError:
+            return False
+
+    def read_stdin() -> None:
+        reader = getattr(stdin, "read1", stdin.read)
+        while True:
+            may_read.wait()
+            may_read.clear()
+            if stopped.is_set():
+                return
+            try:
+                chunk = reader(MAX_DATA_BYTES)
+            except BaseException as e:
+                deliver(None, e)
+                return
+            if not deliver(chunk, None) or not chunk:
+                return
+
+    threading.Thread(target=read_stdin, name="novem-stdin", daemon=True).start()
+    try:
+        while True:
+            chunk, error = await queue.get()
+            if error is not None:
+                raise error
+            if not chunk:
+                break
+            payload = chunk.encode("utf-8") if isinstance(chunk, str) else bytes(chunk)
+            if payload:
+                await ch.send(payload)
+            may_read.set()
+        await ch.stdin_eof()
+    finally:
+        stopped.set()
+        may_read.set()
+
+
+_T = TypeVar("_T")
+
+
+async def _use_channel_with_stdin(
+    ch: Channel,
+    stdin: Optional[StdinSource],
+    consume: Callable[[], Awaitable[_T]],
+) -> _T:
+    """Pump input and consume output concurrently for one exec channel."""
+
+    pump: "asyncio.Task[None]" = asyncio.create_task(_pump_stdin(ch, stdin))
+    output: "asyncio.Future[_T]" = asyncio.ensure_future(consume())
+    try:
+        done, _ = await asyncio.wait((pump, output), return_when=asyncio.FIRST_COMPLETED)
+        if pump in done:
+            await pump
+        return await output
+    finally:
+        for task in (pump, output):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(pump, output, return_exceptions=True)
+
+
+async def _with_sigint_forwarding(ch: Channel, operation: Callable[[], Awaitable[_T]]) -> _T:
+    """Forward the first SIGINT to a command and abort locally on the second."""
+
+    if os.name == "nt" or threading.current_thread() is not threading.main_thread():
+        return await operation()
+
+    import signal as signalmod
+
+    loop = asyncio.get_running_loop()
+    pending: "asyncio.Queue[str]" = asyncio.Queue()
+    second_interrupt: "asyncio.Future[None]" = loop.create_future()
+    interrupts = 0
+
+    def on_sigint() -> None:
+        nonlocal interrupts
+        interrupts += 1
+        if interrupts == 1:
+            pending.put_nowait("INT")
+        elif not second_interrupt.done():
+            second_interrupt.set_result(None)
+
+    previous = signalmod.getsignal(signalmod.SIGINT)
+    try:
+        loop.add_signal_handler(signalmod.SIGINT, on_sigint)
+    except (NotImplementedError, RuntimeError, ValueError):  # pragma: no cover - platform/event-loop guard
+        return await operation()
+
+    async def forward() -> None:
+        while True:
+            await ch.signal(await pending.get())
+
+    sender: "asyncio.Task[None]" = asyncio.create_task(forward())
+    command: "asyncio.Future[_T]" = asyncio.ensure_future(operation())
+    try:
+        done, _ = await asyncio.wait((sender, command, second_interrupt), return_when=asyncio.FIRST_COMPLETED)
+        if command in done:
+            return await command
+        if sender in done:
+            await sender
+        raise KeyboardInterrupt
+    finally:
+        loop.remove_signal_handler(signalmod.SIGINT)
+        try:
+            signalmod.signal(signalmod.SIGINT, previous)
+        except (OSError, RuntimeError, ValueError):  # pragma: no cover - process teardown
+            pass
+        for task in (sender, command):
+            if not task.done():
+                task.cancel()
+        if not second_interrupt.done():
+            second_interrupt.cancel()
+        await asyncio.gather(sender, command, return_exceptions=True)
+
+
+async def _exec_collect_channel(ch: Channel, stdin: Optional[StdinSource]) -> ExecResult:
     """Collect output from an admitted exec channel."""
-    if stdin:
-        await ch.send(stdin)
-    await ch.stdin_eof()
 
-    out: List[bytes] = []
-    err: List[bytes] = []
-    async for stream, data in ch:
-        (err if stream == STREAM_STDERR else out).append(data)
-    code, signal = await ch.wait()
-    return ExecResult(
-        code=code,
-        signal=signal,
-        stdout=b"".join(out).decode("utf-8", "replace"),
-        stderr=b"".join(err).decode("utf-8", "replace"),
-    )
+    async def collect() -> ExecResult:
+        out: List[bytes] = []
+        err: List[bytes] = []
+        async for stream, data in ch:
+            (err if stream == STREAM_STDERR else out).append(data)
+        code, signal = await ch.wait()
+        return ExecResult(
+            code=code,
+            signal=signal,
+            stdout=b"".join(out).decode("utf-8", "replace"),
+            stderr=b"".join(err).decode("utf-8", "replace"),
+        )
+
+    return await _use_channel_with_stdin(ch, stdin, collect)
 
 
 async def _exec_collect(
@@ -585,24 +920,33 @@ async def _exec_collect(
     args: List[str],
     mode: str,
     cwd: str,
-    stdin: Optional[bytes],
+    stdin: Optional[StdinSource],
     timeout_seconds: int,
 ) -> ExecResult:
     ch = await conn.open_exec(target, command, args, mode=mode, cwd=cwd, timeout_seconds=timeout_seconds)
     return await _exec_collect_channel(ch, stdin)
 
 
-async def _exec_stream_channel(ch: Channel, stdin: Optional[bytes]) -> Tuple[int, Optional[str]]:
+async def _exec_stream_channel(
+    ch: Channel,
+    stdin: Optional[StdinSource],
+    forward_signals: bool = False,
+) -> Tuple[int, Optional[str]]:
     """Stream output from an admitted exec channel to local stdout/stderr."""
-    if stdin:
-        await ch.send(stdin)
-    await ch.stdin_eof()
 
-    async for stream, data in ch:
-        sink = sys.stderr.buffer if stream == STREAM_STDERR else sys.stdout.buffer
-        sink.write(data)
-        sink.flush()
-    return await ch.wait()
+    async def stream_output() -> Tuple[int, Optional[str]]:
+        async for stream, data in ch:
+            sink = sys.stderr.buffer if stream == STREAM_STDERR else sys.stdout.buffer
+            sink.write(data)
+            sink.flush()
+        return await ch.wait()
+
+    async def transfer() -> Tuple[int, Optional[str]]:
+        return await _use_channel_with_stdin(ch, stdin, stream_output)
+
+    if forward_signals:
+        return await _with_sigint_forwarding(ch, transfer)
+    return await transfer()
 
 
 async def _exec_stream(
@@ -612,7 +956,7 @@ async def _exec_stream(
     args: List[str],
     mode: str,
     cwd: str,
-    stdin: Optional[bytes],
+    stdin: Optional[StdinSource],
     timeout_seconds: int,
 ) -> Tuple[int, Optional[str]]:
     """Stream straight to local stdout/stderr and return the exit status."""
@@ -627,7 +971,10 @@ async def _open_interactive_pty(conn: ComputeConnection, target: str) -> Channel
     if not sys.stdin.isatty():
         raise NovemException("An interactive shell requires a terminal. Use -R to run a command instead.")
 
-    size = os.get_terminal_size()
+    try:
+        size = os.get_terminal_size(sys.stdin.fileno())
+    except OSError:
+        size = os.terminal_size((80, 24))
     return await conn.open_pty(target, rows=size.lines, cols=size.columns)
 
 
@@ -640,47 +987,99 @@ async def _pty_interactive(ch: Channel) -> Tuple[int, Optional[str]]:
     loop = asyncio.get_event_loop()
     fd = sys.stdin.fileno()
     saved = termios.tcgetattr(fd)
+    outbound: "asyncio.Queue[Tuple[str, Any]]" = asyncio.Queue()
+    reader_registered = False
+    stdin_ended = False
+
+    def register_reader() -> None:
+        nonlocal reader_registered
+        if not reader_registered and not stdin_ended:
+            loop.add_reader(fd, on_stdin)
+            reader_registered = True
 
     def on_winch(*_: Any) -> None:
         try:
-            new = os.get_terminal_size()
+            new = os.get_terminal_size(fd)
         except OSError:
-            return
-        asyncio.ensure_future(ch.resize(new.lines, new.columns))
+            new = os.terminal_size((80, 24))
+        outbound.put_nowait(("resize", (new.lines, new.columns)))
 
     def on_stdin() -> None:
-        data = os.read(fd, 8192)
-        if data:
-            asyncio.ensure_future(ch.send(data))
+        nonlocal reader_registered, stdin_ended
+        if reader_registered:
+            loop.remove_reader(fd)
+            reader_registered = False
+        try:
+            data = os.read(fd, 8192)
+        except OSError:
+            data = b""
+        if not data:
+            stdin_ended = True
+            outbound.put_nowait(("eof", None))
+            return
+        outbound.put_nowait(("data", data))
 
-    try:
-        tty.setraw(fd)
-        loop.add_signal_handler(signalmod.SIGWINCH, on_winch)
-        loop.add_reader(fd, on_stdin)
+    async def write_outbound() -> None:
+        while True:
+            kind, value = await outbound.get()
+            if kind == "data":
+                await ch.send(value)
+                register_reader()
+            elif kind == "resize":
+                rows, cols = value
+                await ch.resize(rows, cols)
+            else:
+                await ch.stdin_eof()
 
+    async def read_remote() -> Tuple[int, Optional[str]]:
         async for _stream, data in ch:
             sys.stdout.buffer.write(data)
             sys.stdout.buffer.flush()
         return await ch.wait()
+
+    try:
+        tty.setraw(fd)
+        loop.add_signal_handler(signalmod.SIGWINCH, on_winch)
+        register_reader()
+
+        writer = asyncio.create_task(write_outbound())
+        remote = asyncio.create_task(read_remote())
+        try:
+            done, _ = await asyncio.wait((writer, remote), return_when=asyncio.FIRST_COMPLETED)
+            if writer in done:
+                await writer
+            return await remote
+        finally:
+            for task in (writer, remote):
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(writer, remote, return_exceptions=True)
     finally:
-        loop.remove_reader(fd)
+        if reader_registered:
+            loop.remove_reader(fd)
         try:
             loop.remove_signal_handler(signalmod.SIGWINCH)
         except (NotImplementedError, RuntimeError):  # pragma: no cover
             pass
-        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        try:
+            termios.tcsetattr(fd, termios.TCSADRAIN, saved)
+        except OSError:  # terminal already hung up
+            pass
 
 
 __all__ = [
     "PROTOCOL",
     "PATH",
     "MAX_DATA_BYTES",
+    "MAX_MESSAGE_BYTES",
     "STREAM_DATA",
     "STREAM_STDOUT",
     "STREAM_STDERR",
     "ERROR_CODES",
     "RETRYABLE_CODES",
     "NovemComputeError",
+    "NovemComputeTransportError",
+    "StdinSource",
     "Hello",
     "ExecResult",
     "Channel",

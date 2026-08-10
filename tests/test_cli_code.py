@@ -78,6 +78,7 @@ def test_computer_list(cli, requests_mock, fs):
         [
             _vde(
                 "my-box",
+                name=None,
                 computer_type="permanent",
                 status="online",
                 running=True,
@@ -102,6 +103,8 @@ def test_computer_list(cli, requests_mock, fs):
     header = out.split("\n")[0]
     assert "Cpu" in header and "Mem" in header and "Disk" in header
     assert "2Gi" in out and "10Gi" in out
+    row = next(line for line in out.splitlines() if "my-box" in line)
+    assert " - " in row
 
 
 def test_image_list(cli, requests_mock, fs):
@@ -715,7 +718,30 @@ def test_computer_run_forwards_piped_stdin(cli, requests_mock, fs, monkeypatch):
     except CliExit as e:
         assert e.code == 0
 
-    assert seen["stdin"] == "a\nb\n"
+    # The CLI hands the stream off without decoding or waiting for EOF.
+    assert seen["stdin"].read() == "a\nb\n"
+
+
+def test_computer_transport_failure_has_a_distinct_exit_code(cli, requests_mock, fs, monkeypatch):
+    from novem.code import NovemComputeTransportError
+
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    def fail_stream(self, argv, **kwargs):
+        raise NovemComputeTransportError("compute connection closed unexpectedly", 1011)
+
+    monkeypatch.setattr("novem.code.Computer.stream", fail_stream)
+
+    try:
+        cli("-c", "my-box", "-R", "--", "true")
+        assert False, "transport failures always exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 255
+        assert "compute connection closed unexpectedly" in err
+        assert "1011" in err
 
 
 def test_computer_run_reports_signals_shell_style(cli, requests_mock, fs, monkeypatch):
@@ -730,6 +756,70 @@ def test_computer_run_reports_signals_shell_style(cli, requests_mock, fs, monkey
         assert False, "should exit"
     except CliExit as e:
         assert e.code == 143  # 128 + SIGTERM
+
+
+def test_computer_run_surfaces_unknown_signal(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+    monkeypatch.setattr("novem.code.Computer.stream", lambda self, argv, **kw: (-1, "FUTURE"))
+
+    try:
+        cli("-c", "my-box", "-R", "--", "sleep", "100")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 255
+        assert "unknown signal" in err
+        assert "FUTURE" in err
+
+
+def test_computer_run_ctrl_c_exits_130(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    def interrupt(self, argv, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("novem.code.Computer.stream", interrupt)
+
+    try:
+        cli("-c", "my-box", "-R", "--", "tail", "-f", "log")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 130
+        assert "interrupted" in err
+
+
+def test_computer_wait_is_visible_and_configurable(cli, requests_mock, fs, monkeypatch):
+    from novem.code import NovemComputeError
+
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+    seen = {}
+
+    def fake_stream(self, argv, **kwargs):
+        seen.update(kwargs)
+        error = NovemComputeError("not_running", "Computer is starting")
+        kwargs["on_retry"](error)
+        kwargs["on_retry"](error)
+        return (0, None)
+
+    monkeypatch.setattr("novem.code.Computer.stream", fake_stream)
+
+    try:
+        cli("-c", "my-box", "--connect-timeout", "2.5", "-R", "--", "true")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 0
+        assert err.count("waiting for the computer connection") == 1
+
+    assert seen["retry_seconds"] == 2.5
+    assert seen["forward_signals"] is True
 
 
 def test_computer_run_without_argv_explains_itself(cli, requests_mock, fs):
@@ -764,6 +854,51 @@ def test_computer_attach_calls_shell(cli, requests_mock, fs, monkeypatch):
     except CliExit as e:
         assert e.code == 0
     assert called.get("yes")
+
+
+def test_attach_without_a_computer_is_an_error(cli):
+    try:
+        cli("-A")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 1
+        assert "requires a named computer" in err
+
+
+def test_bare_write_and_run_do_not_compete_for_stdin(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    monkeypatch.setattr("novem.code.Computer.stream", lambda self, argv, **kwargs: (0, None))
+
+    try:
+        cli("-c", "my-box", "-w", "config/caption", "-R", "--", "cat", stdin="payload")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 1
+        assert "cannot both read stdin" in err
+
+
+def test_bare_image_does_not_hide_run(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+    called = {}
+
+    def fake_stream(self, argv, **kwargs):
+        called["argv"] = argv
+        return (0, None)
+
+    monkeypatch.setattr("novem.code.Computer.stream", fake_stream)
+
+    try:
+        cli("-c", "my-box", "--image", "-R", "--", "true")
+        assert False, "should exit"
+    except CliExit as e:
+        assert e.code == 0
+
+    assert called["argv"] == ["true"]
 
 
 def test_attach_and_run_are_mutually_exclusive(cli, requests_mock, fs):

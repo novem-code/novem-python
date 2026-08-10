@@ -13,9 +13,9 @@ subclasses set ``_collection``/``_label`` and add their own properties.
 """
 
 import sys
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union, cast
 
-from novem.exceptions import Novem403, Novem404, raise_on_response
+from novem.exceptions import Novem403, Novem404, NovemException, raise_on_response
 
 from ..api_ref import NovemAPI
 from ..shared import NovemShare
@@ -27,6 +27,8 @@ from .compute import (
     ComputeConnection,
     ExecResult,
     NovemComputeError,
+    NovemComputeTransportError,
+    StdinSource,
     _exec_collect_channel,
     _exec_stream_channel,
     _open_interactive_pty,
@@ -543,8 +545,12 @@ class Computer(NovemCodeAPI):
             async with computer.connect() as conn:
                 ch = await conn.open_exec(computer.compute_target, "ls")
         """
+        try:
+            url = ws_url(self._api_root)
+        except ValueError as e:
+            raise NovemComputeTransportError(str(e)) from e
         return ComputeConnection(
-            ws_url(self._api_root),
+            url,
             self.token or "",
             ignore_ssl=self._config.ignore_ssl,
             debug=self._debug,
@@ -559,19 +565,20 @@ class Computer(NovemCodeAPI):
         argv: Union[str, List[str]],
         mode: str = "argv",
         cwd: str = "",
-        stdin: Optional[Union[str, bytes]] = None,
+        stdin: Optional[StdinSource] = None,
         timeout: int = 600,
         retry_seconds: float = 0.0,
+        on_retry: Optional[Callable[[NovemException], None]] = None,
     ) -> "ExecResult":
         """Run one command and return its buffered output and exit status.
 
         ``argv`` is a list in argv mode (no shell re-parsing) or a command
-        string in shell mode. ``retry_seconds`` retries the open while the
-        computer reports a retryable state, which is what a machine that has
-        only just been told to boot does until its agent is reachable.
+        string in shell mode. ``stdin`` accepts text, bytes, or a readable
+        file-like object; file input is forwarded incrementally while output
+        is collected. ``retry_seconds`` retries the open while the computer
+        reports a retryable state.
         """
         command, args = _split_argv(argv, mode)
-        payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
         target = self._compute_target()
         return _run_sync(
             _with_retry(
@@ -583,9 +590,10 @@ class Computer(NovemCodeAPI):
                     cwd=cwd,
                     timeout_seconds=timeout,
                 ),
-                lambda channel: _exec_collect_channel(channel, payload),
+                lambda channel: _exec_collect_channel(channel, stdin),
                 self.connect,
                 retry_seconds,
+                on_retry,
             )
         )
 
@@ -594,17 +602,20 @@ class Computer(NovemCodeAPI):
         argv: Union[str, List[str]],
         mode: str = "argv",
         cwd: str = "",
-        stdin: Optional[Union[str, bytes]] = None,
+        stdin: Optional[StdinSource] = None,
         timeout: int = 600,
         retry_seconds: float = 0.0,
+        on_retry: Optional[Callable[[NovemException], None]] = None,
+        forward_signals: bool = False,
     ) -> Tuple[int, Optional[str]]:
         """Run one command, writing its output straight to stdout/stderr.
 
-        Returns ``(code, signal)``; the code is the workload's own, so a
-        non-zero value is a successful call reporting a failed command.
+        ``stdin`` accepts text, bytes, or a readable file-like object. File
+        input and command output are handled concurrently. Returns ``(code,
+        signal)``; the code is the workload's own, so a non-zero value is a
+        successful call reporting a failed command.
         """
         command, args = _split_argv(argv, mode)
-        payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
         target = self._compute_target()
         return cast(
             Tuple[int, Optional[str]],
@@ -618,14 +629,19 @@ class Computer(NovemCodeAPI):
                         cwd=cwd,
                         timeout_seconds=timeout,
                     ),
-                    lambda channel: _exec_stream_channel(channel, payload),
+                    lambda channel: _exec_stream_channel(channel, stdin, forward_signals=forward_signals),
                     self.connect,
                     retry_seconds,
+                    on_retry,
                 )
             ),
         )
 
-    def shell(self, retry_seconds: float = 0.0) -> Tuple[int, Optional[str]]:
+    def shell(
+        self,
+        retry_seconds: float = 0.0,
+        on_retry: Optional[Callable[[NovemException], None]] = None,
+    ) -> Tuple[int, Optional[str]]:
         """Attach an interactive shell, taking over the local terminal."""
         target = self._compute_target()
         return cast(
@@ -636,6 +652,7 @@ class Computer(NovemCodeAPI):
                     _pty_interactive,
                     self.connect,
                     retry_seconds,
+                    on_retry,
                 )
             ),
         )
@@ -694,4 +711,5 @@ __all__ = [
     "ComputeConnection",
     "ExecResult",
     "NovemComputeError",
+    "NovemComputeTransportError",
 ]
