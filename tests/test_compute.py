@@ -42,6 +42,7 @@ from novem.code.compute import (
     target_for,
     ws_url,
 )
+from novem.exceptions import NovemException
 
 TARGET = "/v1/users/alice/code/computers/box"
 
@@ -127,6 +128,14 @@ def test_unknown_error_codes_pass_through_as_terminal():
         assert exc_info.value.cli_message == "A newer server reported an error"
 
     asyncio.run(check())
+
+
+def test_transport_errors_include_their_code_hint():
+    error = NovemComputeTransportError("compute connection is temporarily at capacity", code="limit_exceeded")
+
+    assert error.cli_message == (
+        "compute connection is temporarily at capacity\n" "The service is busy. Wait briefly and try again."
+    )
 
 
 def test_unknown_or_invalid_ready_is_a_transport_error():
@@ -362,6 +371,45 @@ def test_output_is_consumed_while_file_stdin_is_still_open():
     asyncio.run(check())
 
 
+def test_command_exit_cancels_an_unbounded_stdin_pump():
+    class EndlessInput:
+        def __init__(self):
+            self.reads = 0
+
+        def read(self, size):
+            self.reads += 1
+            return b"input\n"
+
+    class RecordingChannel:
+        def __init__(self):
+            self.data = []
+            self.received = asyncio.Event()
+            self.eof = False
+
+        async def send(self, data):
+            self.data.append(data)
+            self.received.set()
+
+        async def stdin_eof(self):
+            self.eof = True
+
+    async def check():
+        source = EndlessInput()
+        channel = RecordingChannel()
+
+        async def consume():
+            await channel.received.wait()
+            return "command exited"
+
+        result = await asyncio.wait_for(_use_channel_with_stdin(channel, source, consume), timeout=1)
+        assert result == "command exited"
+        assert source.reads >= 1
+        assert channel.data
+        assert channel.eof is False
+
+    asyncio.run(check())
+
+
 def test_first_sigint_is_forwarded_to_the_command(monkeypatch):
     class RecordingChannel:
         def __init__(self):
@@ -491,6 +539,33 @@ def test_pty_hangup_sends_eof_once_without_spinning(monkeypatch):
         os.close(slave_fd)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="PTY handling is Unix-only")
+@pytest.mark.parametrize("failure_point", ["tcgetattr", "setraw"])
+def test_pty_setup_failure_has_a_clear_error(monkeypatch, failure_point):
+    import termios
+    import tty
+
+    class Stdin:
+        @staticmethod
+        def fileno():
+            return 42
+
+    def unavailable(*args):
+        raise termios.error(5, "Input/output error")
+
+    monkeypatch.setattr(sys, "stdin", Stdin())
+    if failure_point == "tcgetattr":
+        monkeypatch.setattr(termios, "tcgetattr", unavailable)
+    else:
+        monkeypatch.setattr(termios, "tcgetattr", lambda fd: object())
+        monkeypatch.setattr(termios, "tcsetattr", lambda *args: None)
+        monkeypatch.setattr(tty, "setraw", unavailable)
+
+    with pytest.raises(NovemException, match="local terminal became unavailable") as exc_info:
+        asyncio.run(_pty_interactive(object()))
+    assert isinstance(exc_info.value.__cause__, termios.error)
+
+
 # --- protocol, against a real server ----------------------------------------
 
 
@@ -510,7 +585,11 @@ class FakeServer:
     async def handler(self, request):
         self.connections += 1
         if self.reject_statuses:
-            return web.Response(status=self.reject_statuses.pop(0))
+            rejection = self.reject_statuses.pop(0)
+            if isinstance(rejection, tuple):
+                status, headers = rejection
+                return web.Response(status=status, headers=headers)
+            return web.Response(status=rejection)
         self.auth = request.headers.get("Authorization")
         self.subprotocol = request.headers.get("Sec-WebSocket-Protocol")
         ws = web.WebSocketResponse(protocols=self.protocols)
@@ -728,6 +807,64 @@ def test_retryable_handshake_failure_reconnects_before_any_open():
     assert len(retries) == 1
     assert isinstance(retries[0], NovemComputeTransportError)
     assert retries[0].code == "upstream_unavailable"
+
+
+def test_429_handshake_exposes_retry_after_and_hint():
+    async def script(ws, msg, server):
+        pass
+
+    server = FakeServer(script, reject_statuses=[(429, {"Retry-After": "7"})])
+
+    async def body(url):
+        connection = ComputeConnection(url, "nut-x")
+        with pytest.raises(NovemComputeTransportError) as exc_info:
+            await connection.__aenter__()
+        return exc_info.value
+
+    error = _drive(server, body)
+    assert error.code == "limit_exceeded"
+    assert error.retryable is True
+    assert error.retry_after == 7.0
+    assert "Wait briefly and try again" in error.cli_message
+
+
+def test_retryable_transport_honours_retry_after(monkeypatch):
+    attempts = 0
+    waits = []
+
+    class Context:
+        async def __aenter__(self):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise NovemComputeTransportError(
+                    "temporarily at capacity",
+                    code="limit_exceeded",
+                    retryable=True,
+                    retry_after=2.0,
+                )
+            return "connection"
+
+        async def __aexit__(self, *exc):
+            pass
+
+    async def sleep(delay):
+        waits.append(delay)
+
+    async def open_channel(connection):
+        assert connection == "connection"
+        return "channel"
+
+    async def use_channel(channel):
+        assert channel == "channel"
+        return "done"
+
+    monkeypatch.setattr(asyncio, "sleep", sleep)
+    result = asyncio.run(_with_retry(open_channel, use_channel, Context, 5.0))
+
+    assert result == "done"
+    assert attempts == 2
+    assert waits == [2.0]
 
 
 def test_handshake_validation_failure_closes_all_resources(monkeypatch):

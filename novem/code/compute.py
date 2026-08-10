@@ -117,12 +117,26 @@ class NovemComputeTransportError(NovemException):
         *,
         code: str = "connection_failed",
         retryable: bool = False,
+        retry_after: Optional[float] = None,
     ) -> None:
         self.close_code = close_code
         self.code = code
         self.retryable = retryable
+        self.retry_after = retry_after
         detail = f"{message} (WebSocket close code {close_code})" if close_code is not None else message
         super().__init__(detail)
+
+    @property
+    def cli_message(self) -> str:
+        base = str(self)
+        hint = _HINTS.get(self.code)
+        if not hint:
+            return base
+        base_key = base.casefold().strip().rstrip(".")
+        hint_key = hint.casefold().strip().rstrip(".")
+        if hint_key in base_key or base_key in hint_key:
+            return base
+        return f"{base}\n{hint}"
 
 
 _HINTS = {
@@ -149,6 +163,30 @@ _CLOSE_REASONS = {
     1008: ("protocol_error", "The compute protocol was rejected. Upgrade the CLI and try again."),
     1011: ("upstream_unavailable", "The compute service ended the session."),
 }
+
+
+def _retry_after_seconds(value: Optional[str]) -> Optional[float]:
+    """Parse an HTTP Retry-After delay or date into seconds from now."""
+
+    if not value:
+        return None
+    value = value.strip()
+    try:
+        seconds = int(value)
+    except ValueError:
+        from datetime import datetime, timezone
+        from email.utils import parsedate_to_datetime
+
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if when is None:
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+    return float(seconds) if seconds >= 0 else None
 
 
 @dataclass
@@ -374,17 +412,21 @@ class ComputeConnection:
             raise
         except aiohttp.WSServerHandshakeError as e:
             await self.aclose()
+            headers = getattr(e, "headers", None)
+            retry_after = _retry_after_seconds(headers.get("Retry-After") if headers is not None else None)
             if e.status == 429:
                 raise NovemComputeTransportError(
                     "compute connection is temporarily at capacity",
                     code="limit_exceeded",
                     retryable=True,
+                    retry_after=retry_after,
                 ) from e
             if e.status == 503:
                 raise NovemComputeTransportError(
                     "compute service is temporarily unavailable",
                     code="upstream_unavailable",
                     retryable=True,
+                    retry_after=retry_after,
                 ) from e
             raise NovemComputeTransportError(f"compute connection could not be established (HTTP {e.status})") from e
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
@@ -715,6 +757,21 @@ async def _with_retry(
             on_retry(error)
         notified = True
 
+    async def wait_before_retry(error: NovemException) -> bool:
+        """Wait for local backoff and any longer server-requested delay."""
+
+        nonlocal delay
+        remaining = max(0.0, deadline - time.monotonic())
+        retry_after = getattr(error, "retry_after", None)
+        wait = max(delay, retry_after or 0.0)
+        if retry_after is not None and retry_after > remaining:
+            if remaining:
+                await asyncio.sleep(remaining)
+            return False
+        await asyncio.sleep(min(wait, remaining))
+        delay = min(delay * 1.5, 3.0)
+        return True
+
     # Retrying a failed upgrade is safe because no open request was sent. Once
     # connected, explicit admission errors reuse that connection; a transport
     # failure after an open request is never replayed because readiness may
@@ -727,8 +784,8 @@ async def _with_retry(
             if not e.retryable or time.monotonic() >= deadline:
                 raise
             notify(e)
-            await asyncio.sleep(min(delay, max(0.0, deadline - time.monotonic())))
-            delay = min(delay * 1.5, 3.0)
+            if not await wait_before_retry(e):
+                raise
             continue
         break
 
@@ -740,10 +797,10 @@ async def _with_retry(
                 if not e.retryable or time.monotonic() >= deadline:
                     raise
                 notify(e)
+                if not await wait_before_retry(e):
+                    raise
             else:
                 return await use_channel(channel)
-            await asyncio.sleep(min(delay, max(0.0, deadline - time.monotonic())))
-            delay = min(delay * 1.5, 3.0)
     finally:
         await context.__aexit__(*sys.exc_info())
 
@@ -986,7 +1043,10 @@ async def _pty_interactive(ch: Channel) -> Tuple[int, Optional[str]]:
 
     loop = asyncio.get_event_loop()
     fd = sys.stdin.fileno()
-    saved = termios.tcgetattr(fd)
+    try:
+        saved = termios.tcgetattr(fd)
+    except (OSError, termios.error) as e:
+        raise NovemException("The local terminal became unavailable before the interactive shell was ready.") from e
     outbound: "asyncio.Queue[Tuple[str, Any]]" = asyncio.Queue()
     reader_registered = False
     stdin_ended = False
@@ -1038,7 +1098,10 @@ async def _pty_interactive(ch: Channel) -> Tuple[int, Optional[str]]:
         return await ch.wait()
 
     try:
-        tty.setraw(fd)
+        try:
+            tty.setraw(fd)
+        except (OSError, termios.error) as e:
+            raise NovemException("The local terminal became unavailable before the interactive shell was ready.") from e
         loop.add_signal_handler(signalmod.SIGWINCH, on_winch)
         register_reader()
 
