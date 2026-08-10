@@ -5,6 +5,7 @@ Listing goes through GraphQL (mocked at the /gql endpoint); everything else
 is REST against code/{collection}/{id} (mocked with requests_mock).
 """
 
+import sys
 from functools import partial
 
 from novem.cli.gql import _get_gql_endpoint
@@ -636,3 +637,144 @@ def test_plot_share_and_read_untouched(cli, requests_mock, fs):
     out, err = cli("-p", "my-plot", "-s", "public", "-C", "-r", "url")
     assert shared.get("yes")
     assert out == "https://novem.no/p/x"
+
+
+# --- computer sessions: -R and -A -----------------------------------------------
+
+
+def test_computer_image_shorthand(cli, requests_mock, fs):
+    """--image on a selected computer writes config/image."""
+    write_config(auth_req)
+
+    written = {}
+
+    def on_write(request, context):
+        written["image"] = request.text
+        context.status_code = 200
+        return ""
+
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("post", f"{api_root}code/computers/my-box/config/image", text=on_write)
+
+    out, err = cli("-c", "my-box", "-C", "--image", "@novem/base")
+    assert written["image"] == "@novem/base"
+
+
+def test_computer_image_bare_reads_it_back(cli, requests_mock, fs):
+    write_config(auth_req)
+
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}code/computers/my-box/config/image", text="@novem/base\n")
+
+    out, err = cli("-c", "my-box", "--image")
+    assert out == "@novem/base\n"
+
+
+def test_computer_run_streams_and_exits_with_the_command_code(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    seen = {}
+
+    def fake_stream(self, argv, **kwargs):
+        seen["argv"] = argv
+        seen["stdin"] = kwargs.get("stdin")
+        sys.stdout.write("hello\n")
+        return (7, None)
+
+    monkeypatch.setattr("novem.code.Computer.stream", fake_stream)
+
+    try:
+        cli("-c", "my-box", "-R", "--", "ls", "-la")
+        assert False, "should exit with the command's code"
+    except CliExit as e:
+        out, err = e.args
+        assert e.code == 7
+        assert "hello" in out
+
+    assert seen["argv"] == ["ls", "-la"]
+
+
+def test_computer_run_reports_signals_shell_style(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    monkeypatch.setattr("novem.code.Computer.stream", lambda self, argv, **kw: (-1, "TERM"))
+
+    try:
+        cli("-c", "my-box", "-R", "--", "sleep", "100")
+        assert False, "should exit"
+    except CliExit as e:
+        assert e.code == 143  # 128 + SIGTERM
+
+
+def test_computer_run_without_argv_explains_itself(cli, requests_mock, fs):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+
+    try:
+        cli("-c", "my-box", "-R")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "needs a command" in err
+        assert "-R -- ls -la" in err
+
+
+def test_computer_attach_calls_shell(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+    requests_mock.register_uri("get", f"{api_root}whoami", text="demouser")
+
+    called = {}
+
+    def fake_shell(self, **kwargs):
+        called["yes"] = True
+        return (0, None)
+
+    monkeypatch.setattr("novem.code.Computer.shell", fake_shell)
+
+    try:
+        cli("-c", "my-box", "-A")
+        assert False, "should exit"
+    except CliExit as e:
+        assert e.code == 0
+    assert called.get("yes")
+
+
+def test_attach_and_run_are_mutually_exclusive(cli, requests_mock, fs):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/computers/my-box", status_code=201)
+
+    try:
+        cli("-c", "my-box", "-A", "-R", "--", "ls")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "cannot be combined" in err
+
+
+def test_session_verbs_are_computer_only(cli, requests_mock, fs):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/spaces/my-space", status_code=201)
+
+    try:
+        cli("-s", "my-space", "-A")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "only available for computers" in err
+
+
+def test_job_run_rejects_an_argv_tail_for_now(cli, requests_mock, fs):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
+
+    try:
+        cli("-j", "my-job", "-R", "--", "python", "main.py")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "not supported for jobs yet" in err

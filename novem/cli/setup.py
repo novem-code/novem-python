@@ -1,7 +1,7 @@
 import argparse as ap
 import shutil
 from enum import Enum
-from typing import Any, Tuple, cast
+from typing import Any, List, Optional, Tuple, cast
 
 from .args import CliArgs
 
@@ -37,7 +37,12 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
 _CODE_SELECTOR_MAP = {
     "-s": "--space",
     "-r": "--repo",
-    "-i": "--image",
+    "-i": "--image-select",
+    # --image is overloaded on the same first-occurrence rule as the shorts:
+    # unclaimed it selects an image, otherwise it sets config/image on the
+    # selected resource. It cannot be its own promotion target, so both
+    # spellings rewrite to the hidden --image-select.
+    "--image": "--image-select",
 }
 
 # Flags that claim the invocation for another resource. When any of these is
@@ -58,7 +63,7 @@ _PRIMARY_SELECTOR_FLAGS = {
     "--space",
     "--repo",
     "--computer",
-    "--image",
+    "--image-select",
 }
 
 # Early-exit commands that historically pair with the legacy meanings of the
@@ -97,6 +102,7 @@ _PROMOTION_NEUTRAL = {
     "--comments",
     "--config",
     "--config-path",
+    "--image",
     "--debug",
     "--dry-run",
     "--dump",
@@ -120,6 +126,28 @@ _PROMOTION_NEUTRAL = {
 
 # Short flags that take a value, for recognising the attached form (-pmyplot).
 _VALUED_SHORT_FLAGS = {"-p", "-g", "-m", "-d", "-j", "-u", "-O", "-G", "-s", "-t", "-r", "-c", "-i", "-o", "-e", "-f"}
+
+
+def split_argv_tail(raw_args: Any) -> Tuple[Any, Optional[List[str]]]:
+    """Split a trailing ``-- argv...`` off the command line.
+
+    ``-R`` runs the selected resource's workload, and everything after a
+    standalone ``--`` is the invocation to run rather than novem flags::
+
+        novem -c box -R -- ls -la
+        novem -j job -R -- python main.py
+
+    The tail is passed through verbatim, so an argument that looks like a
+    flag survives. The CLI has no positional arguments, so a bare ``--``
+    previously meant nothing at all.
+    """
+    if not raw_args:
+        return raw_args, None
+    tokens = list(raw_args)
+    for idx, tok in enumerate(tokens):
+        if tok == "--":
+            return tokens[:idx], tokens[idx + 1 :]
+    return tokens, None
 
 
 def promote_code_selectors(raw_args: Any) -> Any:
@@ -198,21 +226,23 @@ def promote_code_selectors(raw_args: Any) -> Any:
     for idx, tok in enumerate(tokens):
         if tok == "--":
             break
-        base = short_base(tok)
+        if tok.startswith("--"):
+            base, _, attached = tok.partition("=")
+        else:
+            base = short_base(tok)
+            attached = tok[2:] if base != tok else ""
         if base in _CODE_SELECTOR_MAP:
-            if bare_only and not is_bare(idx):
+            if bare_only and (attached or not is_bare(idx)):
                 break
-            if base != tok:
-                # attached value: -smy-space -> --space=my-space
-                tokens[idx] = f"{_CODE_SELECTOR_MAP[base]}={tok[2:]}"
-            else:
-                tokens[idx] = _CODE_SELECTOR_MAP[base]
+            target = _CODE_SELECTOR_MAP[base]
+            tokens[idx] = f"{target}={attached}" if attached else target
             break
 
     return tokens
 
 
 def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
+    raw_args, argv_tail = split_argv_tail(raw_args)
     raw_args = promote_code_selectors(raw_args)
 
     parser = ap.ArgumentParser(
@@ -837,13 +867,34 @@ resource is selected they keep their usual meaning:
     )
 
     code.add_argument(
-        "--image",
+        "--image-select",
         dest="image",
         action="store",
         required=False,
         default="",
         nargs="?",
-        help="select image to operate on (also: -i as first selector), no parameter will list all your images",
+        help=ap.SUPPRESS,
+    )
+
+    code.add_argument(
+        "--image",
+        dest="image_ref",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        metavar="REF",
+        help="as the first selector, select an image to operate on (same as -i); "
+        "otherwise set the selected resource's image, e.g. -c my-box --image @novem/base",
+    )
+
+    code.add_argument(
+        "-A",
+        dest="attach",
+        action="store_true",
+        required=False,
+        default=False,
+        help="attach an interactive shell to the selected computer",
     )
 
     invite = parser.add_argument_group("invite")
@@ -983,6 +1034,9 @@ No parameter will list all organisations groups of which you are a member""",
         # None that crashed every consumer.)
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.CHECK, tags)
+
+    # the invocation after `--`, if any (see split_argv_tail)
+    args["argv"] = argv_tail
 
     # everything downstream treats create/delete as booleans
     args["create"] = args["create"] > 0

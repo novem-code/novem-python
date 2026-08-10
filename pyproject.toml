@@ -22,6 +22,11 @@ dependencies = [
 events = [
     "python-socketio[asyncio_client]>=5.11.0",
 ]
+compute = [
+    # live computer connections (novem.compute.v1 over /ws-cu) need a
+    # WebSocket client that can set headers and negotiate a subprotocol
+    "aiohttp>=3.9",
+]
 mcp = [
     # novem.comments.MCP() targets the v1 API (mcp.server.fastmcp.FastMCP,
     # Tool.inputSchema).  mcp 2.0 removed both, so keep the extra on 1.x

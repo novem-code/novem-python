@@ -159,11 +159,14 @@ keeps its everyday meaning. Long forms `--space`, `--repo`, `--computer` and
   novem -s space_name -e content/notes.md      # edit in $EDITOR
 
   # create a computer, size it, boot it, watch it
-  novem -c box_name -C --type ephemeral
-  novem -c box_name -w config/cpu 4 -w config/memory 4Gi
+  novem -c box_name -C --image @novem/base -w config/cpu 4 -w config/memory 4Gi
   novem -c box_name -w status online
   novem -c box_name -r status
   novem -c box_name -r log
+
+  # run a command on it, or attach a shell
+  novem -c box_name -R -- ls -la /var/log
+  novem -c box_name -A
 
   # inspect an image built from one of your repos
   novem -i image_name -r status
@@ -173,6 +176,40 @@ keeps its everyday meaning. Long forms `--space`, `--repo`, `--computer` and
 Images are derived from their source repo (one appears whenever a repo has
 been built) and cannot be created or deleted directly — everything else
 (shares, tags, `-w name`, `-r ...`) works like the other resources.
+
+### Running commands and attaching a shell
+`-R` runs a workload and `-A` attaches an interactive shell. Everything after a
+standalone `--` is the invocation to run, passed through verbatim:
+
+```bash
+  # one-off command; arguments survive without shell re-parsing, and the
+  # exit code is the command's own
+  novem -c box_name -R -- python3 -c 'print(1+1)'
+
+  # stdin is piped through
+  cat data.csv | novem -c box_name -R -- wc -l
+
+  # follow a log — a long-running command, not a separate feature
+  novem -c box_name -R -- tail -f /var/log/app.log
+
+  # interactive shell
+  novem -c box_name -A
+```
+
+Both need the computer to be running, and both wait while it finishes booting
+rather than failing immediately. A command killed by a signal reports
+`128 + signal`, the way a shell does.
+
+`--image` follows the same first-selector rule as the short flags: on its own
+it selects an image, and once a resource is selected it sets that resource's
+image.
+
+```bash
+  novem --image                       # list your images
+  novem --image image_name -r status  # inspect one
+  novem -c box_name --image @novem/base   # set the computer's image
+  novem -c box_name --image               # read it back
+```
 
 Because plot/grid/mail/doc/job selectors always win, existing invocations are
 unchanged: `novem -p plot_name -s public -C` still shares a plot, and

@@ -396,6 +396,14 @@ def job(args: CliArgs) -> None:
     )
 
     # -R (run): trigger job execution, optionally with file attachments
+    if args.get("run_job") is not None and args.get("argv"):
+        print(
+            "-R -- <argv> is not supported for jobs yet; the job runs its "
+            "configured invocation. Drop the -- argv to run it.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     if args.get("run_job") is not None:
         files = args["run_job"]
         j.run(
@@ -629,6 +637,15 @@ def code_resource(args: CliArgs, kind: str) -> None:
         if ptype:
             obj.type = ptype
 
+        # --image REF sets config/image; a bare --image reads it back, the
+        # same way a bare -s lists shares and a bare -t lists tags
+        image_ref = args.get("image_ref")
+        if image_ref is None:
+            print(obj.api_read("/config/image"), end="")
+            return
+        elif image_ref:
+            obj.api_write("/config/image", image_ref)
+
         found_stdin = False
         stdin_data = data_on_stdin()
         stdin_has_data = bool(stdin_data)
@@ -698,11 +715,62 @@ def code_resource(args: CliArgs, kind: str) -> None:
     if tag_op is Tag.CHECK:
         check_membership(kind, name, args, "tags", tag_targets)
 
+    # -R (run) and -A (attach) open a live session on a computer
+    if args.get("run_job") is not None or args.get("attach"):
+        _computer_session(args, obj, kind)
+        return
+
     # -r (read output)
     out = args["out"]
     if out:
         outp = obj.api_read(f"/{out}")
         print(outp, end="")
+
+
+def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
+    """Handle -R / -A against a running computer.
+
+    Both are live connections over novem.compute.v1; a computer that has only
+    just been told to boot answers retryable states until its agent is
+    reachable, so both wait rather than failing immediately.
+    """
+    from novem.code.compute import NovemComputeError
+
+    if kind != "computer":
+        print(f"-R and -A are only available for computers, not {kind}s", file=sys.stderr)
+        sys.exit(1)
+
+    computer = cast(Computer, obj)
+    argv = args.get("argv")
+    retry = 90.0
+
+    try:
+        if args.get("attach"):
+            if args.get("run_job") is not None:
+                print("-A and -R cannot be combined; attach or run one command", file=sys.stderr)
+                sys.exit(1)
+            code, signal = computer.shell(retry_seconds=retry)
+        else:
+            if not argv:
+                print(
+                    "-R on a computer needs a command to run, e.g.\n" f"  novem -c {computer.id} -R -- ls -la",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            stdin = data_on_stdin()
+            code, signal = computer.stream(argv, stdin=stdin, retry_seconds=retry)
+    except NovemComputeError as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        sys.exit(1)
+
+    # a signalled process has no exit code of its own; report it the way a
+    # shell does so callers can branch on it
+    if signal:
+        sys.exit(128 + _SIGNAL_NUMBERS.get(signal, 0))
+    sys.exit(code)
+
+
+_SIGNAL_NUMBERS = {"HUP": 1, "INT": 2, "QUIT": 3, "KILL": 9, "TERM": 15}
 
 
 def space(args: CliArgs) -> None:

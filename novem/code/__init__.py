@@ -13,7 +13,7 @@ subclasses set ``_collection``/``_label`` and add their own properties.
 """
 
 import sys
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union, cast
 
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
@@ -23,6 +23,19 @@ from ..sync import NovemTreeSync
 from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
+from .compute import (
+    ComputeConnection,
+    ExecResult,
+    NovemComputeError,
+    _exec_collect,
+    _exec_stream,
+    _pty_interactive,
+    _run_sync,
+    _split_argv,
+    _with_retry,
+    target_for,
+    ws_url,
+)
 from .space_content import SpaceChange, SpaceContent, SpaceDir, SpaceEntry, SpaceFileInfo, SpacePath, space_changes
 
 
@@ -487,6 +500,8 @@ class Computer(NovemCodeAPI):
     _collection = "computers"
     _label = "computer"
 
+    _compute_owner: Optional[str] = None
+
     def __init__(self, id: str, **kwargs: Any) -> None:
         self.id = id
         super().__init__(**kwargs)
@@ -502,6 +517,107 @@ class Computer(NovemCodeAPI):
     @property
     def info(self) -> str:
         return self.api_read("/info")
+
+    # ── live connections (novem.compute.v1 over /ws-cu) ──────────────────
+
+    def _compute_target(self) -> str:
+        """The canonical target for this computer.
+
+        The owner is always spelled out — the short ``/v1/code/...`` form is
+        not accepted here. Resolved from the token when not scoped to
+        another user, and cached for the object's lifetime.
+        """
+        owner = self.user
+        if not owner:
+            if self._compute_owner is None:
+                self._compute_owner = self.read("whoami").strip()
+            owner = self._compute_owner
+        return target_for(owner, self.id)
+
+    def connect(self) -> "ComputeConnection":
+        """An unopened :class:`ComputeConnection` for this computer's platform.
+
+        For async callers::
+
+            async with computer.connect() as conn:
+                ch = await conn.open_exec(computer.compute_target, "ls")
+        """
+        return ComputeConnection(
+            ws_url(self._api_root),
+            self.token or "",
+            ignore_ssl=bool(getattr(self, "_ignore_ssl", False)),
+            debug=self._debug,
+        )
+
+    @property
+    def compute_target(self) -> str:
+        return self._compute_target()
+
+    def run(
+        self,
+        argv: Union[str, List[str]],
+        mode: str = "argv",
+        cwd: str = "",
+        stdin: Optional[Union[str, bytes]] = None,
+        timeout: int = 600,
+        retry_seconds: float = 0.0,
+    ) -> "ExecResult":
+        """Run one command and return its buffered output and exit status.
+
+        ``argv`` is a list in argv mode (no shell re-parsing) or a command
+        string in shell mode. ``retry_seconds`` retries the open while the
+        computer reports a retryable state, which is what a machine that has
+        only just been told to boot does until its agent is reachable.
+        """
+        command, args = _split_argv(argv, mode)
+        payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
+        return _run_sync(
+            _with_retry(
+                lambda conn: _exec_collect(conn, self._compute_target(), command, args, mode, cwd, payload, timeout),
+                self.connect,
+                retry_seconds,
+            )
+        )
+
+    def stream(
+        self,
+        argv: Union[str, List[str]],
+        mode: str = "argv",
+        cwd: str = "",
+        stdin: Optional[Union[str, bytes]] = None,
+        timeout: int = 600,
+        retry_seconds: float = 0.0,
+    ) -> Tuple[int, Optional[str]]:
+        """Run one command, writing its output straight to stdout/stderr.
+
+        Returns ``(code, signal)``; the code is the workload's own, so a
+        non-zero value is a successful call reporting a failed command.
+        """
+        command, args = _split_argv(argv, mode)
+        payload = stdin.encode("utf-8") if isinstance(stdin, str) else stdin
+        return cast(
+            Tuple[int, Optional[str]],
+            _run_sync(
+                _with_retry(
+                    lambda conn: _exec_stream(conn, self._compute_target(), command, args, mode, cwd, payload, timeout),
+                    self.connect,
+                    retry_seconds,
+                )
+            ),
+        )
+
+    def shell(self, retry_seconds: float = 0.0) -> Tuple[int, Optional[str]]:
+        """Attach an interactive shell, taking over the local terminal."""
+        return cast(
+            Tuple[int, Optional[str]],
+            _run_sync(
+                _with_retry(
+                    lambda conn: _pty_interactive(conn, self._compute_target()),
+                    self.connect,
+                    retry_seconds,
+                )
+            ),
+        )
 
 
 class Image(NovemCodeAPI):
@@ -554,4 +670,7 @@ __all__ = [
     "SpaceEntry",
     "SpaceFileInfo",
     "SpaceChange",
+    "ComputeConnection",
+    "ExecResult",
+    "NovemComputeError",
 ]

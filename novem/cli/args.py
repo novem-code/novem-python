@@ -29,6 +29,7 @@ CliArgs = TypedDict(
         "repo": str,
         "computer": str,
         "image": str,
+        "image_ref": Optional[str],
         "invite": str,
         # group subcommand (only present for `novem group ...`)
         "org": Optional[str],
@@ -83,6 +84,8 @@ CliArgs = TypedDict(
         "init": Optional[str],
         "invite_user": Optional[str],
         "run_job": Optional[List[str]],  # nargs="*"
+        "argv": Optional[List[str]],  # the tail after `--`
+        "attach": bool,
         "events": Optional[List[str]],  # nargs="+"
         # raw http (post/put take PATH [DATA] -> nargs="+")
         "http_get": Optional[str],
