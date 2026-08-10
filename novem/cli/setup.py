@@ -157,7 +157,7 @@ def promote_code_selectors(raw_args: Any) -> Any:
 
         -s  spaces     (legacy: share group)
         -r  repos      (legacy: read path to stdout)
-        -i  images     (legacy: --input upload dir)
+        -i  images     (legacy: --input job input files/dirs)
 
     ``-c`` is not among them: it selects a computer and nothing else, and the
     config file it used to name needs ``--config`` / ``--config-path``. That is
