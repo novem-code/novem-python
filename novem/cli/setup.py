@@ -1,7 +1,7 @@
 import argparse as ap
 import shutil
 from enum import Enum
-from typing import Any, Tuple, cast
+from typing import Any, List, Optional, Tuple, cast
 
 from .args import CliArgs
 
@@ -37,7 +37,12 @@ def formatter(prog: str) -> ap.RawDescriptionHelpFormatter:
 _CODE_SELECTOR_MAP = {
     "-s": "--space",
     "-r": "--repo",
-    "-i": "--image",
+    "-i": "--image-select",
+    # --image is overloaded on the same first-occurrence rule as the shorts:
+    # unclaimed it selects an image, otherwise it sets config/image on the
+    # selected resource. It cannot be its own promotion target, so both
+    # spellings rewrite to the hidden --image-select.
+    "--image": "--image-select",
 }
 
 # Flags that claim the invocation for another resource. When any of these is
@@ -58,7 +63,7 @@ _PRIMARY_SELECTOR_FLAGS = {
     "--space",
     "--repo",
     "--computer",
-    "--image",
+    "--image-select",
 }
 
 # Early-exit commands that historically pair with the legacy meanings of the
@@ -95,8 +100,10 @@ _PROMOTION_NEUTRAL = {
     "--cc",
     "--color",
     "--comments",
+    "--connect-timeout",
     "--config",
     "--config-path",
+    "--image",
     "--debug",
     "--dry-run",
     "--dump",
@@ -122,6 +129,30 @@ _PROMOTION_NEUTRAL = {
 _VALUED_SHORT_FLAGS = {"-p", "-g", "-m", "-d", "-j", "-u", "-O", "-G", "-s", "-t", "-r", "-c", "-i", "-o", "-e", "-f"}
 
 
+def split_argv_tail(raw_args: Any) -> Tuple[Any, Optional[List[str]]]:
+    """Split a trailing ``-- argv...`` off the command line.
+
+    ``-R`` runs the selected resource's workload, and everything after a
+    standalone ``--`` is the invocation to run rather than novem flags::
+
+        novem -c box -R -- ls -la
+        novem -j job -R -- python main.py
+
+    The tail is passed through verbatim, so an argument that looks like a
+    flag survives. The CLI has no positional arguments, so a bare ``--``
+    previously meant nothing at all.
+    """
+    if not raw_args:
+        return raw_args, None
+    tokens = list(raw_args)
+    for idx, tok in enumerate(tokens):
+        if tok == "--":
+            if "-R" not in tokens[:idx]:
+                return tokens, None
+            return tokens[:idx], tokens[idx + 1 :]
+    return tokens, None
+
+
 def promote_code_selectors(raw_args: Any) -> Any:
     """Rewrite a leading ``-s``/``-r``/``-i`` into its selector form.
 
@@ -129,7 +160,7 @@ def promote_code_selectors(raw_args: Any) -> Any:
 
         -s  spaces     (legacy: share group)
         -r  repos      (legacy: read path to stdout)
-        -i  images     (legacy: --input upload dir)
+        -i  images     (legacy: --input job input files/dirs)
 
     ``-c`` is not among them: it selects a computer and nothing else, and the
     config file it used to name needs ``--config`` / ``--config-path``. That is
@@ -198,21 +229,23 @@ def promote_code_selectors(raw_args: Any) -> Any:
     for idx, tok in enumerate(tokens):
         if tok == "--":
             break
-        base = short_base(tok)
+        if tok.startswith("--"):
+            base, _, attached = tok.partition("=")
+        else:
+            base = short_base(tok)
+            attached = tok[2:] if base != tok else ""
         if base in _CODE_SELECTOR_MAP:
-            if bare_only and not is_bare(idx):
+            if bare_only and (attached or not is_bare(idx)):
                 break
-            if base != tok:
-                # attached value: -smy-space -> --space=my-space
-                tokens[idx] = f"{_CODE_SELECTOR_MAP[base]}={tok[2:]}"
-            else:
-                tokens[idx] = _CODE_SELECTOR_MAP[base]
+            target = _CODE_SELECTOR_MAP[base]
+            tokens[idx] = f"{target}={attached}" if attached else target
             break
 
     return tokens
 
 
 def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
+    raw_args, argv_tail = split_argv_tail(raw_args)
     raw_args = promote_code_selectors(raw_args)
 
     parser = ap.ArgumentParser(
@@ -768,28 +801,30 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         dest="run_job",
         nargs="*",
         default=None,
-        metavar="@file",
-        help="run the job, optionally with one or more @file.ext to upload",
+        metavar="ARG",
+        help="run the job. Input and output files are -i and -o; run arguments " "are coming in a future release",
     )
 
     job.add_argument(
         "-i",
         "--input",
         dest="input_dir",
-        action="store",
+        action="append",
         default=None,
-        metavar="dir",
-        help="upload all files in this directory with -R (preserves subdirectories; -R @file wins on name conflict)",
+        metavar="PATH",
+        help="send input with -R. @file.ext sends one file, a bare path sends every "
+        "file in that directory (subdirectories preserved). Repeatable",
     )
 
     job.add_argument(
         "-o",
         "--output",
         dest="output_dir",
-        action="store",
+        action="append",
         default=None,
-        metavar="dir",
-        help="save job output to this directory (created if needed)",
+        metavar="PATH",
+        help="save job output. @file.ext writes it to that file, a bare path writes "
+        "into that directory (created if needed)",
     )
 
     code = parser.add_argument_group(
@@ -837,13 +872,43 @@ resource is selected they keep their usual meaning:
     )
 
     code.add_argument(
-        "--image",
+        "--image-select",
         dest="image",
         action="store",
         required=False,
         default="",
         nargs="?",
-        help="select image to operate on (also: -i as first selector), no parameter will list all your images",
+        help=ap.SUPPRESS,
+    )
+
+    code.add_argument(
+        "--image",
+        dest="image_ref",
+        action="store",
+        required=False,
+        default="",
+        nargs="?",
+        metavar="REF",
+        help="as the first selector, select an image to operate on (same as -i); "
+        "otherwise set the selected resource's image, e.g. -c my-box --image @novem/base",
+    )
+
+    code.add_argument(
+        "-A",
+        dest="attach",
+        action="store_true",
+        required=False,
+        default=False,
+        help="attach an interactive shell to the selected computer",
+    )
+
+    code.add_argument(
+        "--connect-timeout",
+        dest="connect_timeout",
+        type=float,
+        default=90.0,
+        metavar="SECONDS",
+        help="how long -R/-A waits for a computer connection (default: 90)",
     )
 
     invite = parser.add_argument_group("invite")
@@ -983,6 +1048,9 @@ No parameter will list all organisations groups of which you are a member""",
         # None that crashed every consumer.)
         tags = [t.strip() for t in tag.split(",") if t.strip()]
         args["tag"] = (Tag.CHECK, tags)
+
+    # the invocation after `--`, if any (see split_argv_tail)
+    args["argv"] = argv_tail
 
     # everything downstream treats create/delete as booleans
     args["create"] = args["create"] > 0

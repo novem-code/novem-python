@@ -480,52 +480,51 @@ def pretty_format_inner(
     return los
 
 
-def data_on_stdin() -> Optional[str]:
-    """
-    identify if there is data waiting on sys.stdin
-    """
+@dataclass
+class _StdinReadiness:
+    has_data: bool
+    is_test: bool
 
-    @dataclass
-    class Result:
-        has_data: bool
-        is_test: bool
 
-    def _data_ready() -> Result:
+def _stdin_readiness() -> _StdinReadiness:
+    try:
+        # use msvcrt on windows
+        import msvcrt
+
+        return _StdinReadiness(has_data=msvcrt.kbhit(), is_test=False)  # type: ignore
+    except ImportError:
         try:
-            # use msvcrt on windows
-            import msvcrt
+            # use select on linux
+            has_data = bool(select.select([sys.stdin], [], [], 0.0)[0])
+            return _StdinReadiness(has_data=has_data, is_test=False)
+        except io.UnsupportedOperation:
+            # Pytest replaces stdin with a stream that must not be read. A
+            # StringIO, on the other hand, is an intentional test input.
+            has_data = isinstance(sys.stdin, io.StringIO)
+            return _StdinReadiness(has_data=has_data, is_test=True)
 
-            r = msvcrt.kbhit()  # type: ignore
-            return Result(has_data=r, is_test=False)
 
-        except ImportError:
-            try:
-                # use select on linux
-                has_data = bool(
-                    select.select(
-                        [
-                            sys.stdin,
-                        ],
-                        [],
-                        [],
-                        0.0,
-                    )[0]
-                )
+def stream_on_stdin() -> Optional[Any]:
+    """Return stdin without consuming it when input should be forwarded.
 
-                return Result(has_data=has_data, is_test=False)
-            except io.UnsupportedOperation:
-                # We're going to assume that this is the pytest wrapper
-                # if sys.stdin is an instance of io.StringIO we are mocking data
-                # on stdin, so it should be true. else ignore.
-                has_data = isinstance(sys.stdin, io.StringIO)
-                return Result(has_data=has_data, is_test=True)
+    Real redirected stdin may not have bytes available at the instant the
+    command starts, so every non-interactive stream is returned. Callers that
+    need binary-safe incremental input can consume the returned buffer while
+    doing their other work concurrently.
+    """
 
-    r = _data_ready()
-
+    readiness = _stdin_readiness()
     is_noninteractive = not sys.stdin.isatty()
-    has_data = r.has_data or (is_noninteractive and not r.is_test)
+    has_data = readiness.has_data or (is_noninteractive and not readiness.is_test)
+    if not has_data:
+        return None
+    return getattr(sys.stdin, "buffer", sys.stdin)
 
-    ctnt = "".join(sys.stdin.readlines()) if has_data else ""
+
+def data_on_stdin() -> Optional[str]:
+    """Read text waiting on stdin, preserving the legacy buffered behavior."""
+
+    ctnt = "".join(sys.stdin.readlines()) if stream_on_stdin() is not None else ""
     return ctnt if ctnt else None
 
 

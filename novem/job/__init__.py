@@ -1,7 +1,7 @@
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
@@ -325,8 +325,9 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
     def run(
         self,
         files: Optional[List[str]] = None,
-        input_dir: Optional[str] = None,
+        input_dir: Optional[Union[str, List[str]]] = None,
         output: Optional[str] = None,
+        output_file: Optional[str] = None,
     ) -> None:
         """
         Trigger a job run by posting to /data.
@@ -346,7 +347,10 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
 
         If *output* is provided, the response body is saved to that directory
         (created if necessary) using the filename from the server's
-        Content-Disposition header.
+        Content-Disposition header. *output_file* instead writes it to exactly
+        that path, which is what the CLI's ``-o @file.ext`` form asks for.
+
+        *input_dir* accepts a single directory or a list of them.
         """
         path = self._path("/data")
 
@@ -355,18 +359,24 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
 
         upload: Dict[str, str] = {}
 
-        if input_dir:
-            if not os.path.isdir(input_dir):
-                print(f"Error: input directory not found: {input_dir}")
+        input_dirs: List[str] = []
+        if isinstance(input_dir, str):
+            input_dirs = [input_dir]
+        elif input_dir:
+            input_dirs = list(input_dir)
+
+        for one_dir in input_dirs:
+            if not os.path.isdir(one_dir):
+                print(f"Error: input directory not found: {one_dir}")
                 sys.exit(1)
-            for root, dirs, walked in os.walk(input_dir):
+            for root, dirs, walked in os.walk(one_dir):
                 # skip hidden directories in-place so we don't descend into them
                 dirs[:] = [d for d in dirs if not d.startswith(".")]
                 for entry in walked:
                     if entry.startswith("."):
                         continue
                     fpath = os.path.join(root, entry)
-                    rel = os.path.relpath(fpath, input_dir).replace(os.sep, "/")
+                    rel = os.path.relpath(fpath, one_dir).replace(os.sep, "/")
                     upload[rel] = fpath
 
         if files:
@@ -392,7 +402,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
             ]
             if self._debug:
                 print(f"  files in:  {len(upload)} ({list(upload.keys())})")
-            r = self._session.post(path, files=multipart, stream=bool(output), timeout=(30, 1800))
+            r = self._session.post(path, files=multipart, stream=bool(output or output_file), timeout=(30, 1800))
         else:
             if self._debug:
                 print("  files in:  0")
@@ -400,7 +410,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
                 path,
                 headers={"Content-type": "application/json; charset=utf-8"},
                 data="{}",
-                stream=bool(output),
+                stream=bool(output or output_file),
                 timeout=(30, 1800),
             )
 
@@ -416,7 +426,17 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
                 print(f"Error: {r.text}")
             sys.exit(1)
 
-        if output:
+        if output_file:
+            # -o @file.ext: write the artifact to exactly this path
+            parent = os.path.dirname(os.path.abspath(output_file))
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(output_file, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            if self._debug:
+                print(f"  files out: 1 -> {output_file}")
+        elif output:
             os.makedirs(output, exist_ok=True)
             cd = r.headers.get("Content-Disposition", "")
             name = self._parse_filename(cd) or "output"

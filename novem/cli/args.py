@@ -29,6 +29,7 @@ CliArgs = TypedDict(
         "repo": str,
         "computer": str,
         "image": str,
+        "image_ref": Optional[str],
         "invite": str,
         # group subcommand (only present for `novem group ...`)
         "org": Optional[str],
@@ -73,9 +74,9 @@ CliArgs = TypedDict(
         # io / tree dump-load
         "dump": Optional[str],
         "load": Optional[str],
-        "input": Optional[str],
-        "input_dir": Optional[str],
-        "output_dir": Optional[str],
+        "input": Optional[List[List[str]]],  # -w, action="append", nargs="+"
+        "input_dir": Optional[List[str]],  # action="append"
+        "output_dir": Optional[List[str]],  # action="append"
         "out": Optional[str],
         "edit": Optional[str],
         "filter": Optional[List[str]],  # action="append"
@@ -83,6 +84,9 @@ CliArgs = TypedDict(
         "init": Optional[str],
         "invite_user": Optional[str],
         "run_job": Optional[List[str]],  # nargs="*"
+        "argv": Optional[List[str]],  # the tail after `--`
+        "attach": bool,
+        "connect_timeout": float,
         "events": Optional[List[str]],  # nargs="+"
         # raw http (post/put take PATH [DATA] -> nargs="+")
         "http_get": Optional[str],

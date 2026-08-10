@@ -32,7 +32,7 @@ def test_c_needs_no_promotion():
 
 
 def test_first_i_becomes_image_selector():
-    assert promoted(["-i"]) == ["--image"]
+    assert promoted(["-i"]) == ["--image-select"]
 
 
 def test_only_the_first_selector_is_promoted():
@@ -100,7 +100,7 @@ def test_org_group_bare_selector_promotes():
     # bare -s with -O/-G means "list the group's spaces"
     assert promoted(["-O", "myorg", "-G", "mygroup", "-s"]) == ["-O", "myorg", "-G", "mygroup", "--space"]
     assert promoted(["-O", "myorg", "-G", "mygroup", "-r"]) == ["-O", "myorg", "-G", "mygroup", "--repo"]
-    assert promoted(["-O", "myorg", "-G", "mygroup", "-i"]) == ["-O", "myorg", "-G", "mygroup", "--image"]
+    assert promoted(["-O", "myorg", "-G", "mygroup", "-i"]) == ["-O", "myorg", "-G", "mygroup", "--image-select"]
 
 
 def test_org_group_valued_selector_keeps_legacy():
@@ -328,3 +328,75 @@ def test_path_shaped_computer_name_is_rejected():
     # a plain computer name is untouched
     _, args = setup(["-c", "my-box"])
     assert args["computer"] == "my-box"
+
+
+# --- --image is overloaded on the same rule as the shorts -------------------
+
+
+def test_long_image_promotes_when_unclaimed():
+    # nothing else claims the invocation: --image selects an image
+    assert promoted(["--image"]) == ["--image-select"]
+    assert promoted(["--image", "myimg"]) == ["--image-select", "myimg"]
+    assert promoted(["--image=myimg"]) == ["--image-select=myimg"]
+
+
+def test_long_image_is_config_setter_once_claimed():
+    # -c claims the invocation, so --image sets the computer's image
+    argv = ["-c", "my-box", "--image", "@novem/base"]
+    assert promoted(argv) == argv
+    argv = ["-p", "my-plot", "--image", "x"]
+    assert promoted(argv) == argv
+
+
+def test_only_the_first_image_promotes():
+    assert promoted(["--image", "a", "--image", "b"]) == ["--image-select", "a", "--image", "b"]
+
+
+def test_setup_image_selector_and_setter():
+    _, args = setup(["--image", "myimg"])
+    assert args["image"] == "myimg"
+    assert args["image_ref"] == ""  # not given in this invocation
+
+    _, args = setup(["-c", "box", "--image", "@novem/base"])
+    assert args["computer"] == "box"
+    assert args["image"] == ""  # no image selected
+    assert args["image_ref"] == "@novem/base"
+
+    # bare --image on a selected resource reads it back
+    _, args = setup(["-c", "box", "--image"])
+    assert args["image_ref"] is None
+
+
+# --- the -- argv tail -------------------------------------------------------
+
+
+def test_argv_tail_split():
+    from novem.cli.setup import split_argv_tail
+
+    assert split_argv_tail(["-c", "box", "-R", "--", "ls", "-la"]) == (["-c", "box", "-R"], ["ls", "-la"])
+    assert split_argv_tail(["-c", "box", "-R"]) == (["-c", "box", "-R"], None)
+    # the tail is verbatim, including things that look like flags and a second --
+    assert split_argv_tail(["-R", "--", "sh", "-c", "x -- y"])[1] == ["sh", "-c", "x -- y"]
+    assert split_argv_tail(["-R", "--", "--weird"])[1] == ["--weird"]
+    # A separator on an ordinary command remains argparse's responsibility;
+    # it must not silently discard everything after it.
+    ordinary = ["-p", "plot", "-w", "config/caption", "--", "-5%"]
+    assert split_argv_tail(ordinary) == (ordinary, None)
+
+
+def test_setup_exposes_argv():
+    _, args = setup(["-c", "box", "-R", "--", "ls", "-la"])
+    assert args["computer"] == "box"
+    assert args["run_job"] == []
+    assert args["argv"] == ["ls", "-la"]
+
+    _, args = setup(["-c", "box", "-R"])
+    assert args["argv"] is None
+
+
+def test_setup_attach():
+    _, args = setup(["-c", "box", "-A"])
+    assert args["computer"] == "box"
+    assert args["attach"] is True
+    _, args = setup(["-c", "box"])
+    assert args["attach"] is False

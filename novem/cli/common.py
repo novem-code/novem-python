@@ -3,7 +3,7 @@ import sys
 from typing import Any, Dict, Literal, Optional, cast
 
 from novem import Computer, Doc, Grid, Image, Job, Mail, Plot, Repo, Space
-from novem.api_ref import Novem404, NovemAPI
+from novem.api_ref import Novem404, NovemAPI, NovemException
 from novem.cli.config import config_from_args
 from novem.cli.editor import edit
 from novem.cli.gql import NovemGQL, _build_var_lookup, _fetch_vde_topics_gql, render_topics
@@ -22,7 +22,7 @@ from novem.cli.vis import (
     list_vis_tags,
 )
 from novem.code import NovemCodeAPI
-from novem.utils import API_ROOT, data_on_stdin
+from novem.utils import API_ROOT, data_on_stdin, stream_on_stdin
 from novem.vis import NovemVisAPI
 
 from .args import CliArgs
@@ -395,13 +395,52 @@ def job(args: CliArgs) -> None:
         is_cli=True,
     )
 
-    # -R (run): trigger job execution, optionally with file attachments
+    # -R (run): trigger job execution. Files are -i/-o; run arguments are
+    # a future release.
     if args.get("run_job") is not None:
-        files = args["run_job"]
+        positional = args["run_job"] or []
+        argv = args.get("argv") or []
+        if positional or argv:
+            if any(a.startswith("@") for a in positional):
+                print(
+                    "-R no longer takes @file uploads — they moved to -i:\n" f"  novem -j {name} -R -i {positional[0]}",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "-R does not take run arguments yet; the job runs its "
+                    "configured invocation.\n"
+                    "Run arguments are coming in a future release.",
+                    file=sys.stderr,
+                )
+            sys.exit(1)
+
+        inputs = args.get("input_dir") or []
+        outputs = args.get("output_dir") or []
+
+        # @file.ext is one file; a bare path is a directory of files
+        in_files = [i for i in inputs if i.startswith("@")]
+        in_dirs = [i for i in inputs if not i.startswith("@")]
+
+        if len(outputs) > 1:
+            print(
+                "-o can only be given once: a run returns a single output",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        out_dir: Optional[str] = None
+        out_file: Optional[str] = None
+        if outputs:
+            if outputs[0].startswith("@"):
+                out_file = outputs[0][1:]
+            else:
+                out_dir = outputs[0]
+
         j.run(
-            files=files if files else None,
-            input_dir=args.get("input_dir"),
-            output=args.get("output_dir"),
+            files=in_files or None,
+            input_dir=in_dirs or None,
+            output=out_dir,
+            output_file=out_file,
         )
         return
 
@@ -629,13 +668,33 @@ def code_resource(args: CliArgs, kind: str) -> None:
         if ptype:
             obj.type = ptype
 
+        # --image REF sets config/image; a bare --image reads it back, the
+        # same way a bare -s lists shares and a bare -t lists tags
+        image_ref = args.get("image_ref")
+        has_session = args.get("run_job") is not None or args.get("attach")
+        if image_ref is None and not has_session:
+            print(obj.api_read("/config/image"), end="")
+            return
+        elif image_ref:
+            obj.api_write("/config/image", image_ref)
+
         found_stdin = False
-        stdin_data = data_on_stdin()
+        inputs = args["input"] or []
+        bare_inputs = any(len(item) == 1 for item in inputs)
+        if bare_inputs and has_session:
+            print(
+                "novem: bare -w and -R/-A cannot both read stdin; provide a value or @file to -w",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        # Leave piped data untouched unless a bare -w PATH needs it. Computer
+        # commands consume stdin later, when the live session starts.
+        stdin_data = data_on_stdin() if bare_inputs else None
         stdin_has_data = bool(stdin_data)
 
         # check if we have any explicit inputs [-w's]
-        if args["input"] and len(args["input"]):
-            for i in args["input"]:
+        if inputs:
+            for i in inputs:
                 path = f"/{i[0]}"
 
                 if len(i) == 1:
@@ -698,11 +757,89 @@ def code_resource(args: CliArgs, kind: str) -> None:
     if tag_op is Tag.CHECK:
         check_membership(kind, name, args, "tags", tag_targets)
 
+    # -R (run) and -A (attach) open a live session on a computer
+    if args.get("run_job") is not None or args.get("attach"):
+        _computer_session(args, obj, kind)
+        return
+
     # -r (read output)
     out = args["out"]
     if out:
         outp = obj.api_read(f"/{out}")
         print(outp, end="")
+
+
+def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
+    """Handle -R / -A against a running computer.
+
+    Both are live connections over novem.compute.v1; a computer that has only
+    just been told to boot answers retryable states until its agent is
+    reachable, so both wait rather than failing immediately.
+    """
+    from novem.code.compute import NovemComputeError, NovemComputeTransportError
+
+    if kind != "computer":
+        print(f"-R and -A are only available for computers, not {kind}s", file=sys.stderr)
+        sys.exit(1)
+
+    computer = cast(Computer, obj)
+    argv = args.get("argv")
+    retry = float(args.get("connect_timeout", 90.0))
+    wait_reported = False
+
+    def on_retry(_: NovemException) -> None:
+        nonlocal wait_reported
+        if not wait_reported:
+            print("novem: waiting for the computer connection...", file=sys.stderr)
+            wait_reported = True
+
+    try:
+        if args.get("attach"):
+            if args.get("run_job") is not None:
+                print("-A and -R cannot be combined; attach or run one command", file=sys.stderr)
+                sys.exit(1)
+            code, signal = computer.shell(retry_seconds=retry, on_retry=on_retry)
+        else:
+            if not argv:
+                print(
+                    "-R on a computer needs a command to run, e.g.\n" f"  novem -c {computer.id} -R -- ls -la",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            stdin = stream_on_stdin()
+            code, signal = computer.stream(
+                argv,
+                stdin=stdin,
+                retry_seconds=retry,
+                on_retry=on_retry,
+                forward_signals=True,
+            )
+    except KeyboardInterrupt:
+        print("novem: interrupted", file=sys.stderr)
+        sys.exit(130)
+    except NovemComputeTransportError as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        # Keep a lost compute session distinct from the command's own status.
+        sys.exit(255)
+    except NovemComputeError as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        sys.exit(1)
+    except NovemException as e:
+        print(f"novem: {e.cli_message}", file=sys.stderr)
+        sys.exit(255)
+
+    # a signalled process has no exit code of its own; report it the way a
+    # shell does so callers can branch on it
+    if signal:
+        signal_number = _SIGNAL_NUMBERS.get(signal)
+        if signal_number is None:
+            print(f"novem: command ended with an unknown signal {signal!r}", file=sys.stderr)
+            sys.exit(255)
+        sys.exit(128 + signal_number)
+    sys.exit(code)
+
+
+_SIGNAL_NUMBERS = {"HUP": 1, "INT": 2, "QUIT": 3, "KILL": 9, "TERM": 15}
 
 
 def space(args: CliArgs) -> None:
