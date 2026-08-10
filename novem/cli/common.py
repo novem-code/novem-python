@@ -395,21 +395,52 @@ def job(args: CliArgs) -> None:
         is_cli=True,
     )
 
-    # -R (run): trigger job execution, optionally with file attachments
-    if args.get("run_job") is not None and args.get("argv"):
-        print(
-            "-R -- <argv> is not supported for jobs yet; the job runs its "
-            "configured invocation. Drop the -- argv to run it.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
+    # -R (run): trigger job execution. Files are -i/-o; run arguments are
+    # a future release.
     if args.get("run_job") is not None:
-        files = args["run_job"]
+        positional = args["run_job"] or []
+        argv = args.get("argv") or []
+        if positional or argv:
+            if any(a.startswith("@") for a in positional):
+                print(
+                    "-R no longer takes @file uploads — they moved to -i:\n" f"  novem -j {name} -R -i {positional[0]}",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "-R does not take run arguments yet; the job runs its "
+                    "configured invocation.\n"
+                    "Run arguments are coming in a future release.",
+                    file=sys.stderr,
+                )
+            sys.exit(1)
+
+        inputs = args.get("input_dir") or []
+        outputs = args.get("output_dir") or []
+
+        # @file.ext is one file; a bare path is a directory of files
+        in_files = [i for i in inputs if i.startswith("@")]
+        in_dirs = [i for i in inputs if not i.startswith("@")]
+
+        if len(outputs) > 1:
+            print(
+                "-o can only be given once: a run returns a single output",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        out_dir: Optional[str] = None
+        out_file: Optional[str] = None
+        if outputs:
+            if outputs[0].startswith("@"):
+                out_file = outputs[0][1:]
+            else:
+                out_dir = outputs[0]
+
         j.run(
-            files=files if files else None,
-            input_dir=args.get("input_dir"),
-            output=args.get("output_dir"),
+            files=in_files or None,
+            input_dir=in_dirs or None,
+            output=out_dir,
+            output_file=out_file,
         )
         return
 

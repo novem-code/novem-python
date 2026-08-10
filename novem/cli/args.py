@@ -75,8 +75,8 @@ CliArgs = TypedDict(
         "dump": Optional[str],
         "load": Optional[str],
         "input": Optional[str],
-        "input_dir": Optional[str],
-        "output_dir": Optional[str],
+        "input_dir": Optional[List[str]],  # action="append"
+        "output_dir": Optional[List[str]],  # action="append"
         "out": Optional[str],
         "edit": Optional[str],
         "filter": Optional[List[str]],  # action="append"

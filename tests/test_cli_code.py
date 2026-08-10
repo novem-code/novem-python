@@ -768,13 +768,81 @@ def test_session_verbs_are_computer_only(cli, requests_mock, fs):
         assert "only available for computers" in err
 
 
-def test_job_run_rejects_an_argv_tail_for_now(cli, requests_mock, fs):
+def test_job_run_rejects_run_arguments_for_now(cli, requests_mock, fs):
+    """Run arguments are specified but not shipped; say so rather than ignore."""
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
+
+    for invocation in (
+        ("-j", "my-job", "-R", "--", "python", "main.py"),
+        ("-j", "my-job", "-R", "aapl"),
+    ):
+        try:
+            cli(*invocation)
+            assert False, "should exit"
+        except CliExit as e:
+            out, err = e.args
+            assert "does not take run arguments yet" in err
+            assert "future release" in err
+
+
+def test_job_run_points_at_dash_i_for_files(cli, requests_mock, fs):
+    """@file moved to -i; the old form must say where it went."""
     write_config(auth_req)
     requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
 
     try:
-        cli("-j", "my-job", "-R", "--", "python", "main.py")
+        cli("-j", "my-job", "-R", "@data.csv")
         assert False, "should exit"
     except CliExit as e:
         out, err = e.args
-        assert "not supported for jobs yet" in err
+        assert "moved to -i" in err
+        assert "-i @data.csv" in err
+
+
+def test_job_inputs_split_files_from_directories(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
+
+    seen = {}
+
+    def fake_run(self, files=None, input_dir=None, output=None, output_file=None):
+        seen.update(files=files, input_dir=input_dir, output=output, output_file=output_file)
+
+    monkeypatch.setattr("novem.Job.run", fake_run)
+
+    cli("-j", "my-job", "-R", "-i", "@a.csv", "-i", "./inputs", "-i", "@b.csv", "-o", "./out")
+
+    assert seen["files"] == ["@a.csv", "@b.csv"]
+    assert seen["input_dir"] == ["./inputs"]
+    assert seen["output"] == "./out"
+    assert seen["output_file"] is None
+
+
+def test_job_output_at_prefix_names_a_file(cli, requests_mock, fs, monkeypatch):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
+
+    seen = {}
+
+    def fake_run(self, files=None, input_dir=None, output=None, output_file=None):
+        seen.update(output=output, output_file=output_file)
+
+    monkeypatch.setattr("novem.Job.run", fake_run)
+
+    cli("-j", "my-job", "-R", "-o", "@chart.png")
+
+    assert seen["output_file"] == "chart.png"
+    assert seen["output"] is None
+
+
+def test_job_rejects_multiple_outputs(cli, requests_mock, fs):
+    write_config(auth_req)
+    requests_mock.register_uri("put", f"{api_root}code/jobs/my-job", status_code=201)
+
+    try:
+        cli("-j", "my-job", "-R", "-o", "@a.png", "-o", "@b.png")
+        assert False, "should exit"
+    except CliExit as e:
+        out, err = e.args
+        assert "only be given once" in err

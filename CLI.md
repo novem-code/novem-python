@@ -128,7 +128,7 @@ The other three do double duty:
 |------|-----------|----------------------------------|
 | `-s` | spaces    | share group (`-s public -C`)     |
 | `-r` | repos     | read path to stdout (`-r url`)   |
-| `-i` | images    | `--input` upload dir (with `-R`) |
+| `-i` | images    | `--input` job input files/dirs (with `-R`) |
 
 The rule: when nothing else claims the invocation (no `-p`/`-g`/`-m`/`-d`/`-j`/
 `-c` selector and no standalone command like `--init` or `--get`), the *first*
@@ -199,6 +199,21 @@ standalone `--` is the invocation to run, passed through verbatim:
 Both need the computer to be running, and both wait while it finishes booting
 rather than failing immediately. A command killed by a signal reports
 `128 + signal`, the way a shell does.
+
+### Job inputs and outputs
+`-R` triggers a job run; files travel on `-i` and `-o`. An `@` prefix means one
+file, a bare path means a directory, and both are repeatable:
+
+```bash
+  novem -j job_name -R -i @prices.csv          # send one file
+  novem -j job_name -R -i ./inputs             # send a directory
+  novem -j job_name -R -i @a.csv -i @b.csv     # several
+  novem -j job_name -R -o @chart.png           # write the output to this file
+  novem -j job_name -R -o ./out                # write it into this directory
+```
+
+`-i @file` replaces the old `-R @file` form, so that `-R`'s own arguments can
+carry run parameters in a future release.
 
 `--image` follows the same first-selector rule as the short flags: on its own
 it selects an image, and once a resource is selected it sets that resource's

@@ -38,13 +38,10 @@ import os
 import secrets
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Optional, Tuple
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from novem.exceptions import NovemException
-
-if TYPE_CHECKING:  # pragma: no cover
-    from . import Computer
 
 PROTOCOL = "novem.compute.v1"
 PATH = "/ws-cu"
@@ -517,8 +514,7 @@ def _run_sync(coro: Any) -> Any:
         return asyncio.run(coro)
     coro.close()
     raise NovemException(
-        "A compute call was made from inside a running event loop. "
-        "Use the async API (Computer.connect()) instead."
+        "A compute call was made from inside a running event loop. " "Use the async API (Computer.connect()) instead."
     )
 
 

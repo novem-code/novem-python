@@ -798,28 +798,30 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         dest="run_job",
         nargs="*",
         default=None,
-        metavar="@file",
-        help="run the job, optionally with one or more @file.ext to upload",
+        metavar="ARG",
+        help="run the job. Input and output files are -i and -o; run arguments " "are coming in a future release",
     )
 
     job.add_argument(
         "-i",
         "--input",
         dest="input_dir",
-        action="store",
+        action="append",
         default=None,
-        metavar="dir",
-        help="upload all files in this directory with -R (preserves subdirectories; -R @file wins on name conflict)",
+        metavar="PATH",
+        help="send input with -R. @file.ext sends one file, a bare path sends every "
+        "file in that directory (subdirectories preserved). Repeatable",
     )
 
     job.add_argument(
         "-o",
         "--output",
         dest="output_dir",
-        action="store",
+        action="append",
         default=None,
-        metavar="dir",
-        help="save job output to this directory (created if needed)",
+        metavar="PATH",
+        help="save job output. @file.ext writes it to that file, a bare path writes "
+        "into that directory (created if needed)",
     )
 
     code = parser.add_argument_group(

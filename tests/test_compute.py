@@ -160,7 +160,9 @@ def test_exec_streams_output_and_exit_status():
         if msg["type"] == "open":
             ch = _channel()
             gw.channel = ch
-            await ws.send_str(json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"}))
+            await ws.send_str(
+                json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"})
+            )
             await ws.send_bytes(encode_frame(ch, b"out\n", STREAM_STDOUT))
             await ws.send_bytes(encode_frame(ch, b"err\n", STREAM_STDERR))
             await ws.send_str(json.dumps({"type": "exit", "channel": ch, "code": 3, "signal": None}))
@@ -201,7 +203,9 @@ def test_signalled_process_reports_signal():
     async def script(ws, msg, gw):
         if msg["type"] == "open":
             ch = _channel()
-            await ws.send_str(json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"}))
+            await ws.send_str(
+                json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"})
+            )
             # a signalled process carries -1 with a signal name
             await ws.send_str(json.dumps({"type": "exit", "channel": ch, "code": -1, "signal": "TERM"}))
 
@@ -276,7 +280,9 @@ def test_stdin_is_sent_before_eof():
         if msg["type"] == "open":
             ch = _channel()
             gw.channel = ch
-            await ws.send_str(json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"}))
+            await ws.send_str(
+                json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"})
+            )
             await ws.send_str(json.dumps({"type": "exit", "channel": ch, "code": 0, "signal": None}))
 
     server = FakeServer(script)
@@ -300,7 +306,9 @@ def test_large_stdin_is_chunked_to_the_frame_limit():
     async def script(ws, msg, gw):
         if msg["type"] == "open":
             ch = _channel()
-            await ws.send_str(json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"}))
+            await ws.send_str(
+                json.dumps({"type": "ready", "request_id": msg["request_id"], "channel": ch, "kind": "exec"})
+            )
             await ws.send_str(json.dumps({"type": "exit", "channel": ch, "code": 0, "signal": None}))
 
     server = FakeServer(script)
