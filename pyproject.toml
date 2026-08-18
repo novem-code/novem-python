@@ -44,19 +44,16 @@ novem = "novem.cli:run_cli"
 [dependency-groups]
 dev = [
     "aiohttp>=3.9",
-    "flake8>=7.1.1",
-    "isort>=5.13.2,<9.0.0",
     "mypy>=1.11.2",
-    "pre-commit>=2.16,<5.0",
     "pydantic>=2.8.2",
     "pyfakefs==6.2.0",
     "pytest>=8.3.2",
     "pytest-cov>=5.0.0",
     "requests-mock>=1.12.1",
     "types-requests>=2.27.7",
-    "black>=24.8.0",
     "pandas>=2.2.2",
     "pandas-stubs>=2.2.2.240807",
+    "ruff>=0.14",
 ]
 
 [tool.uv]
@@ -72,7 +69,6 @@ exclude = [
   "/tests",
   "/scripts",
   "/examples",
-  "/.pre-commit-config.yaml",
   "/.mailmap",
   "/flake.nix",
   "/flake.lock",
@@ -80,36 +76,16 @@ exclude = [
   "/Makefile",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ['py310']
-include = '\.pyi?$'
-exclude = '''
+target-version = "py310"
+# README/docs code fences are display copy sized for a narrow column (PyPI),
+# not source -- don't let the formatter widen them to line-length.
+extend-exclude = ["*.md"]
 
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-  )/
-  | foo.py           # also separately exclude a file named foo.py in
-                     # the root of the project
-)
-'''
-
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 120
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes (the old flake8 regime), I import sorting (old isort)
+select = ["E", "W", "F", "I"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
