@@ -1,0 +1,7 @@
+# Revisions to skip in `git blame` -- bulk reformats, no behavioural change.
+#
+# GitHub honours this file automatically. For local git:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: reformat with ruff
+33da0d90fb1bf04b30e9dd1b4e6fda869e6d9e58

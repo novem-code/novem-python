@@ -70,6 +70,7 @@ exclude = [
   "/scripts",
   "/examples",
   "/.mailmap",
+  "/.git-blame-ignore-revs",
   "/flake.nix",
   "/flake.lock",
   "/uv.lock",
