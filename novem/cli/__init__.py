@@ -16,8 +16,8 @@ if os.name == "nt":
 
     readline = Readline()
 else:
-    from signal import SIG_DFL, SIGPIPE, signal
     import readline  # type: ignore
+    from signal import SIG_DFL, SIGPIPE, signal
 
 from ..api_ref import NovemAPI
 from ..config import config as _config_manager
@@ -147,7 +147,7 @@ def refresh_config(args: Mapping[str, Any]) -> None:
         "username": username,
         "password": password,
         "token_name": token_name,
-        "token_description": (f'cli token created for "{hostname}" ' f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+        "token_description": (f'cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
     }
 
     novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
@@ -284,7 +284,7 @@ def _init_credentials(
         "username": username,
         "password": password,
         "token_name": token_name,
-        "token_description": (f'cli token created for "{hostname}" ' f'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+        "token_description": (f'cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
     }
 
     novem = NovemAPI(api_root=api_root, ignore_config=True, ignore_ssl=ignore_ssl, is_cli=True)
@@ -558,7 +558,6 @@ novem --init --profile {args["profile"]}\
 
     # handle --add-ssh-key to add an SSH key for git access
     if args and args.get("add_ssh_key"):
-
         key_arg = args["add_ssh_key"]
         hostname = socket.gethostname()
 

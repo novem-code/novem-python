@@ -93,7 +93,7 @@ def test_init_handles_409_token_name_conflict(requests_mock, fs, cli):
     )
 
     with pytest.raises(CliExit) as exc:
-        cli("--init", stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+        cli("--init", stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     out, _ = exc.value.args
     assert exc.value.code == 1
@@ -110,7 +110,7 @@ def test_init_handles_500_with_no_message(requests_mock, fs, cli):
     )
 
     with pytest.raises(CliExit) as exc:
-        cli("--init", stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+        cli("--init", stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     out, _ = exc.value.args
     assert exc.value.code == 1

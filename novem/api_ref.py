@@ -99,7 +99,7 @@ def raise_on_response(r: requests.Response) -> None:
 
     rejected = resp.get("rejected")
     if rejected:
-        lines = "; ".join(f'{item.get("line")}: {item.get("reason")}' for item in rejected if isinstance(item, dict))
+        lines = "; ".join(f"{item.get('line')}: {item.get('reason')}" for item in rejected if isinstance(item, dict))
         if lines:
             message = f"{message} [{lines}]"
 

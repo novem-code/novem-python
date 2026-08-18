@@ -69,7 +69,6 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
         ]
 
         for k, v in kwargs.items():
-
             if k not in props:
                 continue
 
@@ -391,7 +390,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
                 mp_name = os.path.basename(fpath)
                 if mp_name in upload and upload[mp_name] != fpath:
                     print(
-                        f"Warning: -R @{fpath} overrides -i entry {upload[mp_name]} " f"(both upload as {mp_name})",
+                        f"Warning: -R @{fpath} overrides -i entry {upload[mp_name]} (both upload as {mp_name})",
                         file=sys.stderr,
                     )
                 upload[mp_name] = fpath
@@ -539,13 +538,13 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
 
                 if r["type"] == "dir":
                     if colors:
-                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}" f'{r["name"]}/{cl.ENDC}\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}{r['name']}/{cl.ENDC}\n"
                     else:
-                        resp += f'{pfx}{co}{h}{h} {a} {r["name"]}/\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {r['name']}/\n"
 
-                    resp += rec_tree(f'{path}/{r["name"]}', level + 1, mc)[1]
+                    resp += rec_tree(f"{path}/{r['name']}", level + 1, mc)[1]
                 else:
-                    resp += f'{pfx}{co}{h}{h} {a} {r["name"]}\n'
+                    resp += f"{pfx}{co}{h}{h} {a} {r['name']}\n"
 
             # order by dir, files, alphabetically
             return (hdp, resp)

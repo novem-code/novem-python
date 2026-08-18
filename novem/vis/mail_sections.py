@@ -100,7 +100,6 @@ class NovemEmailSectionApi(NovemEmailSection):
 
         vk = valid_param_map.keys()
         for k in kwargs.keys():
-
             # must be a common param
             if k not in vk:
                 continue
@@ -109,9 +108,8 @@ class NovemEmailSectionApi(NovemEmailSection):
 
             # the content of the param must be a string or a list of strings
             if not (isinstance(v, str) or (isinstance(v, list) and not sum([1 for x in v if not isinstance(x, str)]))):
-
                 # consider exception
-                print((f'WARN: Section parameter "{k}" must be a string or ' "a list of strings"))
+                print((f'WARN: Section parameter "{k}" must be a string or a list of strings'))
 
             # get some meta data about our param
             vp = valid_param_map[k]
@@ -137,24 +135,24 @@ class NovemEmailSectionApi(NovemEmailSection):
                     dz = 1
                     clr = ""
                     if dd not in vdl:
-                        print(f'WARN: valid direction option for "{k}" ' f'is one of {",".join(vdl)}')
+                        print(f'WARN: valid direction option for "{k}" is one of {",".join(vdl)}')
                     if len(ds) > 1:
                         try:
                             dz = int(ds[1])
                         except ValueError:
-                            print(f'WARN: valid size option for "{k}" ' "is between 0 and 5")
+                            print(f'WARN: valid size option for "{k}" is between 0 and 5')
 
                         if dz > 5 or dz < 0:
-                            print(f'WARN: valid size option for "{k}" ' "is between 0 and 5")
+                            print(f'WARN: valid size option for "{k}" is between 0 and 5')
 
                     if len(splt) > 1 and "color" in vp:
                         cls = splt[1:]
                         if len(cls) > 2:
-                            print("WARN: a maximum of two colors can " f'be supplied for "{k}"')
+                            print(f'WARN: a maximum of two colors can be supplied for "{k}"')
                             cls = cls[:2]
 
                         # validate colors?
-                        clr = f' {" ".join(cls)}'
+                        clr = f" {' '.join(cls)}"
                         # COLOR
 
                     args.append(f"{dd}{dz}{clr}")
@@ -163,17 +161,17 @@ class NovemEmailSectionApi(NovemEmailSection):
                     # only colors
                     cls = v.split(" ")
                     if len(cls) > 2:
-                        print("WARN: a maximum of two colors can " f'be supplied for "{k}"')
+                        print(f'WARN: a maximum of two colors can be supplied for "{k}"')
                         cls = cls[:2]
 
                         # validate colors?
-                    clr = f'{" ".join(cls)}'
+                    clr = f"{' '.join(cls)}"
                     args.append(f"{clr}")
 
             if len(args) == 1:
                 self._cparams.append(f"{k}: {args[0]}")
             else:
-                self._cparams.append(f'{k}: [{", ".join(args)}]')
+                self._cparams.append(f"{k}: [{', '.join(args)}]")
 
     def get_markdown(self) -> str:
         """

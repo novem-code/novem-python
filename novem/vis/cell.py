@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class IProxy(str):
-
     p: Optional[NovemCellConfig] = None
     path: str = ""
 

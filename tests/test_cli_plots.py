@@ -18,7 +18,7 @@ auth_req = {
     "username": "demouser",
     "password": "demopass",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+    "token_description": ('cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
 
@@ -136,7 +136,7 @@ def test_plot_list(cli, requests_mock, fs):
         },
         {
             "id": "unemployment_noridc",
-            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "name": "Historical Unemployment rates in the Nordic countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
             "countries. Data from IMFs World Economic Oulook published in"
@@ -240,7 +240,7 @@ def test_plot_list(cli, requests_mock, fs):
             "uri": "https://novem.no/p/2v1rV",
             "shared": ["public", "@", "+"],
             "fav": "",
-            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "name": "Historical Unemployment rates in the Nordic countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
             "countries. Data from IMFs World Economic Oulook published in"
@@ -593,7 +593,7 @@ def test_plot_input_from_file_fails(cli, requests_mock, fs, capsys):
 
     assert e.value.code == 1
     out, err = e.value.args
-    assert out == (f'The supplied input file "{filename}" does not exist.' " Please review your options\n")
+    assert out == (f'The supplied input file "{filename}" does not exist. Please review your options\n')
 
 
 def test_plot_input_from_stdin(cli, requests_mock, fs):
@@ -661,7 +661,7 @@ def test_plot_input_from_stdin_fail(cli, requests_mock, fs):
 
     assert e.value.code == 1
     out, err = e.value.args
-    assert out == ('No data found on stdin, "-w /config/caption" requires data ' "to be supplied on stdin\n")
+    assert out == ('No data found on stdin, "-w /config/caption" requires data to be supplied on stdin\n')
     assert content != out_fc
 
 

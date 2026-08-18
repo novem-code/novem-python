@@ -32,7 +32,6 @@ def list_invites(args: CliArgs, novem: NovemAPI) -> None:
     ilist = sorted(ilist, key=lambda x: x["name"])
 
     if args["list"]:
-
         # print to terminal
         for p in ilist:
             print(p["name"])

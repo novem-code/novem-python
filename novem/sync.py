@@ -75,7 +75,7 @@ class NovemTreeSync:
             for r in nodes:
                 if r["type"] in ["system_file", "system_dir"]:
                     continue
-                child_path = f'{path}/{r["name"]}'
+                child_path = f"{path}/{r['name']}"
 
                 # tags are managed via the -t CLI flag, not the load/dump sync
                 if child_path == "/tags" or child_path.startswith("/tags/"):
@@ -147,7 +147,7 @@ class NovemTreeSync:
             for r in nodes:
                 if r["type"] in ["system_file", "system_dir"]:
                     continue
-                child_path = f'{path}/{r["name"]}'
+                child_path = f"{path}/{r['name']}"
 
                 # tags are managed via the -t CLI flag, not the sync
                 if child_path == "/tags" or child_path.startswith("/tags/"):
@@ -268,7 +268,7 @@ class NovemTreeSync:
                 print(f"FAILED delete:    {api_path} (HTTP {r.status_code})")
                 failed += 1
 
-        summary = f"{prefix}{created} created, {overwritten} overwritten, " f"{deleted} deleted, {unchanged} unchanged"
+        summary = f"{prefix}{created} created, {overwritten} overwritten, {deleted} deleted, {unchanged} unchanged"
         if failed:
             summary += f", {failed} failed"
         print(summary)

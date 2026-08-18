@@ -11,7 +11,7 @@ auth_req = {
     "username": "demouser",
     "password": "demopass",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+    "token_description": ('cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
 

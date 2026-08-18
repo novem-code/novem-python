@@ -306,17 +306,17 @@ def test_share_with_group_and_claim():
     api_calls.clear()
     share.set(group1)
     expected_path = f"{share_path}/shared/{group1.get_share_string()}"
-    assert any(
-        call[0] == "create" and expected_path in call[1] for call in api_calls
-    ), f"Expected path containing '{group1.get_share_string()}' not found in API calls"
+    assert any(call[0] == "create" and expected_path in call[1] for call in api_calls), (
+        f"Expected path containing '{group1.get_share_string()}' not found in API calls"
+    )
 
     # Test with a Claim object
     api_calls.clear()
     share.set(claim1)
     expected_path = f"{share_path}/shared/{claim1.get_share_string()}"
-    assert any(
-        call[0] == "create" and expected_path in call[1] for call in api_calls
-    ), f"Expected path containing '{claim1.get_share_string()}' not found in API calls"
+    assert any(call[0] == "create" and expected_path in call[1] for call in api_calls), (
+        f"Expected path containing '{claim1.get_share_string()}' not found in API calls"
+    )
 
     # Test with a mix of strings, Groups and Claims
     api_calls.clear()
@@ -331,9 +331,9 @@ def test_share_with_group_and_claim():
 
     for item in expected_items:
         expected_path = f"{share_path}/shared/{item}"
-        assert any(
-            call[0] == "create" and expected_path in call[1] for call in api_calls
-        ), f"Expected path containing '{item}' not found in API calls"
+        assert any(call[0] == "create" and expected_path in call[1] for call in api_calls), (
+            f"Expected path containing '{item}' not found in API calls"
+        )
 
     # Update the current shares to match what would happen after the API calls
     current_shares.extend(expected_items)
@@ -342,9 +342,9 @@ def test_share_with_group_and_claim():
     api_calls.clear()
     share += claim2
     expected_path = f"{share_path}/shared/{claim2.get_share_string()}"
-    assert any(
-        call[0] == "create" and expected_path in call[1] for call in api_calls
-    ), f"Expected path containing '{claim2.get_share_string()}' not found in API calls"
+    assert any(call[0] == "create" and expected_path in call[1] for call in api_calls), (
+        f"Expected path containing '{claim2.get_share_string()}' not found in API calls"
+    )
 
     # Update current shares
     current_shares.append(claim2.get_share_string())
@@ -353,9 +353,9 @@ def test_share_with_group_and_claim():
     api_calls.clear()
     share -= group1
     expected_path = f"{share_path}/shared/{group1.get_share_string()}"
-    assert any(
-        call[0] == "delete" and expected_path in call[1] for call in api_calls
-    ), f"Expected path containing '{group1.get_share_string()}' not found in API calls"
+    assert any(call[0] == "delete" and expected_path in call[1] for call in api_calls), (
+        f"Expected path containing '{group1.get_share_string()}' not found in API calls"
+    )
 
     # Update current shares
     current_shares.remove(group1.get_share_string())

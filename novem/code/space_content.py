@@ -309,7 +309,7 @@ class SpaceContent:
                 SpaceEntry(
                     name=row.get("name", ""),
                     kind=kind,
-                    path=f'{prefix}{row.get("name", "")}' + ("/" if kind == "dir" else ""),
+                    path=f"{prefix}{row.get('name', '')}" + ("/" if kind == "dir" else ""),
                     size=row.get("size"),
                     content_type=row.get("content_type"),
                     etag=row.get("ETag") or row.get("etag"),

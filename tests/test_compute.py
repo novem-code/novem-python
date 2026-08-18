@@ -134,7 +134,7 @@ def test_transport_errors_include_their_code_hint():
     error = NovemComputeTransportError("compute connection is temporarily at capacity", code="limit_exceeded")
 
     assert error.cli_message == (
-        "compute connection is temporarily at capacity\n" "The service is busy. Wait briefly and try again."
+        "compute connection is temporarily at capacity\nThe service is busy. Wait briefly and try again."
     )
 
 
