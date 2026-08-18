@@ -1,0 +1,60 @@
+name: "Update flake.lock"
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monthly. `nix flake update` is all-or-nothing -- one PR moves every
+    # input -- and nixpkgs churns daily, so a weekly cadence would be noise.
+    - cron: "0 3 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: "Update flake.lock"
+    runs-on: ubuntu-latest
+    steps:
+    # The default GITHUB_TOKEN cannot open a PR that triggers workflows, so a
+    # flake.lock PR would sit without the Nix Checks run that justifies it.
+    # The app token opens PRs that do trigger CI.
+    - name: Generate GitHub App token
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: ${{ vars.GAIA_CI_CLIENT_ID }}
+        private-key: ${{ secrets.GAIA_CI_PRIVATE_KEY }}
+        # Narrow the token to what this job needs, rather than everything the
+        # installation grants.
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: write
+
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+
+    # Same installer and pin as nix-build.yml, so dependabot tracks one action.
+    - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
+      with:
+        token: ${{ steps.app-token.outputs.token }}
+        commit-msg: "build(deps): update nix flake inputs"
+        pr-title: "build(deps): update nix flake inputs"
+        pr-labels: dependencies
+        # Attribute the commit to the app rather than github-actions[bot].
+        git-author-name: "gaia-ci[bot]"
+        git-author-email: "252333818+gaia-ci[bot]@users.noreply.github.com"
+        git-committer-name: "gaia-ci[bot]"
+        git-committer-email: "252333818+gaia-ci[bot]@users.noreply.github.com"
+        pr-body: |
+          Automated by [update-flake-lock](https://github.com/DeterminateSystems/update-flake-lock).
+
+          Dependabot has no Nix support, so `flake.lock` is updated here instead.
+
+          ```
+          {{ env.GIT_COMMIT_MESSAGE }}
+          ```
