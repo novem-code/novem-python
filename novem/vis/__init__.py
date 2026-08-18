@@ -166,7 +166,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
 
         if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
+            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
 
         # TODO: we're using some hard coded unicode symbols and colors here
         # probably better to make this configurable by the user and perhaps
@@ -233,13 +233,13 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
 
                 if r["type"] == "dir":
                     if colors:
-                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}" f'{r["name"]}/{cl.ENDC}\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}{r['name']}/{cl.ENDC}\n"
                     else:
-                        resp += f'{pfx}{co}{h}{h} {a} {r["name"]}/\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {r['name']}/\n"
 
-                    resp += rec_tree(f'{path}/{r["name"]}', level + 1, mc)[1]
+                    resp += rec_tree(f"{path}/{r['name']}", level + 1, mc)[1]
                 else:
-                    resp += f'{pfx}{co}{h}{h} {a} {r["name"]}\n'
+                    resp += f"{pfx}{co}{h}{h} {a} {r['name']}\n"
 
             # order by dir, files, alphabetically
             return (hdp, resp)
@@ -275,7 +275,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         # other actions so only the GET method supports the custom user
         # pathing
         if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
+            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"
@@ -301,7 +301,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         # other actions so only the GET method supports the custom user
         # pathing
         if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/" f"{self._vispath}/{self.id}{relpath}"
+            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"

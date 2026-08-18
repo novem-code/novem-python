@@ -75,7 +75,7 @@ async def _subscribe_events(args: CliArgs, patterns: List[str]) -> None:
         import socketio  # type: ignore[import-untyped,import-not-found]
     except ImportError:
         print(
-            'Error: The "events" extra is required for --events.\n' "Install it with: pip install novem[events]",
+            'Error: The "events" extra is required for --events.\nInstall it with: pip install novem[events]',
             file=sys.stderr,
         )
         sys.exit(1)

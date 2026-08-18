@@ -188,7 +188,6 @@ def list_vis(args: CliArgs, type: str) -> None:
     plist = sorted(plist, key=lambda x: (sort_tier(x.get("fav", "")), -parse_date(x["updated"]).timestamp()))
 
     if args["list"]:
-
         # print to terminal
         for p in plist:
             print(p["id"])

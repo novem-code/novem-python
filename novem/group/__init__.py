@@ -55,7 +55,6 @@ class NovemGroupAPI(NovemAPI):
         ]
 
         for k, v in kwargs.items():
-
             if k not in props:
                 continue
 

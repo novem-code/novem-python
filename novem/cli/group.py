@@ -36,7 +36,6 @@ def list_orgs(args: CliArgs, novem: NovemAPI, path: str) -> None:
     flist = []
 
     if args["list"]:
-
         # print to terminal
         for p in ilist:
             print(p["name"])
@@ -147,7 +146,6 @@ def list_groups(args: CliArgs, novem: NovemAPI, path: str) -> None:
         ilist = [x for x in ilist if (flt.match(x["name"]))]
 
     if args["list"]:
-
         # print to terminal
         for p in ilist:
             print(p["name"])
@@ -314,7 +312,7 @@ def group(args: CliArgs) -> None:
         return
 
     if has_group and has_org and not has_user and org_name and not group_name:
-        list_groups(args, novem, f'/orgs/{args["org"]}/groups/')
+        list_groups(args, novem, f"/orgs/{args['org']}/groups/")
         return
 
     if not has_group and not has_user and has_org and not org_name:

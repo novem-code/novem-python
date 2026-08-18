@@ -34,7 +34,9 @@ jobs:
         uv sync
     - name: Lint
       run: |
-        uv run pre-commit run --all
+        uv run ruff format --check .
+        uv run ruff check .
+        uv run mypy novem
     - name: Test
       run: |
         uv run pytest tests

@@ -399,8 +399,7 @@ def setup(raw_args: Any = None) -> Tuple[Any, CliArgs]:
         nargs="?",
         const=True,
         default=None,
-        help="use this token instead, overrides profile lookup. "
-        "With --init token, supplies the token value directly",
+        help="use this token instead, overrides profile lookup. With --init token, supplies the token value directly",
     )
 
     parser.add_argument(
@@ -802,7 +801,7 @@ an inline string, @filename to read from a file, or piped via stdin.""",
         nargs="*",
         default=None,
         metavar="ARG",
-        help="run the job. Input and output files are -i and -o; run arguments " "are coming in a future release",
+        help="run the job. Input and output files are -i and -o; run arguments are coming in a future release",
     )
 
     job.add_argument(

@@ -391,7 +391,7 @@ def pretty_format_inner(
     # construct output string
     los = f"{cl.BOLD}"
     for o in order:
-        w = f':<{wm[o["key"]]}'
+        w = f":<{wm[o['key']]}"
         fmt = "{0" + w + "}"
         col_pad = "" if o.get("no_padding") else " " * pw
         # headers respect the column width too — an over-long header used to
@@ -401,7 +401,7 @@ def pretty_format_inner(
     los += f"{cl.ENDC}\n"
     # sep
     for o in order:
-        w = f':<{wm[o["key"]]}'
+        w = f":<{wm[o['key']]}"
         fmt = "{0" + w + "}"
         col_pad = "" if o.get("no_padding") else " " * pw
         if o.get("no_border"):
@@ -458,9 +458,9 @@ def pretty_format_inner(
 
             if "clr" in o:
                 if striped and i % 2 == 0:
-                    val = f'{o["clr"]}{val}{cl.ENDC}{cl.BGGRAY}'
+                    val = f"{o['clr']}{val}{cl.ENDC}{cl.BGGRAY}"
                 else:
-                    val = f'{o["clr"]}{val}{cl.ENDC}'
+                    val = f"{o['clr']}{val}{cl.ENDC}"
 
             if o == order[-1]:
                 pad = ""

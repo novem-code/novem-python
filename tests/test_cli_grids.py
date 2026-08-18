@@ -11,7 +11,7 @@ auth_req = {
     "username": "demouser",
     "password": "demopass",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+    "token_description": ('cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
 api_root = "https://api.novem.io/v1/"
@@ -134,7 +134,7 @@ def test_grid_list(cli, requests_mock, fs):
         },
         {
             "id": "unemployment_noridc",
-            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "name": "Historical Unemployment rates in the Nordic countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
             "countries. Data from IMFs World Economic Oulook published in"
@@ -238,7 +238,7 @@ def test_grid_list(cli, requests_mock, fs):
             "uri": "https://novem.no/g/2v1rV",
             "shared": ["public", "@", "+"],
             "fav": "",
-            "name": "Historical Unemployment rates in the Nordic" " countries",
+            "name": "Historical Unemployment rates in the Nordic countries",
             "type": "stacked bar chart",
             "summary": "Historical unemployment rate in the Nordic "
             "countries. Data from IMFs World Economic Oulook published in"

@@ -144,7 +144,7 @@ class Selector(object):
             raise NovemSelectorException("We need a reference to correctly infer pandas selections")
 
         if filter is None:
-            raise NovemSelectorException("There is no data in our dataframe, we need at " "least one value.")
+            raise NovemSelectorException("There is no data in our dataframe, we need at least one value.")
 
         # Grab levels
         cl = filter.index.nlevels

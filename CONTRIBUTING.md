@@ -12,22 +12,23 @@ file in the repository.
 
 
 ## Getting started
-As we target python 3.8 or newer it's advisable to use python 3.8 for
+As we target python 3.10 or newer it's advisable to use python 3.10 for
 development. To get started simply clone the repository and run the below
 commands.
 
 ```bash
 uv sync
-uv run pre-commit run --all-files
+make lint
 ```
 
 ## Before commiting
 Please make sure that all files confirm to the style guidelines
 
 ```bash
-uv run pre-commit run --all-files
+make format   # apply formatting and autofixes
+make lint     # check formatting, lint and types
 ```
 
 ## Pull requests
-Please feel free to send over pull requests, but do make sure that the
-post-commit hooks are all green.
+Please feel free to send over pull requests, but do make sure that CI is
+green.

@@ -723,7 +723,7 @@ def _run_sync(coro: Any) -> Any:
         return asyncio.run(coro)
     coro.close()
     raise NovemException(
-        "A compute call was made from inside a running event loop. " "Use the async API (Computer.connect()) instead."
+        "A compute call was made from inside a running event loop. Use the async API (Computer.connect()) instead."
     )
 
 

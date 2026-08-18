@@ -123,7 +123,6 @@ class NovemCodeAPI(NovemTreeSync, NovemAPI):
         ]
 
         for k, v in kwargs.items():
-
             if k not in props:
                 continue
 
@@ -417,13 +416,13 @@ class NovemCodeAPI(NovemTreeSync, NovemAPI):
 
                 if r["type"] == "dir":
                     if colors:
-                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}" f'{r["name"]}/{cl.ENDC}\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}{r['name']}/{cl.ENDC}\n"
                     else:
-                        resp += f'{pfx}{co}{h}{h} {a} {r["name"]}/\n'
+                        resp += f"{pfx}{co}{h}{h} {a} {r['name']}/\n"
 
-                    resp += rec_tree(f'{path}/{r["name"]}', level + 1, mc)[1]
+                    resp += rec_tree(f"{path}/{r['name']}", level + 1, mc)[1]
                 else:
-                    resp += f'{pfx}{co}{h}{h} {a} {r["name"]}\n'
+                    resp += f"{pfx}{co}{h}{h} {a} {r['name']}\n"
 
             # order by dir, files, alphabetically
             return (hdp, resp)

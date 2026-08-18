@@ -1,4 +1,4 @@
-.PHONY: test bump-version pre-commit build
+.PHONY: test bump-version lint format build
 
 test:
 	@uv run pytest
@@ -6,8 +6,14 @@ test:
 bump-version:
 	@uv run python scripts/bump_version.py
 
-pre-commit:
-	@uv run pre-commit run --all
+lint:
+	@uv run ruff format --check .
+	@uv run ruff check .
+	@uv run mypy novem
+
+format:
+	@uv run ruff format .
+	@uv run ruff check --fix .
 
 build:
 	@uv build

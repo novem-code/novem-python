@@ -7,7 +7,6 @@ if TYPE_CHECKING:
 
 
 class NovemFiles(object):
-
     def __init__(self, api: "NovemVisAPI") -> None:
         """ """
         self.api: "NovemVisAPI" = api

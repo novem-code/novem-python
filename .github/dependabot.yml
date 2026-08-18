@@ -5,17 +5,41 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Python dependencies via uv
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+    # novem is published; never let Dependabot raise the >= floors in
+    # [project.dependencies] -- that would tighten requirements downstream.
+    versioning-strategy: lockfile-only
     labels:
       - "dependencies"
       - "python"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      python-dev:
+        dependency-type: "development"
+        patterns:
+          - "*"
+      python-prod:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"

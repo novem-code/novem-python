@@ -1909,8 +1909,7 @@ def _fetch_all_cross_vars(
     fragments: List[str] = []
     for alias, (user, vis_type, vis_id, _) in vde_info.items():
         fragments.append(
-            f'  {alias}: {vis_type}(id: "{vis_id}", author: "{user}") '
-            f"{{ vars {{ id value format type threshold }} }}"
+            f'  {alias}: {vis_type}(id: "{vis_id}", author: "{user}") {{ vars {{ id value format type threshold }} }}'
         )
     query = "query {\n" + "\n".join(fragments) + "\n}"
 

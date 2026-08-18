@@ -14,7 +14,7 @@ auth_req = {
     "username": "demouser",
     "password": "demopass",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "{hostname}" ' 'on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
+    "token_description": ('cli token created for "{hostname}" on "{datetime.now():%Y-%m-%d:%H:%M:%S}"'),
 }
 
 auth_resp = {
@@ -22,7 +22,7 @@ auth_resp = {
     "token": "demo_token",
     "token_id": "2OMBg",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "mordaine" on' ' "2022-03-15:13:24:46"'),
+    "token_description": ('cli token created for "mordaine" on "2022-03-15:13:24:46"'),
     "comment": "New token created, make sure to store the token.",
 }
 
@@ -31,7 +31,7 @@ auth_resp_2 = {
     "token": "demo_token_2",
     "token_id": "2OMBg",
     "token_name": "demotoken",
-    "token_description": ('cli token created for "mordaine" on' ' "2022-03-15:13:24:46"'),
+    "token_description": ('cli token created for "mordaine" on "2022-03-15:13:24:46"'),
     "comment": "New token created, make sure to store the token.",
 }
 
@@ -56,7 +56,7 @@ def test_empty_config(requests_mock, fs, cli):
     assert not file_exists(cpath)
 
     # interactively supply username and password
-    out, err = cli("--init", stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    out, err = cli("--init", stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     # verify that our config is there
     assert file_exists(cpath)
@@ -78,7 +78,7 @@ def test_empty_config(requests_mock, fs, cli):
     assert config.has_section("app:fuse")
 
     # verify that we have a user:username section
-    profile = f'profile:{auth_req["username"]}'
+    profile = f"profile:{auth_req['username']}"
     assert config.has_section(profile)
 
     # verify that the section contains
@@ -103,7 +103,7 @@ def test_specify_user(requests_mock, fs, cli):
 
     profile_name = "demo_test"
 
-    out, err = cli("--init", "--profile", profile_name, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    out, err = cli("--init", "--profile", profile_name, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     # verify that our config is there
     assert file_exists(cpath)
@@ -144,7 +144,7 @@ def test_add_two_user(requests_mock, fs, cli):
 
     # interactively supply username and password
     profile_name = "demo_test"
-    out, err = cli("--init", "--profile", profile_name, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    out, err = cli("--init", "--profile", profile_name, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     # verify that our config is there
     assert file_exists(cpath)
@@ -173,7 +173,7 @@ def test_add_two_user(requests_mock, fs, cli):
 
     # interactively supply username and password
     profile_name = "demo_test_2"
-    out, err = cli("--init", "--profile", profile_name, stdin=f'{u2}\n{auth_req["password"]}')
+    out, err = cli("--init", "--profile", profile_name, stdin=f"{u2}\n{auth_req['password']}")
 
     # verify that our config is there
     assert file_exists(cpath)
@@ -212,7 +212,7 @@ def test_fail_if_exist(requests_mock, fs, cli):
 
     # interactively supply username and password
     profile_name = auth_req["username"]
-    out, err = cli("--init", "--profile", profile_name, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    out, err = cli("--init", "--profile", profile_name, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     # verify that our config is there
     assert file_exists(cpath)
@@ -239,11 +239,11 @@ def test_fail_if_exist(requests_mock, fs, cli):
 
     # assert that we exit with message
     with pytest.raises(CliExit) as e:
-        cli("--init", "--profile", profile_name, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+        cli("--init", "--profile", profile_name, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     out, err = e.value.args
     assert e.value.code == 1
-    assert out == (' !  The supplied profile "demouser" already exist,' " use --force to override\n")
+    assert out == (' !  The supplied profile "demouser" already exist, use --force to override\n')
 
     # verify that we work with override
     requests_mock.reset_mock()
@@ -251,7 +251,7 @@ def test_fail_if_exist(requests_mock, fs, cli):
 
     # interactively supply username and password
     out, err = cli(
-        "--init", "--profile", profile_name, "--force", stdin=f'{auth_req["username"]}\n{auth_req["password"]}'
+        "--init", "--profile", profile_name, "--force", stdin=f"{auth_req['username']}\n{auth_req['password']}"
     )
 
     # verify that our config is there
@@ -292,7 +292,7 @@ def test_missing_user(requests_mock, fs, cli):
 
     # interactively supply username and password
     with pytest.raises(CliExit) as e:
-        cli("--profile", profile_name, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+        cli("--profile", profile_name, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     out, err = e.value.args
     assert e.value.code == 1
@@ -353,9 +353,9 @@ version = 0.5.0
         f.write(f2)
 
     # it should read the supplied config file, but also operate on it
-    cli("--init", "--config", f1n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    cli("--init", "--config", f1n, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
-    cli("--init", "--config", f2n, stdin=f'{auth_req["username"]}\n{auth_req["password"]}')
+    cli("--init", "--config", f2n, stdin=f"{auth_req['username']}\n{auth_req['password']}")
 
     c1 = configparser.ConfigParser()
     c1.read(f1n)

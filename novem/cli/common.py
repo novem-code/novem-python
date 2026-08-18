@@ -209,7 +209,6 @@ class VisBase:
                 vis.api_write(f"/{path}", nctnt)
 
         else:
-
             ptype = args["type"]
             # print(ptype)
             if ptype:
@@ -403,7 +402,7 @@ def job(args: CliArgs) -> None:
         if positional or argv:
             if any(a.startswith("@") for a in positional):
                 print(
-                    "-R no longer takes @file uploads — they moved to -i:\n" f"  novem -j {name} -R -i {positional[0]}",
+                    f"-R no longer takes @file uploads — they moved to -i:\n  novem -j {name} -R -i {positional[0]}",
                     file=sys.stderr,
                 )
             else:
@@ -802,7 +801,7 @@ def _computer_session(args: CliArgs, obj: NovemCodeAPI, kind: str) -> None:
         else:
             if not argv:
                 print(
-                    "-R on a computer needs a command to run, e.g.\n" f"  novem -c {computer.id} -R -- ls -la",
+                    f"-R on a computer needs a command to run, e.g.\n  novem -c {computer.id} -R -- ls -la",
                     file=sys.stderr,
                 )
                 sys.exit(1)
