@@ -290,11 +290,7 @@ class NovemAPI(object):
         )
 
         if not r.ok:
-            resp = r.json()
-            if r.status_code == 404:
-                raise Novem404(resp["message"])
-            else:
-                print(r.json())
+            raise_on_response(r)
 
     def create(self, path: str, raise_on_conflict: bool = False) -> bool:
         """PUT to create a resource. Returns True if created, False on 409.
@@ -309,15 +305,16 @@ class NovemAPI(object):
             f"{self._api_root}{path}",
         )
 
+        if r.status_code == 409:
+            if raise_on_conflict:
+                try:
+                    message = r.json().get("message", "Resource already exists")
+                except ValueError:
+                    message = "Resource already exists"
+                raise Novem409(message)
+            return False
+
         if not r.ok:
-            resp = r.json()
-            if r.status_code == 404:
-                raise Novem404(resp["message"])
-            elif r.status_code == 409:
-                if raise_on_conflict:
-                    raise Novem409(resp.get("message", "Resource already exists"))
-                return False
-            else:
-                print(r.json())
+            raise_on_response(r)
 
         return True
