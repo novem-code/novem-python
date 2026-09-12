@@ -48,6 +48,12 @@ In addition to invoking the novem module as shown above, the novem package also
 includes an extensive command-line interface (cli). Check out CLI.md in this
 repository or [novem.io](https://novem.io) for more details.
 
+`pip install novem` puts a `novem` command on your PATH. On Windows that
+directory is often not on PATH, so `novem` comes back as "not recognized". Use
+`python -m novem` instead -- it is the same entry point and takes the same
+arguments, so every example below works with `novem` replaced by
+`python -m novem`.
+
 
 ## Configuration and authentication
 Every novem object needs a token and an API root to talk to the platform.

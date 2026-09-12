@@ -5,6 +5,11 @@ from the command line. Below is a set of examples followed by some details.
 For a shorthand overview you can always use the `-h` or `--help` commands, and
 see [novem.io](https://novem.io) for the full documentation.
 
+If `novem` is not recognized as a command -- common on Windows, where pip's
+script directory is often not on PATH -- run `python -m novem` instead. It is
+the same entry point and takes the same arguments, so every example here works
+with `novem` replaced by `python -m novem`.
+
 The resource you operate on is selected by a flag: `-p` plot, `-g` grid,
 `-m` mail, `-d` doc, `-j` job. Most examples below use `-p`, but the same
 options apply to the other resource types.
