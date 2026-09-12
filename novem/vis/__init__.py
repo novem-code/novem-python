@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
-from ..api_ref import NovemAPI
+from ..api_ref import NovemAPI, norm_relpath
 from ..shared import NovemShare
 from ..sync import NovemTreeSync
 from ..tags import NovemTags
@@ -154,19 +154,23 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
     def _sync_label(self) -> str:
         return self._vispath or "vis"
 
+    def _path(self, relpath: str = "", user_aware: bool = False) -> str:
+        """URL for a path relative to this vis.
+
+        Only GET supports the custom user pathing, so user_aware is opt-in
+        rather than inferred from self.user.
+        """
+        return f"{self._sync_base(user_aware)}{norm_relpath(relpath)}"
+
     def api_tree(self, colors: bool = False, relpath: str = "/") -> str:
         """
         Iterate over the current id and print a "pretty" ascii tree
         """
-        if relpath[0] != "/":
-            relpath = f"/{relpath}"
+        relpath = norm_relpath(relpath) or "/"
 
         clrs()
 
-        qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
-
-        if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
+        qpath = self._path(relpath, user_aware=True)
 
         # TODO: we're using some hard coded unicode symbols and colors here
         # probably better to make this configurable by the user and perhaps
@@ -269,13 +273,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         Read the api value located at realtive path
         """
 
-        qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
-
-        # We can read information from other users, but not perform any
-        # other actions so only the GET method supports the custom user
-        # pathing
-        if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
+        qpath = self._path(relpath, user_aware=True)
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"
@@ -295,13 +293,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
         return r.content.decode("utf-8")
 
     def api_read_bytes(self, relpath: str) -> bytes:
-        qpath = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
-
-        # We can read information from other users, but not perform any
-        # other actions so only the GET method supports the custom user
-        # pathing
-        if self.user:
-            qpath = f"{self._api_root}users/{self.user}/vis/{self._vispath}/{self.id}{relpath}"
+        qpath = self._path(relpath, user_aware=True)
 
         if self._qpr and len(self._qpr):
             qpath = f"{qpath}?{self._qpr}"
@@ -330,7 +322,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
             print(f"You cannot modify another user's {self._vispath}")
             return
 
-        path = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
+        path = self._path(relpath)
 
         if self._debug:
             print(f"DELETE: {path}")
@@ -365,7 +357,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
             print(f"You cannot modify another user's {self._vispath}")
             return
 
-        path = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
+        path = self._path(relpath)
 
         if self._debug:
             print(f"PUT: {path}")
@@ -396,7 +388,7 @@ class NovemVisAPI(NovemTreeSync, NovemAPI):
             print(f"You cannot modify another user's {self._vispath}")
             return
 
-        path = f"{self._api_root}vis/{self._vispath}/{self.id}{relpath}"
+        path = self._path(relpath)
 
         if self._debug:
             print(f"POST: {path}")

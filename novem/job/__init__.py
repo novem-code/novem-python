@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
-from ..api_ref import NovemAPI
+from ..api_ref import NovemAPI, norm_relpath
 from ..shared import NovemShare
 from ..sync import NovemTreeSync
 from ..tags import NovemTags
@@ -93,6 +93,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
             super().__setattr__(name, value)
 
     def _path(self, relpath: str = "") -> str:
+        relpath = norm_relpath(relpath)
         if self.user:
             return f"{self._api_root}users/{self.user}/code/jobs/{self.id}{relpath}"
         return f"{self._api_root}code/jobs/{self.id}{relpath}"
@@ -465,8 +466,7 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
         """
         Iterate over the current job and print a "pretty" ascii tree
         """
-        if relpath[0] != "/":
-            relpath = f"/{relpath}"
+        relpath = norm_relpath(relpath) or "/"
 
         clrs()
 

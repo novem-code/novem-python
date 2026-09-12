@@ -80,6 +80,19 @@ class NovemAuthError(NovemException):
     pass
 
 
+def norm_relpath(relpath: str) -> str:
+    """Normalise a resource-relative API path to carry its leading slash.
+
+    Callers pass both ``config/type`` and ``/config/type``. The path builders
+    concatenate straight onto the resource root, so an unprefixed value
+    silently produced ``.../my-plotconfig/type``. An empty path addresses the
+    resource itself and is left alone.
+    """
+    if not relpath or relpath.startswith("/"):
+        return relpath
+    return f"/{relpath}"
+
+
 def raise_on_response(r: requests.Response) -> None:
     """Raise the appropriate ``NovemException`` for a non-ok API response.
 
