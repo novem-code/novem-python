@@ -215,7 +215,11 @@ class VisBase:
                 vis.type = ptype
 
             found_stdin = False
-            stdin_data = data_on_stdin()
+            # A bare -w PATH cannot proceed without stdin, so it may block for
+            # a slow producer. Otherwise stdin only feeds set_data below and a
+            # bounded wait keeps an idle inherited pipe from hanging the command.
+            bare_inputs = any(len(item) == 1 for item in args["input"] or [])
+            stdin_data = data_on_stdin(required=bare_inputs)
             stdin_has_data = bool(stdin_data)
 
             # check if we have any explicit inputs [-w's]
@@ -489,7 +493,10 @@ def job(args: CliArgs) -> None:
             j.type = ptype
 
         found_stdin = False
-        stdin_data = data_on_stdin()
+        # Only a bare -w PATH reads stdin here; consulting it otherwise blocks
+        # forever on an inherited open pipe.
+        bare_inputs = any(len(item) == 1 for item in args["input"] or [])
+        stdin_data = data_on_stdin() if bare_inputs else None
         stdin_has_data = bool(stdin_data)
 
         # check if we have any explicit inputs [-w's]

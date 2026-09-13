@@ -486,7 +486,13 @@ class _StdinReadiness:
     is_test: bool
 
 
-def _stdin_readiness() -> _StdinReadiness:
+# How long an optional stdin read waits for a producer to say something. Only
+# an open pipe with nothing in it ever waits: a terminal, a file, /dev/null and
+# a closed pipe all report ready at once.
+OPTIONAL_STDIN_WAIT = 0.2
+
+
+def _stdin_readiness(timeout: float = 0.0) -> _StdinReadiness:
     try:
         # use msvcrt on windows
         import msvcrt
@@ -495,7 +501,7 @@ def _stdin_readiness() -> _StdinReadiness:
     except ImportError:
         try:
             # use select on linux
-            has_data = bool(select.select([sys.stdin], [], [], 0.0)[0])
+            has_data = bool(select.select([sys.stdin], [], [], timeout)[0])
             return _StdinReadiness(has_data=has_data, is_test=False)
         except io.UnsupportedOperation:
             # Pytest replaces stdin with a stream that must not be read. A
@@ -504,16 +510,24 @@ def _stdin_readiness() -> _StdinReadiness:
             return _StdinReadiness(has_data=has_data, is_test=True)
 
 
-def stream_on_stdin() -> Optional[Any]:
+def stream_on_stdin(required: bool = True) -> Optional[Any]:
     """Return stdin without consuming it when input should be forwarded.
 
-    Real redirected stdin may not have bytes available at the instant the
-    command starts, so every non-interactive stream is returned. Callers that
-    need binary-safe incremental input can consume the returned buffer while
-    doing their other work concurrently.
+    ``required`` means the command cannot do its job without stdin, as a bare
+    ``-w PATH`` cannot. Then every non-interactive stream is returned and the
+    caller may block, because a real producer may not have written its first
+    byte yet and waiting for it is the whole point.
+
+    When stdin is merely optional the wait is bounded instead. A command that
+    inherits an open pipe nobody ever writes to -- routine under CI and process
+    supervisors -- would otherwise block forever on input it was only willing
+    to use, not waiting for.
     """
 
-    readiness = _stdin_readiness()
+    readiness = _stdin_readiness(0.0 if required else OPTIONAL_STDIN_WAIT)
+    if not required:
+        return getattr(sys.stdin, "buffer", sys.stdin) if readiness.has_data else None
+
     is_noninteractive = not sys.stdin.isatty()
     has_data = readiness.has_data or (is_noninteractive and not readiness.is_test)
     if not has_data:
@@ -521,10 +535,10 @@ def stream_on_stdin() -> Optional[Any]:
     return getattr(sys.stdin, "buffer", sys.stdin)
 
 
-def data_on_stdin() -> Optional[str]:
+def data_on_stdin(required: bool = True) -> Optional[str]:
     """Read text waiting on stdin, preserving the legacy buffered behavior."""
 
-    ctnt = "".join(sys.stdin.readlines()) if stream_on_stdin() is not None else ""
+    ctnt = "".join(sys.stdin.readlines()) if stream_on_stdin(required) is not None else ""
     return ctnt if ctnt else None
 
 
