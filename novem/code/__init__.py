@@ -415,12 +415,27 @@ class NovemCodeAPI(NovemTreeSync, NovemAPI):
                     co = f"{c}"
 
                 if r["type"] == "dir":
-                    if colors:
-                        resp += f"{pfx}{co}{h}{h} {a} {cl.OKBLUE}{r['name']}/{cl.ENDC}\n"
-                    else:
-                        resp += f"{pfx}{co}{h}{h} {a} {r['name']}/\n"
+                    cp = f"{path}/{r['name']}"
+                    skip = self._walk_skip(relpath, cp)
 
-                    resp += rec_tree(f"{path}/{r['name']}", level + 1, mc)[1]
+                    # spell the reason out on the collapsed directory itself,
+                    # then stay terse for the entries listed inside it
+                    txt = ""
+                    if skip:
+                        marked = self._norm_walk_path(cp) in self._walk_no_recurse
+                        txt = f"({skip} not expanded)" if marked else "(not expanded)"
+
+                    if colors:
+                        nm = f"{cl.OKBLUE}{r['name']}/{cl.ENDC}"
+                        note = f" {cl.FGGRAY}{txt}{cl.ENDC}" if skip else ""
+                    else:
+                        nm = f"{r['name']}/"
+                        note = f" {txt}" if skip else ""
+
+                    resp += f"{pfx}{co}{h}{h} {a} {nm}{note}\n"
+
+                    if not skip:
+                        resp += rec_tree(cp, level + 1, mc)[1]
                 else:
                     resp += f"{pfx}{co}{h}{h} {a} {r['name']}\n"
 

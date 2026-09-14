@@ -290,4 +290,10 @@ invites still awaiting an answer, and your active invite URLs.
 ```bash
   # print the api tree for a visualisation
   novem -p plot_name --tree
+
+  # a repo's commit history is listed but not expanded: every commit holds a
+  # full copy of the tree, so walking it costs a subtree per commit
+  novem -r repo_name --tree              # working tree, commits/ collapsed
+  novem -r repo_name --tree /commits     # the commit list
+  novem -r repo_name --tree /commits/<sha>/files   # one commit, in full
 ```
