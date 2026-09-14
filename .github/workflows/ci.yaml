@@ -40,3 +40,28 @@ jobs:
     - name: Test
       run: |
         uv run pytest tests
+
+  mcp:
+    # The mcp extra is not part of `uv sync`, so the build job above never
+    # imports it. Without this, novem.comments.MCP() can break against either
+    # major and the suite stays green.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mcp-version: ["mcp>=1,<2", "mcp>=2,<3"]
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.12"
+    - name: Install uv
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+    - name: Install dependencies
+      run: |
+        uv sync
+    - name: Test against ${{ matrix.mcp-version }}
+      run: |
+        uv run --with '${{ matrix.mcp-version }}' pytest tests/test_mcp_compat.py -v

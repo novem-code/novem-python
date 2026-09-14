@@ -64,6 +64,17 @@ def _log(msg: Any, text: str) -> None:
     print(f"[{msg.ts}] {text}", file=sys.stderr)
 
 
+def _tool_content(result: Any) -> Any:
+    """The content list from a call_tool result, across mcp v1 and v2.
+
+    v1 returns the list itself, or a (list, dict) tuple when the tool declares
+    structured output. v2 returns a CallToolResult, which is not subscriptable.
+    """
+    if hasattr(result, "content"):
+        return result.content
+    return result[0] if isinstance(result, tuple) else result
+
+
 async def _handle(msg: Any) -> None:
     _log(msg, f"event: {msg.event_type} from @{msg.actor} -> {msg.fqnp}")
 
@@ -107,7 +118,7 @@ async def _handle(msg: Any) -> None:
     if msg.actor != my_username:
         _log(msg, "posting 'On it!' acknowledgement")
         ack_result = await mcp.call_tool("novem_reply", {"text": "On it!"})
-        ack_text = ack_result[0][0].text if isinstance(ack_result, tuple) else ack_result[0].text
+        ack_text = _tool_content(ack_result)[0].text
         _log(msg, f"  ack result: {ack_text}")
     else:
         _log(msg, "actor is us, skipping acknowledgement")
@@ -170,14 +181,18 @@ async def _handle(msg: Any) -> None:
                 _log(msg, f"  tool {block.name} error: {e}")
                 results.append({"type": "tool_result", "tool_use_id": block.id, "content": str(e), "is_error": True})
                 continue
-            content = result[0] if isinstance(result, tuple) else result
+            content = _tool_content(result)
             result_content: List[Any] = []
             for item in content:
                 if item.type == "image":
                     result_content.append(
                         {
                             "type": "image",
-                            "source": {"type": "base64", "media_type": item.mimeType, "data": item.data},
+                            "source": {
+                                "type": "base64",
+                                "media_type": getattr(item, "mime_type", None) or item.mimeType,
+                                "data": item.data,
+                            },
                         }
                     )
                 else:
