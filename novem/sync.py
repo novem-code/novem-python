@@ -40,6 +40,41 @@ class NovemTreeSync:
     def _sync_label(self) -> str:  # pragma: no cover - hook
         raise NotImplementedError
 
+    # Directories a walk lists but does not descend into, mapped to a short
+    # reason. Set by a resource whose children under that path are generated
+    # per-entry rather than stored, so descending costs a full subtree per
+    # entry and grows without bound as entries accumulate (see NovemRepoAPI).
+    _walk_no_recurse: Dict[str, str] = {}
+
+    @staticmethod
+    def _norm_walk_path(path: str) -> str:
+        """Collapse a walk path to a canonical ``/a/b`` (the root is ``""``).
+
+        Walk paths are built by concatenation and arrive with doubled or
+        trailing slashes (``//commits``), so compare on this form.
+        """
+        parts = [p for p in path.split("/") if p]
+        return f"/{'/'.join(parts)}" if parts else ""
+
+    def _walk_skip(self, root: str, child: str) -> Optional[str]:
+        """Why a walk from ``root`` must not descend into ``child``, or None.
+
+        A walk rooted *inside* a marker - ``/commits/<sha>`` rather than ``/``
+        or ``/commits`` - is a deliberate browse of one entry and expands as
+        normal. So the contents stay reachable; they just stop being something
+        an unqualified walk drags in.
+        """
+        root = self._norm_walk_path(root)
+        child = self._norm_walk_path(child)
+
+        for marker, reason in self._walk_no_recurse.items():
+            rooted_inside = root == marker or root.startswith(f"{marker}/")
+            if rooted_inside and root[len(marker) :].strip("/"):
+                continue
+            if child == marker or child.startswith(f"{marker}/"):
+                return reason
+        return None
+
     def api_dump(self, outpath: str) -> None:
         """
         Walk the remote tree and write every round-trippable file to disk.
@@ -90,6 +125,12 @@ class NovemTreeSync:
                 # DELETE verb); skip read-only and virtual/computed files.
                 if r["type"] in ["file", "link"] and "DELETE" not in r.get("actions", []):
                     continue
+
+                skip = self._walk_skip("", child_path)
+                if skip:
+                    print(f"Skipping {skip}: {child_path}")
+                    continue
+
                 rec_tree(child_path)
 
         rec_tree("")

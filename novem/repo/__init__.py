@@ -19,6 +19,12 @@ class NovemRepoAPI(NovemCodeAPI):
     _collection = "repos"
     _label = "repo"
 
+    # Every entry under ``/commits`` is a browsable directory holding that
+    # commit's entire file tree, so an unqualified walk re-reads the whole
+    # repo once per commit and gets slower with every push. List the history,
+    # and leave expanding a commit to an explicit ``--tree /commits/<sha>``.
+    _walk_no_recurse = {"/commits": "commit history"}
+
 
 class Repo(NovemRepoAPI):
     def __init__(self, id: str, **kwargs: Any) -> None:
