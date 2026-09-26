@@ -1215,7 +1215,7 @@ dev = [
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'compute'", specifier = ">=3.9" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0,<2" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0,<3" },
     { name = "pyreadline3", marker = "os_name == 'nt'", specifier = ">=3.5.4" },
     { name = "python-socketio", extras = ["asyncio-client"], marker = "extra == 'events'", specifier = ">=5.11.0" },
     { name = "requests", specifier = ">=2.32.4" },

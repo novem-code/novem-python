@@ -7,6 +7,7 @@ see the ``examples/`` directory for typical integration patterns.
 """
 
 import asyncio
+import importlib
 import json
 import time
 from dataclasses import dataclass, field
@@ -661,13 +662,25 @@ class Context(NovemAPI):
 # ---------------------------------------------------------------------------
 
 
-def _check_mcp_deps() -> Any:
-    try:
-        from mcp.server.fastmcp import FastMCP  # type: ignore[import-untyped,import-not-found]
+def _import_mcp(symbol: str) -> Any:
+    """Resolve an mcp symbol across the v1/v2 module split.
 
-        return FastMCP
-    except ImportError:
-        raise ImportError('The "mcp" extra is required. Install with: pip install novem[mcp]')
+    mcp 2.x moved mcp.server.fastmcp to mcp.server.mcpserver and renamed
+    FastMCP to MCPServer. Both spellings are tried so an installed 2.x is not
+    reported as a missing dependency, which is what a bare ImportError here
+    used to claim -- ModuleNotFoundError is an ImportError.
+    """
+    v2_name = {"FastMCP": "MCPServer"}.get(symbol, symbol)
+    for module, name in (("mcp.server.fastmcp", symbol), ("mcp.server.mcpserver", v2_name)):
+        try:
+            return getattr(importlib.import_module(module), name)
+        except (ImportError, AttributeError):
+            continue
+    raise ImportError('The "mcp" extra is required. Install with: pip install novem[mcp]')
+
+
+def _check_mcp_deps() -> Any:
+    return _import_mcp("FastMCP")
 
 
 def _fmt_comment(c: Comment, indent: int = 0) -> str:
@@ -805,7 +818,8 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
             {
                 "name": t.name,
                 "description": t.description or "",
-                "input_schema": t.inputSchema,
+                # mcp 2.x renamed the field to input_schema
+                "input_schema": getattr(t, "input_schema", None) or t.inputSchema,
             }
             for t in mcp_tools
         ]
@@ -884,7 +898,7 @@ def MCP(fqnp: str, **kwargs: Any) -> Any:
         are looking at.  Only available when the FQNP points to a
         visualization (plot, grid, mail, …).
         """
-        from mcp.server.fastmcp import Image  # type: ignore[import-untyped,import-not-found]
+        Image = _import_mcp("Image")
 
         if not parsed.is_vis:
             return "This FQNP does not reference a visualization."
