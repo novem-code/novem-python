@@ -28,10 +28,10 @@ compute = [
     "aiohttp>=3.9",
 ]
 mcp = [
-    # novem.comments.MCP() targets the v1 API (mcp.server.fastmcp.FastMCP,
-    # Tool.inputSchema).  mcp 2.0 removed both, so keep the extra on 1.x
-    # until the migration lands -- see the tracking issue.
-    "mcp>=1.0.0,<2",
+    # novem.comments.MCP() resolves both spellings: v1's
+    # mcp.server.fastmcp.FastMCP/Tool.inputSchema and v2's
+    # mcp.server.mcpserver.MCPServer/Tool.input_schema.
+    "mcp>=1.0.0,<3",
 ]
 
 [project.urls]
