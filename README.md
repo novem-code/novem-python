@@ -52,6 +52,8 @@ The native CLI comes with the `cli` extra, and is the one to use. The Python
 CLI it replaces is deprecated:
 ```bash
   pipx install 'novem[cli]'
+  # already installed novem with pipx? --force switches it to the native CLI
+  pipx install --force 'novem[cli]'
 ```
 
 `pip install novem` puts a `novem` command on your PATH. On Windows that

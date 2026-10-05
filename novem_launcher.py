@@ -57,7 +57,7 @@ def main() -> None:
 
         if sys.stderr.isatty() and (sys.platform, platform.machine()) in _NATIVE_PLATFORMS:
             print(
-                "novem: the Python CLI is deprecated, install the native one with: pipx install 'novem[cli]'\n"
+                "novem: the Python CLI is deprecated, install the native one with: pipx install --force 'novem[cli]'\n"
                 "       (set NOVEM_PYTHON_CLI=1 to keep using the Python CLI and hide this message)",
                 file=sys.stderr,
             )

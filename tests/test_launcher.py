@@ -69,7 +69,7 @@ def test_python_cli_is_flagged_deprecated(monkeypatch, calls, capsys):
     _on_native_platform_tty(monkeypatch)
     monkeypatch.setitem(sys.modules, "novem_cli", None)
     novem_launcher.main()
-    assert "pipx install 'novem[cli]'" in capsys.readouterr().err
+    assert "pipx install --force 'novem[cli]'" in capsys.readouterr().err
     assert calls == [("python",)]
 
 
