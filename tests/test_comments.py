@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from novem.cli.gql import (
+from novem._topics import (
     _build_var_lookup,
     _format_var_value,
     _process_message,
