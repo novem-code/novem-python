@@ -3,7 +3,7 @@
 Required environment:
   NOVEM_CLI_VERSION  release version, e.g. 0.2.2
   NOVEM_CLI_TARGET   rust target triple the binary was built for
-  NOVEM_CLI_BINARY   path to that binary
+  NOVEM_CLI_BINARY   absolute path to that binary (the build runs in novem-cli/)
 """
 
 import os

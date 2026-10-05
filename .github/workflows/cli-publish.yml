@@ -44,7 +44,8 @@ jobs:
       run: |
         export NOVEM_CLI_VERSION="${TAG#v}"
         for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl aarch64-apple-darwin x86_64-pc-windows-msvc; do
-          binary="release/novem-$target"
+          # absolute, the build backend runs inside novem-cli/
+          binary="$GITHUB_WORKSPACE/release/novem-$target"
           [[ "$target" == *windows* ]] && binary="$binary.exe"
           NOVEM_CLI_TARGET="$target" NOVEM_CLI_BINARY="$binary" uv build --wheel -o dist novem-cli
         done
