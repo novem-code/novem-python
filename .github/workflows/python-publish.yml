@@ -8,6 +8,9 @@ jobs:
   install-test-and-build:
     name: Install, test & build
     runs-on: ubuntu-latest
+    environment:
+      name: release
+      deployment: false
     permissions:
       contents: write
     steps:
@@ -15,8 +18,8 @@ jobs:
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        client-id: ${{ vars.APP_CLIENT_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        client-id: ${{ vars.GHA_RELEASES_CLIENT_ID }}
+        private-key: ${{ secrets.GHA_RELEASES_PRIVATE_KEY }}
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:

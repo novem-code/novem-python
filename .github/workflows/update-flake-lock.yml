@@ -14,6 +14,9 @@ jobs:
   update:
     name: "Update flake.lock"
     runs-on: ubuntu-latest
+    environment:
+      name: release
+      deployment: false
     steps:
     # The default GITHUB_TOKEN cannot open a PR that triggers workflows, so a
     # flake.lock PR would sit without the Nix Checks run that justifies it.
@@ -22,8 +25,8 @@ jobs:
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        client-id: ${{ vars.APP_CLIENT_ID }}
-        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        client-id: ${{ vars.GHA_RELEASES_CLIENT_ID }}
+        private-key: ${{ secrets.GHA_RELEASES_PRIVATE_KEY }}
         # Narrow the token to what this job needs, rather than everything the
         # installation grants.
         repositories: novem-python
