@@ -17,6 +17,8 @@ PLATFORM_TAGS = {
     "x86_64-unknown-linux-musl": "manylinux_2_17_x86_64.manylinux2014_x86_64.musllinux_1_1_x86_64",
     "aarch64-unknown-linux-musl": "manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64",
     "aarch64-apple-darwin": "macosx_11_0_arm64",
+    # rust's default deployment target for Intel macOS
+    "x86_64-apple-darwin": "macosx_10_12_x86_64",
     "x86_64-pc-windows-msvc": "win_amd64",
 }
 
