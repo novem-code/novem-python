@@ -9,7 +9,7 @@ bump-version:
 lint:
 	@uv run ruff format --check .
 	@uv run ruff check .
-	@uv run mypy novem
+	@uv run mypy novem novem_launcher.py
 
 format:
 	@uv run ruff format .

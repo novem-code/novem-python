@@ -65,7 +65,7 @@ jobs:
         git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git
 
         # Add changed files
-        git add pyproject.toml uv.lock novem/version.py
+        git add pyproject.toml uv.lock novem/version.py novem_launcher.py
 
         # Only commit if there are changes
         if ! git diff --cached --quiet; then

@@ -3,7 +3,7 @@ import re
 import subprocess
 import sys
 
-VERSION_FILE = pathlib.Path("novem/version.py")
+VERSION_FILES = [pathlib.Path("novem/version.py"), pathlib.Path("novem_launcher.py")]
 
 
 def main() -> None:
@@ -15,9 +15,10 @@ def main() -> None:
         # Default: patch bump
         next_version = subprocess.check_output(["uv", "version", "--bump", "patch", "--short"], text=True).strip()
 
-    content = VERSION_FILE.read_text()
-    content = re.sub(r'__version__ = ".*?"', f'__version__ = "{next_version}"', content)
-    VERSION_FILE.write_text(content)
+    for version_file in VERSION_FILES:
+        content = version_file.read_text()
+        content = re.sub(r'^__version__ = ".*?"', f'__version__ = "{next_version}"', content, flags=re.M)
+        version_file.write_text(content)
     print(f"Version bumped to {next_version}")
 
 
