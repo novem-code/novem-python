@@ -1,0 +1,30 @@
+[project]
+name = "novem-cli"
+dynamic = ["version"]
+description = "Native novem command-line interface, packaged for pip"
+authors = [
+    { name = "Martin Myrseth", email = "mmy@novem.io" },
+    { name = "Bjørnar Snoksrud", email = "bsn@novem.io" },
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = "MIT"
+
+[project.urls]
+Homepage = "https://novem.io"
+Releases = "https://github.com/novem-code/cli/releases"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# The version and the binary come from a novem-code/cli release, see
+# hatch_build.py and .github/workflows/cli-publish.yml.
+[tool.hatch.version]
+source = "env"
+variable = "NOVEM_CLI_VERSION"
+
+[tool.hatch.build.targets.wheel]
+packages = ["novem_cli"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
