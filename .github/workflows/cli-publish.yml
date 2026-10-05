@@ -86,14 +86,16 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish
     steps:
-    # Same app as update-flake-lock.yml: it may push branches past the
-    # branch ruleset, and its PRs trigger CI where GITHUB_TOKEN's don't.
+    # The gha-releases app, as in python-publish.yml and update-flake-lock.yml:
+    # it may push branches past the branch ruleset, and its PRs trigger CI
+    # where GITHUB_TOKEN's don't.
     - name: Generate GitHub App token
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        client-id: ${{ vars.GAIA_CI_CLIENT_ID }}
-        private-key: ${{ secrets.GAIA_CI_PRIVATE_KEY }}
+        client-id: ${{ vars.APP_CLIENT_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        repositories: novem-python
         permission-contents: write
         permission-pull-requests: write
 
@@ -128,8 +130,8 @@ jobs:
         done
 
         BRANCH="cli-bump/$TAG"
-        git config user.name "gaia-ci[bot]"
-        git config user.email "252333818+gaia-ci[bot]@users.noreply.github.com"
+        git config user.name "gha-releases[bot]"
+        git config user.email "248684608+gha-releases[bot]@users.noreply.github.com"
         git switch -c "$BRANCH"
         git commit -am "build(deps): bump novem-cli to $VERSION"
         git push origin "$BRANCH"
