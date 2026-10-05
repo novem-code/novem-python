@@ -250,14 +250,10 @@ _ANSI_STRIKE_ON = "\033[9m"
 _ANSI_STRIKE_OFF = "\033[29m"
 _ANSI_UNDERLINE_ON = "\033[4m"
 _ANSI_UNDERLINE_OFF = "\033[24m"
-_ANSI_DIM_ON = "\033[2m"
-_ANSI_DIM_OFF = "\033[22m"
 # 256-color backgrounds for pills
 _ANSI_BG_GREEN = "\033[48;5;22m"
 _ANSI_BG_RED = "\033[48;5;52m"
 _ANSI_BG_GRAY = "\033[48;5;236m"
-_ANSI_BG_OFF = "\033[49m"
-_ANSI_FG_OFF = "\033[39m"
 
 # Inline markdown regex — single pass, mirrors webapp's inlineRe
 # Groups: 1=code, 2=bold, 3=strike, 4=italic, 5+6=link text+url,
@@ -772,20 +768,6 @@ def _plain_to_ansi_pos(ansi_text: str, plain_pos: int) -> int:
     return i
 
 
-# Keep these for backward compatibility and testing
-def _process_message(
-    message: str,
-    mentions: Optional[List[Dict[str, Any]]] = None,
-    var_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> str:
-    """Process a message: resolve mentions and render VDE variable embeds."""
-    if not message:
-        return message
-
-    mention_map = _build_mention_map(mentions)
-    return _render_inline_ansi(message, mention_map, var_lookup)
-
-
 def _relative_time(dt: datetime.datetime) -> str:
     """Return a human-friendly relative time string."""
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -809,24 +791,6 @@ def _relative_time(dt: datetime.datetime) -> str:
 def _visible_len(s: str) -> int:
     """Return the visible length of a string, ignoring ANSI escape codes."""
     return len(re.sub(r"\033\[[0-9;]*m", "", s))
-
-
-def _wrap_text(text: str, prefix: str, width: int) -> List[str]:
-    """Wrap text to fit within width, prepending prefix to each line."""
-    indent_width = _visible_len(prefix)
-    available = width - indent_width
-    if available < 20:
-        available = 20
-
-    result: List[str] = []
-    for line in text.splitlines():
-        if not line:
-            result.append(prefix)
-        else:
-            wrapped = textwrap.wrap(line, width=available) or [""]
-            for wl in wrapped:
-                result.append(f"{prefix}{wl}")
-    return result
 
 
 def _get_term_width() -> int:

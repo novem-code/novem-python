@@ -1,8 +1,7 @@
 """Entry point for the ``novem`` command.
 
-Runs the native CLI when ``novem[cli]`` is installed, otherwise the deprecated
-Python CLI in novem.cli. This lives outside the novem package so the native path
-doesn't pay for importing it.
+Runs the native CLI from ``novem[cli]``, or says how to install it. This lives
+outside the novem package so starting the CLI doesn't pay for importing it.
 """
 
 import os
@@ -14,7 +13,8 @@ from typing import NoReturn, Optional
 # novem (or importlib.metadata) to look it up would cost every invocation
 __version__ = "0.7.0"
 
-# platforms novem-cli ships wheels for, keep in sync with the cli extra
+# platforms novem-cli ships wheels for, keep in sync with the cli extra; elsewhere
+# there is no CLI to install
 _NATIVE_PLATFORMS = {
     ("linux", "x86_64"),
     ("linux", "aarch64"),
@@ -51,21 +51,18 @@ def _run_native(binary: str) -> NoReturn:
 
 
 def main() -> None:
-    if not os.environ.get("NOVEM_PYTHON_CLI"):
-        binary = _find_native()
-        if binary:
-            _run_native(binary)
+    binary = _find_native()
+    if binary:
+        _run_native(binary)
 
-        if sys.stderr.isatty() and (sys.platform, platform.machine()) in _NATIVE_PLATFORMS:
-            print(
-                "novem: the Python CLI is deprecated, install the native one with: pipx install --force 'novem[cli]'\n"
-                "       (set NOVEM_PYTHON_CLI=1 to keep using the Python CLI and hide this message)",
-                file=sys.stderr,
-            )
-
-    from novem.cli import run_cli
-
-    run_cli()
+    if (sys.platform, platform.machine()) in _NATIVE_PLATFORMS:
+        print(
+            "novem: the novem command needs the native CLI, install it with: pipx install --force 'novem[cli]'",
+            file=sys.stderr,
+        )
+    else:
+        print(f"novem: the native CLI isn't available for {sys.platform}/{platform.machine()}", file=sys.stderr)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

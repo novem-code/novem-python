@@ -39,28 +39,24 @@ print(line.url)
 To get started with novem you will have to register an account. Please
 [reach out](mailto:hello@novem.io) to us!
 
-Once you have a username and password you can setup your environment using:
-```bash
-  python -m novem --init
-```
-
-In addition to invoking the novem module as shown above, the novem package also
-includes an extensive command-line interface (cli). Check out CLI.md in this
-repository or [novem.io](https://novem.io) for more details.
-
-The native CLI comes with the `cli` extra, and is the one to use. The Python
-CLI it replaces is deprecated:
+Once you have a username and password, install the novem command-line
+interface (cli) and set up your environment:
 ```bash
   pipx install 'novem[cli]'
-  # already installed novem with pipx? --force switches it to the native CLI
-  pipx install --force 'novem[cli]'
+  novem --init
 ```
 
-`pip install novem` puts a `novem` command on your PATH. On Windows that
-directory is often not on PATH, so `novem` comes back as "not recognized". Use
-`python -m novem` instead -- it is the same entry point and takes the same
-arguments, so every example below works with `novem` replaced by
-`python -m novem`.
+If novem is already installed with pipx, use `pipx install --force 'novem[cli]'`
+instead, otherwise pipx leaves the existing install as it is.
+
+The `cli` extra brings the native novem CLI; without it, `novem` only tells you
+to install it. Check out CLI.md in this repository or
+[novem.io](https://novem.io) for more details.
+
+If `novem` comes back as "not recognized" -- common on Windows, where pip's
+script directory is often not on PATH -- use `python -m novem` instead. It is
+the same entry point and takes the same arguments, so every example below
+works with `novem` replaced by `python -m novem`.
 
 
 ## Configuration and authentication

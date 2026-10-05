@@ -6,7 +6,6 @@ from novem._topics import (
     _has_truncated_replies,
     _relative_time,
     _visible_len,
-    _wrap_text,
     render_topics,
 )
 from novem.utils import colors
@@ -63,32 +62,6 @@ class TestRelativeTime:
         dt = datetime.datetime(2024, 1, 15, tzinfo=datetime.timezone.utc)
         result = _relative_time(dt)
         assert "Jan 15, 2024" == result
-
-
-class TestWrapText:
-    def test_short_text(self) -> None:
-        lines = _wrap_text("hello", "│ ", 80)
-        assert lines == ["│ hello"]
-
-    def test_wraps_long_text(self) -> None:
-        text = "word " * 30  # 150 chars
-        lines = _wrap_text(text.strip(), "│ ", 40)
-        assert len(lines) > 1
-        for line in lines:
-            assert line.startswith("│ ")
-
-    def test_preserves_newlines(self) -> None:
-        lines = _wrap_text("line one\nline two", "│ ", 80)
-        assert lines == ["│ line one", "│ line two"]
-
-    def test_empty_lines(self) -> None:
-        lines = _wrap_text("above\n\nbelow", "│ ", 80)
-        assert lines == ["│ above", "│ ", "│ below"]
-
-    def test_minimum_width(self) -> None:
-        # Even with a very wide prefix, should use at least 20 chars
-        lines = _wrap_text("some text", "x" * 100, 50)
-        assert len(lines) >= 1
 
 
 class TestBuildCommentFragment:
