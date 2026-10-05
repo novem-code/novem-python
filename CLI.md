@@ -5,6 +5,11 @@ from the command line. Below is a set of examples followed by some details.
 For a shorthand overview you can always use the `-h` or `--help` commands, and
 see [novem.io](https://novem.io) for the full documentation.
 
+Install the native CLI with `pipx install 'novem[cli]'` (or
+`pip install 'novem[cli]'`). Without the `cli` extra, `novem` runs the
+deprecated Python CLI. Set `NOVEM_PYTHON_CLI=1` to keep using the Python CLI
+when the native one is installed.
+
 If `novem` is not recognized as a command -- common on Windows, where pip's
 script directory is often not on PATH -- run `python -m novem` instead. It is
 the same entry point and takes the same arguments, so every example here works

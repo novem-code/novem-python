@@ -1,17 +1,26 @@
 """Entry point for the ``novem`` command.
 
-Runs the native CLI when ``novem[cli]`` is installed, otherwise the Python
-CLI in novem.cli. This lives outside the novem package so the native path
+Runs the native CLI when ``novem[cli]`` is installed, otherwise the deprecated
+Python CLI in novem.cli. This lives outside the novem package so the native path
 doesn't pay for importing it.
 """
 
 import os
+import platform
 import sys
 from typing import NoReturn, Optional
 
 # copy of novem.__version__, kept in sync by scripts/bump_version.py; importing
 # novem (or importlib.metadata) to look it up would cost every invocation
 __version__ = "0.6.3"
+
+# platforms novem-cli ships wheels for, keep in sync with the cli extra
+_NATIVE_PLATFORMS = {
+    ("linux", "x86_64"),
+    ("linux", "aarch64"),
+    ("darwin", "arm64"),
+    ("win32", "AMD64"),
+}
 
 
 def _find_native() -> Optional[str]:
@@ -45,6 +54,13 @@ def main() -> None:
         binary = _find_native()
         if binary:
             _run_native(binary)
+
+        if sys.stderr.isatty() and (sys.platform, platform.machine()) in _NATIVE_PLATFORMS:
+            print(
+                "novem: the Python CLI is deprecated, install the native one with: pipx install 'novem[cli]'\n"
+                "       (set NOVEM_PYTHON_CLI=1 to keep using the Python CLI and hide this message)",
+                file=sys.stderr,
+            )
 
     from novem.cli import run_cli
 

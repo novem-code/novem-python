@@ -41,23 +41,18 @@ won't upgrade a dependency the current pin still satisfies. So:
 1. merge the bump PR,
 2. release novem as above.
 
-The first time, before `novem-cli` was on PyPI, the order was different:
-
-1. publish `novem-cli` 0.2.2 (the bump job fails, there's no pin yet),
-2. add the `cli` extra pinned to it, with `uv lock`.
-
-`uv lock` can't resolve the extra until the package exists on PyPI.
-
 The workflow also starts on a `repository_dispatch` of type `cli-release`
 with `{"tag": "v0.2.3"}`, so a novem-code/cli release can start it.
 
 ### Supported platforms
 
 Wheels are built for the release targets in `PLATFORM_TAGS` in
-`novem-cli/hatch_build.py`. A new target needs updates in three places:
+`novem-cli/hatch_build.py`. A new target needs updates in four places:
 
 - `PLATFORM_TAGS`,
 - the target loop in `cli-publish.yml`,
-- the platform marker on the `cli` extra in `pyproject.toml`.
+- the platform marker on the `cli` extra in `pyproject.toml`,
+- `_NATIVE_PLATFORMS` in `novem_launcher.py`, which decides where the
+  deprecation notice suggests installing the extra.
 
 On other platforms the extra installs nothing, and `novem` stays the Python CLI.
