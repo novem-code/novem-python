@@ -14,6 +14,9 @@ jobs:
   update:
     name: "Update flake.lock"
     runs-on: ubuntu-latest
+    environment:
+      name: release
+      deployment: false
     steps:
     # The default GITHUB_TOKEN cannot open a PR that triggers workflows, so a
     # flake.lock PR would sit without the Nix Checks run that justifies it.
@@ -22,10 +25,11 @@ jobs:
       id: app-token
       uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       with:
-        client-id: ${{ vars.GAIA_CI_CLIENT_ID }}
-        private-key: ${{ secrets.GAIA_CI_PRIVATE_KEY }}
+        client-id: ${{ vars.GHA_RELEASES_CLIENT_ID }}
+        private-key: ${{ secrets.GHA_RELEASES_PRIVATE_KEY }}
         # Narrow the token to what this job needs, rather than everything the
         # installation grants.
+        repositories: novem-python
         permission-contents: write
         permission-pull-requests: write
         permission-issues: write
@@ -46,10 +50,10 @@ jobs:
         pr-title: "build(deps): update nix flake inputs"
         pr-labels: dependencies
         # Attribute the commit to the app rather than github-actions[bot].
-        git-author-name: "gaia-ci[bot]"
-        git-author-email: "252333818+gaia-ci[bot]@users.noreply.github.com"
-        git-committer-name: "gaia-ci[bot]"
-        git-committer-email: "252333818+gaia-ci[bot]@users.noreply.github.com"
+        git-author-name: "gha-releases[bot]"
+        git-author-email: "248684608+gha-releases[bot]@users.noreply.github.com"
+        git-committer-name: "gha-releases[bot]"
+        git-committer-email: "248684608+gha-releases[bot]@users.noreply.github.com"
         pr-body: |
           Automated by [update-flake-lock](https://github.com/DeterminateSystems/update-flake-lock).
 
