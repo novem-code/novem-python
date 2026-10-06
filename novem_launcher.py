@@ -19,6 +19,7 @@ _NATIVE_PLATFORMS = {
     ("linux", "x86_64"),
     ("linux", "aarch64"),
     ("darwin", "arm64"),
+    ("darwin", "x86_64"),
     ("win32", "AMD64"),
 }
 
