@@ -33,6 +33,14 @@ mcp = [
     # mcp.server.mcpserver.MCPServer/Tool.input_schema.
     "mcp>=1.0.0,<3",
 ]
+cli = [
+    # the native CLI, which the novem command runs when installed. Exact pin,
+    # since `pipx upgrade novem` won't move a dependency the pin still
+    # satisfies; cli-publish.yml opens a PR bumping it. Platforms match
+    # PLATFORM_TAGS in novem-cli/hatch_build.py, elsewhere this is empty and
+    # novem stays the Python CLI.
+    "novem-cli==0.2.2 ; (sys_platform == 'linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')) or (sys_platform == 'darwin' and platform_machine == 'arm64') or (sys_platform == 'win32' and platform_machine == 'AMD64')",
+]
 
 [project.urls]
 Homepage = "https://novem.io"

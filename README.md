@@ -48,6 +48,14 @@ In addition to invoking the novem module as shown above, the novem package also
 includes an extensive command-line interface (cli). Check out CLI.md in this
 repository or [novem.io](https://novem.io) for more details.
 
+The native CLI comes with the `cli` extra, and is the one to use. The Python
+CLI it replaces is deprecated:
+```bash
+  pipx install 'novem[cli]'
+  # already installed novem with pipx? --force switches it to the native CLI
+  pipx install --force 'novem[cli]'
+```
+
 `pip install novem` puts a `novem` command on your PATH. On Windows that
 directory is often not on PATH, so `novem` comes back as "not recognized". Use
 `python -m novem` instead -- it is the same entry point and takes the same
