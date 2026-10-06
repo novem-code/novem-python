@@ -1219,7 +1219,7 @@ requires-dist = [
     { name = "aiohttp", marker = "extra == 'compute'", specifier = ">=3.9" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0,<3" },
-    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'cli')", specifier = "==1.0.0" },
+    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'cli')", specifier = "==1.0.1" },
     { name = "pyreadline3", marker = "os_name == 'nt'", specifier = ">=3.5.4" },
     { name = "python-socketio", extras = ["asyncio-client"], marker = "extra == 'events'", specifier = ">=5.11.0" },
     { name = "requests", specifier = ">=2.32.4" },
@@ -1245,14 +1245,14 @@ dev = [
 
 [[package]]
 name = "novem-cli"
-version = "1.0.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/67/d14fe313bb3a908eacf7d175460c749559e5971988a9869a92260131047a/novem_cli-1.0.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:76259f321b8e186957e210cec5101dee1c8a1dc5d85614526c4640eae0f87a25", size = 6196921, upload-time = "2026-10-06T09:40:02.577Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/db/6b84d6a3aaf097fe788e85fe96ac4e04ccc0821e0ff4ad06a0c09aa90545/novem_cli-1.0.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:a7c230c8ff40ee142b232b8d170336d29a6c8f4f5d05447f0294a53512d138ea", size = 5614400, upload-time = "2026-10-06T09:40:04.693Z" },
-    { url = "https://files.pythonhosted.org/packages/36/5c/21117cfc37c96da79f953699f1bc925e3c0e8517d2f2cd4b4634abb08789/novem_cli-1.0.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:457359ff1d00299b1a56ea53744c78bc9ae76a894dbbb4b5177eed7275905691", size = 6018107, upload-time = "2026-10-06T09:40:06.829Z" },
-    { url = "https://files.pythonhosted.org/packages/99/3c/f271a2de469835a5dfa88dbaf113b0cee9e4d77faee33ef66bd966ec9f8e/novem_cli-1.0.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.musllinux_1_1_x86_64.whl", hash = "sha256:79d20ff3e053a9dfc8cfdf48cb1b5ccfd0887c4b6eacb9d270e1f4d0546382cd", size = 6664237, upload-time = "2026-10-06T09:40:09.042Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/99/1c0b81067a860901c5f4744774076343f6c1e700959d34742ae3ef19fbb0/novem_cli-1.0.0-py3-none-win_amd64.whl", hash = "sha256:3f95bff1ae9ab5024ca9250af41581afe980072a1936a64daec15b74c786f00e", size = 6373077, upload-time = "2026-10-06T09:40:11.165Z" },
+    { url = "https://files.pythonhosted.org/packages/21/c8/dfcf335fb881f8458b7edd41b67ef55c98acab3387d7dbed5d009c40e288/novem_cli-1.0.1-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:ed3b3e3cb7b12538b0598982cd837beb24167596f390519661d7f8b142ebab88", size = 6196790, upload-time = "2026-10-06T19:18:44.502Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/4d/a84262539b79c02f667df34080249b607840f91ad2341777fa71410e919e/novem_cli-1.0.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:167ec672470597a57be03e2bc4db31434f919d60f954417f29ec17bf9eed4dcd", size = 5615360, upload-time = "2026-10-06T19:18:46.41Z" },
+    { url = "https://files.pythonhosted.org/packages/da/f9/40fe6ec47e872cf3a782de9bc3d22747dbfa5d58d380ffc722c0d2274ca6/novem_cli-1.0.1-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:e5b8660d2b0616eecb4408d05ddb9a3a39b403d18d18b484294173cc88b9dbe1", size = 6018710, upload-time = "2026-10-06T19:18:48.494Z" },
+    { url = "https://files.pythonhosted.org/packages/63/91/dbb61e1bff9334b844c5b6ad18312172b14d1e98c8063d59ed6ad7051c6d/novem_cli-1.0.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.musllinux_1_1_x86_64.whl", hash = "sha256:7f63354342e74fae12bae6712eb0c97057ce3e74081b86397326c85192e88e3e", size = 6664478, upload-time = "2026-10-06T19:18:50.771Z" },
+    { url = "https://files.pythonhosted.org/packages/34/0d/e49ce32d234b2270d04bc320ebab4f1cb18d62f94ca1f67c21ed87f107f5/novem_cli-1.0.1-py3-none-win_amd64.whl", hash = "sha256:98f47e1d64763f8793f4e73124462762723bb42db842b5b4197a88b464dc6c37", size = 6375474, upload-time = "2026-10-06T19:18:52.929Z" },
 ]
 
 [[package]]
