@@ -1187,7 +1187,7 @@ dependencies = [
 
 [package.optional-dependencies]
 cli = [
-    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
+    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'darwin') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
 ]
 compute = [
     { name = "aiohttp" },
@@ -1219,7 +1219,7 @@ requires-dist = [
     { name = "aiohttp", marker = "extra == 'compute'", specifier = ">=3.9" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0,<3" },
-    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'cli')", specifier = "==1.0.0" },
+    { name = "novem-cli", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'darwin' and extra == 'cli') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'cli') or (platform_machine == 'AMD64' and sys_platform == 'win32' and extra == 'cli')", specifier = "==1.0.0" },
     { name = "pyreadline3", marker = "os_name == 'nt'", specifier = ">=3.5.4" },
     { name = "python-socketio", extras = ["asyncio-client"], marker = "extra == 'events'", specifier = ">=5.11.0" },
     { name = "requests", specifier = ">=2.32.4" },
@@ -1248,6 +1248,7 @@ name = "novem-cli"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/67/d14fe313bb3a908eacf7d175460c749559e5971988a9869a92260131047a/novem_cli-1.0.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:76259f321b8e186957e210cec5101dee1c8a1dc5d85614526c4640eae0f87a25", size = 6196921, upload-time = "2026-10-06T09:40:02.577Z" },
     { url = "https://files.pythonhosted.org/packages/9f/db/6b84d6a3aaf097fe788e85fe96ac4e04ccc0821e0ff4ad06a0c09aa90545/novem_cli-1.0.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:a7c230c8ff40ee142b232b8d170336d29a6c8f4f5d05447f0294a53512d138ea", size = 5614400, upload-time = "2026-10-06T09:40:04.693Z" },
     { url = "https://files.pythonhosted.org/packages/36/5c/21117cfc37c96da79f953699f1bc925e3c0e8517d2f2cd4b4634abb08789/novem_cli-1.0.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:457359ff1d00299b1a56ea53744c78bc9ae76a894dbbb4b5177eed7275905691", size = 6018107, upload-time = "2026-10-06T09:40:06.829Z" },
     { url = "https://files.pythonhosted.org/packages/99/3c/f271a2de469835a5dfa88dbaf113b0cee9e4d77faee33ef66bd966ec9f8e/novem_cli-1.0.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.musllinux_1_1_x86_64.whl", hash = "sha256:79d20ff3e053a9dfc8cfdf48cb1b5ccfd0887c4b6eacb9d270e1f4d0546382cd", size = 6664237, upload-time = "2026-10-06T09:40:09.042Z" },
