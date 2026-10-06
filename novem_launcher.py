@@ -12,7 +12,7 @@ from typing import NoReturn, Optional
 
 # copy of novem.__version__, kept in sync by scripts/bump_version.py; importing
 # novem (or importlib.metadata) to look it up would cost every invocation
-__version__ = "0.6.3"
+__version__ = "0.7.0"
 
 # platforms novem-cli ships wheels for, keep in sync with the cli extra
 _NATIVE_PLATFORMS = {
