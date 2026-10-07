@@ -6,6 +6,10 @@ import pytest
 import novem_launcher
 
 
+class Execd(Exception):
+    """Stands in for os.execv, which never returns."""
+
+
 @pytest.fixture
 def native(monkeypatch, tmp_path):
     """Install a fake novem_cli whose binary lives in tmp_path."""
@@ -18,64 +22,63 @@ def native(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def calls(monkeypatch):
+def no_native(monkeypatch):
+    monkeypatch.setitem(sys.modules, "novem_cli", None)  # makes the import fail
+
+
+@pytest.fixture
+def execv(monkeypatch):
     calls = []
-    monkeypatch.setattr(novem_launcher.os, "execv", lambda path, args: calls.append(("native", path, args)))
-    monkeypatch.setattr("novem.cli.run_cli", lambda: calls.append(("python",)))
+
+    def fake_execv(path, args):
+        calls.append((path, args))
+        raise Execd
+
+    monkeypatch.setattr(novem_launcher.os, "execv", fake_execv)
     monkeypatch.setattr(sys, "argv", ["novem", "-p", "foo"])
-    monkeypatch.delenv("NOVEM_PYTHON_CLI", raising=False)
     return calls
 
 
+def _on_platform(monkeypatch, platform, machine):
+    monkeypatch.setattr(novem_launcher.sys, "platform", platform)
+    monkeypatch.setattr(novem_launcher.platform, "machine", lambda: machine)
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="exec path")
-def test_runs_native_binary(native, calls):
-    novem_launcher.main()
-    assert calls[0] == ("native", native, [native, "-p", "foo"])
+def test_runs_native_binary(native, execv):
+    with pytest.raises(Execd):
+        novem_launcher.main()
+    assert execv == [(native, [native, "-p", "foo"])]
 
 
-def test_falls_back_to_python_cli(monkeypatch, calls):
-    monkeypatch.setitem(sys.modules, "novem_cli", None)  # makes the import fail
-    novem_launcher.main()
-    assert calls == [("python",)]
+@pytest.mark.skipif(sys.platform == "win32", reason="exec path")
+def test_passes_python_version_to_native(monkeypatch, native, execv):
+    monkeypatch.delenv("NOVEM_PYTHON_VERSION", raising=False)
+    with pytest.raises(Execd):
+        novem_launcher.main()
+    assert novem_launcher.os.environ["NOVEM_PYTHON_VERSION"] == novem_launcher.__version__
 
 
-def test_env_forces_python_cli(monkeypatch, native, calls):
-    monkeypatch.setenv("NOVEM_PYTHON_CLI", "1")
-    novem_launcher.main()
-    assert calls == [("python",)]
+def test_without_native_points_at_the_extra(monkeypatch, no_native, execv, capsys):
+    _on_platform(monkeypatch, "linux", "x86_64")
+    with pytest.raises(SystemExit) as exc:
+        novem_launcher.main()
+    assert exc.value.code == 1
+    assert "pipx install --force 'novem[cli]'" in capsys.readouterr().err
+    assert execv == []
+
+
+def test_unsupported_platform_says_so(monkeypatch, no_native, execv, capsys):
+    _on_platform(monkeypatch, "win32", "ARM64")
+    with pytest.raises(SystemExit) as exc:
+        novem_launcher.main()
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "isn't available for win32/ARM64" in err
+    assert "pipx" not in err
 
 
 def test_version_matches_package():
     from novem import __version__
 
     assert novem_launcher.__version__ == __version__
-
-
-@pytest.mark.skipif(sys.platform == "win32", reason="exec path")
-def test_passes_python_version_to_native(monkeypatch, native, calls):
-    monkeypatch.delenv("NOVEM_PYTHON_VERSION", raising=False)
-    novem_launcher.main()
-    assert novem_launcher.os.environ["NOVEM_PYTHON_VERSION"] == novem_launcher.__version__
-
-
-def _on_native_platform_tty(monkeypatch):
-    # in the test body: pytest swaps sys.stderr between fixture setup and the call
-    monkeypatch.setattr(sys.stderr, "isatty", lambda: True)
-    monkeypatch.setattr(novem_launcher.platform, "machine", lambda: "x86_64")
-    monkeypatch.setattr(novem_launcher.sys, "platform", "linux")
-
-
-def test_python_cli_is_flagged_deprecated(monkeypatch, calls, capsys):
-    _on_native_platform_tty(monkeypatch)
-    monkeypatch.setitem(sys.modules, "novem_cli", None)
-    novem_launcher.main()
-    assert "pipx install --force 'novem[cli]'" in capsys.readouterr().err
-    assert calls == [("python",)]
-
-
-def test_deprecation_notice_skipped_when_forced(monkeypatch, calls, capsys):
-    _on_native_platform_tty(monkeypatch)
-    monkeypatch.setitem(sys.modules, "novem_cli", None)
-    monkeypatch.setenv("NOVEM_PYTHON_CLI", "1")
-    novem_launcher.main()
-    assert capsys.readouterr().err == ""
