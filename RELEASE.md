@@ -52,7 +52,7 @@ Wheels are built for the release targets in `PLATFORM_TAGS` in
 - `PLATFORM_TAGS`,
 - the target loop in `cli-publish.yml`,
 - the platform marker on the `cli` extra in `pyproject.toml`,
-- `_NATIVE_PLATFORMS` in `novem_launcher.py`, which decides where the
-  deprecation notice suggests installing the extra.
+- `_NATIVE_PLATFORMS` in `novem_launcher.py`, which decides whether `novem`
+  suggests installing the extra or says there is no CLI for the platform.
 
-On other platforms the extra installs nothing, and `novem` stays the Python CLI.
+On other platforms the extra installs nothing, and there is no novem CLI.

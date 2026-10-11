@@ -2,10 +2,9 @@ import os
 
 import pytest
 
-from novem.cli.gql import (
+from novem._topics import (
     _build_var_lookup,
     _format_var_value,
-    _process_message,
     _render_inline_ansi,
     _render_message_lines,
     _render_vde_var_ansi,
@@ -598,27 +597,6 @@ def test_build_var_lookup():
 # ---------------------------------------------------------------------------
 # Full message processing
 # ---------------------------------------------------------------------------
-
-
-def test_process_message_mentions_and_vars():
-    mentions = [{"nonce": "_maaaaaaaaaaaaaaaa", "user": {"username": "alice"}}]
-    var_lookup = {
-        "/u/bob/p/dashboard/v/ytd": {"value": "0.12", "format": "+,.1%", "type": "relative", "threshold": "0"},
-    }
-    msg = "Hey @_maaaaaaaaaaaaaaaa, YTD return is {/u/bob/p/dashboard/v/ytd}"
-    result = _process_message(msg, mentions, var_lookup)
-    assert "@alice" in result
-    assert "+12.0%" in result
-    assert "{" not in result
-
-
-def test_process_message_unknown_var():
-    # When a var is in the lookup but not found, show path in gray
-    var_lookup = {"/u/other/p/x/v/y": {"value": "1", "format": None, "type": None, "threshold": None}}
-    msg = "Check {/u/unknown/p/test/v/missing}"
-    result = _process_message(msg, None, var_lookup)
-    assert "/u/unknown/p/test/v/missing" in result
-    assert "{" not in result
 
 
 # ---------------------------------------------------------------------------

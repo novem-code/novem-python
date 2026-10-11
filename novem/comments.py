@@ -173,7 +173,7 @@ class Topic:
 
 def _dict_to_comment(d: Dict[str, Any]) -> Comment:
     """Convert a GQL comment dict to a Comment."""
-    from .cli.gql import _resolve_mentions
+    from ._topics import _resolve_mentions
 
     message = _resolve_mentions(d.get("message", "") or "", d.get("mentions"))
     return Comment(
@@ -196,7 +196,7 @@ def _dict_to_comment(d: Dict[str, Any]) -> Comment:
 
 def _dict_to_topic(d: Dict[str, Any]) -> Topic:
     """Convert a GQL topic dict to a Topic."""
-    from .cli.gql import _resolve_mentions
+    from ._topics import _resolve_mentions
 
     message = _resolve_mentions(d.get("message", "") or "", d.get("mentions"))
     return Topic(
@@ -533,7 +533,7 @@ class Context(NovemAPI):
     @property
     def _var_lookup(self) -> Optional[Dict[str, Dict[str, Any]]]:
         """Build a var lookup dict from loaded VDE vars."""
-        from .cli.gql import _build_var_lookup
+        from ._topics import _build_var_lookup
 
         if not self._raw_vars or self._parsed.is_group:
             return None
@@ -542,7 +542,7 @@ class Context(NovemAPI):
     @property
     def txt(self) -> str:
         """ANSI-rendered thread listing."""
-        from .cli.gql import render_topics
+        from ._topics import render_topics
 
         self._load()
         username = self.me
@@ -578,7 +578,7 @@ class Context(NovemAPI):
 
     async def atxt(self) -> str:
         """Async: ANSI-rendered thread listing."""
-        from .cli.gql import render_topics
+        from ._topics import render_topics
 
         await self.aload()
         username = self.me
@@ -599,7 +599,7 @@ class Context(NovemAPI):
     # -- Internal --
 
     def _fetch_raw_topics(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        from .cli.gql import NovemGQL, _fetch_group_topics_gql, _fetch_vde_topics_gql
+        from ._topics import NovemGQL, _fetch_group_topics_gql, _fetch_vde_topics_gql
 
         gql_kwargs: Dict[str, Any] = {}
         if hasattr(self, "token"):
