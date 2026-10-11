@@ -57,7 +57,10 @@ def main() -> None:
 
     if (sys.platform, platform.machine()) in _NATIVE_PLATFORMS:
         print(
-            "novem: the novem command needs the native CLI, install it with: pipx install --force 'novem[cli]'",
+            "novem: the novem command needs the native CLI. Install it in this Python environment with:\n"
+            "  python -m pip install 'novem[cli]'\n"
+            "For an existing pipx installation, run:\n"
+            "  pipx install --force 'novem[cli]'",
             file=sys.stderr,
         )
     else:

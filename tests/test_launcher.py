@@ -64,7 +64,9 @@ def test_without_native_points_at_the_extra(monkeypatch, no_native, execv, capsy
     with pytest.raises(SystemExit) as exc:
         novem_launcher.main()
     assert exc.value.code == 1
-    assert "pipx install --force 'novem[cli]'" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "python -m pip install 'novem[cli]'" in err
+    assert "pipx install --force 'novem[cli]'" in err
     assert execv == []
 
 

@@ -48,6 +48,8 @@ interface (cli) and set up your environment:
 
 If novem is already installed with pipx, use `pipx install --force 'novem[cli]'`
 instead, otherwise pipx leaves the existing install as it is.
+If you installed novem with pip or in a virtualenv, use
+`python -m pip install 'novem[cli]'` in that environment.
 
 The `cli` extra brings the native novem CLI; without it, `novem` only tells you
 to install it. Check out CLI.md in this repository or
