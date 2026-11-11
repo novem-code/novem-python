@@ -664,3 +664,26 @@ def test_group_profile_selects_the_connection(requests_mock):
     assert group.token == token
     for request in requests_mock.request_history:
         assert request.headers["Authorization"] == f"Bearer {token}"
+
+
+def test_group_option_reads_ignore_the_trailing_newline(requests_mock):
+    import configparser
+    import os
+
+    from novem import Org
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    conf = configparser.ConfigParser()
+    conf.read(config_file)
+    api_root = conf["general"]["api_root"]
+
+    root = f"{api_root}admin/orgs/test_org/groups/test_group"
+    requests_mock.register_uri("get", f"{root}/profile/options/allow_inbound_mail", text="yes\n")
+    requests_mock.register_uri("get", f"{root}/profile/options/mail_verify_spf", text="no\n")
+
+    group = Org("test_org", create=False, config_path=config_file).Group(
+        "test_group", create=False, config_path=config_file
+    )
+    assert group.config.options.allow_inbound_mail is True
+    assert group.config.options.mail_verify_spf is False

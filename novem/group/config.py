@@ -25,7 +25,7 @@ class GroupOptions(object):
     @property
     def is_open(self) -> bool:
         res = self.api.api_read("/profile/options/is_open")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -37,7 +37,7 @@ class GroupOptions(object):
     @property
     def show_description(self) -> bool:
         res = self.api.api_read("/profile/options/show_description")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -49,7 +49,7 @@ class GroupOptions(object):
     @property
     def show_members(self) -> bool:
         res = self.api.api_read("/profile/options/show_members")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -61,7 +61,7 @@ class GroupOptions(object):
     @property
     def show_profile(self) -> bool:
         res = self.api.api_read("/profile/options/show_profile")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -76,7 +76,7 @@ class OrgOptions(GroupOptions):
     def enable_subdomain(self) -> bool:
         res = self.api.api_read("/profile/options/enable_subdomain")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -91,7 +91,7 @@ class OrgGroupOptions(GroupOptions):
     def allow_inbound_mail(self) -> bool:
         res = self.api.api_read("/profile/options/allow_inbound_mail")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -104,7 +104,7 @@ class OrgGroupOptions(GroupOptions):
     def mail_verify_dkim(self) -> bool:
         res = self.api.api_read("/profile/options/mail_verify_dkim")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -117,7 +117,7 @@ class OrgGroupOptions(GroupOptions):
     def mail_verify_spf(self) -> bool:
         res = self.api.api_read("/profile/options/mail_verify_spf")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
