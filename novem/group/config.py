@@ -9,17 +9,17 @@ class GroupOptions(object):
         """Initialize organization options with API reference"""
         self.api: "NovemGroupAPI" = api
 
-    def set(self, profile: Dict[str, Any]) -> None:
+    def set(self, options: Dict[str, Any]) -> None:
         """
-        Set profile options
+        Set config options
         """
 
         props = [x for x in dir(self) if x not in ["api", "set"] and x[0] != "_"]
 
-        for k in profile.keys():
+        for k in options.keys():
             if k not in props:
                 continue
-            v = profile[k]
+            v = options[k]
             setattr(self, k, v)
 
     @property
@@ -127,9 +127,10 @@ class OrgGroupOptions(GroupOptions):
         return self.api.api_write("/profile/options/mail_verify_spf", val)
 
 
-class NovemGroupProfile(object):
+class NovemGroupConfig(object):
     """
-    Novem group profile
+    Novem group config: the group's name, description and options, stored
+    under ``/profile`` in the API
     """
 
     options: GroupOptions
@@ -143,20 +144,20 @@ class NovemGroupProfile(object):
         elif type == "org_group":
             self.options = OrgGroupOptions(api)
 
-    def set(self, profile: Dict[str, Any]) -> None:
+    def set(self, config: Dict[str, Any]) -> None:
         """
-        Set profile options
+        Set config options
         """
 
         props = [x for x in dir(self) if x in ["name", "description", "options"]]
 
-        for k in profile.keys():
+        for k in config.keys():
             if k not in props:
                 continue
 
-            v = profile[k]
+            v = config[k]
             if k == "options":
-                self.options.set(profile[k])
+                self.options.set(config[k])
             else:
                 setattr(self, k, v)
 

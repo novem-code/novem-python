@@ -7,7 +7,7 @@ from functools import partial
 from novem import Org
 
 
-def test_org_profile_prop(requests_mock):
+def test_org_config_prop(requests_mock):
     org_id = "test_org"
     org_name = "long test name"
     org_description = "long test description"
@@ -61,7 +61,7 @@ def test_org_profile_prop(requests_mock):
         text=verify_create,
     )
 
-    # basic profile settings
+    # basic config settings
     requests_mock.register_uri(
         "post",
         f"{api_root}admin/orgs/{org_id}/profile/name",
@@ -85,7 +85,7 @@ def test_org_profile_prop(requests_mock):
         text=partial(verify_read, "desc", org_description),
     )
 
-    # basic profile options
+    # basic config options
     for opt in ["is_open", "enable_subdomain", "show_description", "show_members", "show_profile"]:
         requests_mock.register_uri(
             "post", f"{api_root}admin/orgs/{org_id}/profile/options/{opt}", text=partial(verify_write, opt, "yes")
@@ -100,35 +100,35 @@ def test_org_profile_prop(requests_mock):
         config_path=config_file,
     )
 
-    assert n.profile.name == "NA"
-    assert n.profile.description == "NA"
+    assert n.config.name == "NA"
+    assert n.config.description == "NA"
 
     # Test basic properties
-    n.profile.name = org_name
-    n.profile.description = org_description
+    n.config.name = org_name
+    n.config.description = org_description
 
-    assert n.profile.name == org_name
-    assert n.profile.description == org_description
+    assert n.config.name == org_name
+    assert n.config.description == org_description
 
-    assert n.profile.options.is_open is False
-    n.profile.options.is_open = True
-    assert n.profile.options.is_open is True
+    assert n.config.options.is_open is False
+    n.config.options.is_open = True
+    assert n.config.options.is_open is True
 
-    assert n.profile.options.enable_subdomain is False
-    n.profile.options.enable_subdomain = True
-    assert n.profile.options.enable_subdomain is True
+    assert n.config.options.enable_subdomain is False
+    n.config.options.enable_subdomain = True
+    assert n.config.options.enable_subdomain is True
 
-    assert n.profile.options.show_members is False
-    n.profile.options.show_members = True
-    assert n.profile.options.show_members is True
+    assert n.config.options.show_members is False
+    n.config.options.show_members = True
+    assert n.config.options.show_members is True
 
-    assert n.profile.options.show_description is False
-    n.profile.options.show_description = True
-    assert n.profile.options.show_description is True
+    assert n.config.options.show_description is False
+    n.config.options.show_description = True
+    assert n.config.options.show_description is True
 
-    assert n.profile.options.show_profile is False
-    n.profile.options.show_profile = True
-    assert n.profile.options.show_profile is True
+    assert n.config.options.show_profile is False
+    n.config.options.show_profile = True
+    assert n.config.options.show_profile is True
 
     # Verify all operations were performed
     for k, v in gcheck.items():
@@ -137,7 +137,7 @@ def test_org_profile_prop(requests_mock):
     assert n._api_root == "https://api.novem.io/v1/"
 
 
-def test_org_profile_dict(requests_mock):
+def test_org_config_dict(requests_mock):
     org_id = "test_org"
     org_name = "long test name"
     org_description = "long test description"
@@ -191,7 +191,7 @@ def test_org_profile_dict(requests_mock):
         text=verify_create,
     )
 
-    # basic profile settings
+    # basic config settings
     requests_mock.register_uri(
         "post",
         f"{api_root}admin/orgs/{org_id}/profile/name",
@@ -215,7 +215,7 @@ def test_org_profile_dict(requests_mock):
         text=partial(verify_read, "desc", org_description),
     )
 
-    # basic profile options
+    # basic config options
     for opt in ["is_open", "enable_subdomain", "show_description", "show_members", "show_profile"]:
         requests_mock.register_uri(
             "post", f"{api_root}admin/orgs/{org_id}/profile/options/{opt}", text=partial(verify_write, opt, "yes")
@@ -228,7 +228,7 @@ def test_org_profile_dict(requests_mock):
     n = Org(
         org_id,
         config_path=config_file,
-        profile={
+        config={
             "name": org_name,
             "description": org_description,
             "options": {
@@ -241,13 +241,13 @@ def test_org_profile_dict(requests_mock):
         },
     )
 
-    assert n.profile.name == org_name
-    assert n.profile.description == org_description
-    assert n.profile.options.is_open is True
-    assert n.profile.options.enable_subdomain is True
-    assert n.profile.options.show_members is True
-    assert n.profile.options.show_description is True
-    assert n.profile.options.show_profile is True
+    assert n.config.name == org_name
+    assert n.config.description == org_description
+    assert n.config.options.is_open is True
+    assert n.config.options.enable_subdomain is True
+    assert n.config.options.show_members is True
+    assert n.config.options.show_description is True
+    assert n.config.options.show_profile is True
 
     # Verify all operations were performed
     for k, v in gcheck.items():
