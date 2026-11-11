@@ -11,6 +11,7 @@ from ..sync import NovemTreeSync
 from ..tags import NovemTags
 from ..utils import cl
 from ..utils import colors as clrs
+from .chains import NovemJobChains
 from .config import NovemJobConfig
 
 """
@@ -20,12 +21,16 @@ from .config import NovemJobConfig
 
 class NovemJobAPI(NovemTreeSync, NovemAPI):
     config: Optional[NovemJobConfig]
+    chains: NovemJobChains
     shared: Optional[NovemShare]
     tags: Optional[NovemTags]
     id: str
     user: Optional[str] = None
 
     _debug: bool = False
+
+    # the type given to this object, if any; None means the default (chains)
+    _runtime: Optional[str] = None
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -41,12 +46,20 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
             self.api_create("")
 
         self.config = NovemJobConfig(self)
+        self.chains = NovemJobChains(self)
         if self.user:
             base_path = f"users/{self.user}/code/jobs/{self.id}"
         else:
             base_path = f"code/jobs/{self.id}"
         self.shared = NovemShare(self, base_path)
         self.tags = NovemTags(self, base_path)
+
+        # the type decides which config keys exist, so it goes first
+        if kwargs.get("type"):
+            self.type = kwargs["type"]
+
+        if "chains" in kwargs:
+            self.chains.set(kwargs["chains"])
 
         if "shared" in kwargs:
             self.shared.set(kwargs["shared"])
@@ -65,7 +78,8 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
         props = [
             x
             for x in dir(self)
-            if x[0] != "_" and x not in ["data", "read", "delete", "write", "shared", "config", "create"]
+            if x[0] != "_"
+            and x not in ["data", "read", "delete", "write", "shared", "config", "create", "type", "chains", "whoami"]
         ]
 
         for k, v in kwargs.items():
@@ -89,6 +103,11 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
                 super().__setattr__(name, value)
             else:
                 self.tags.set(value)
+        elif name == "chains" and "chains" in self.__dict__:
+            if isinstance(value, NovemJobChains):
+                super().__setattr__(name, value)
+            else:
+                self.chains.set(value)
         else:
             super().__setattr__(name, value)
 
@@ -243,6 +262,14 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
 
         return f"/{user}/{self.id}:{ref}"
 
+    def get_chain_ref(self) -> str:
+        """This job as a step of another job's chain: ``/u/<user>/j/<job>``."""
+        return f"/u/{self.user or self.whoami()}/j/{self.id}"
+
+    def _legacy_runtime(self) -> bool:
+        """Whether this object was explicitly given a non-chains type."""
+        return self._runtime is not None and self._runtime not in ("chain", "chains")
+
     @property
     def log(self) -> None:
         """
@@ -259,7 +286,8 @@ class NovemJobAPI(NovemTreeSync, NovemAPI):
 
     @type.setter
     def type(self, value: str) -> None:
-        return self.api_write("/config/type", value)
+        self.api_write("/config/type", value)
+        self._runtime = value.strip()
 
     @property
     def name(self) -> str:
