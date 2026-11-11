@@ -69,6 +69,12 @@ class Novem401(NovemException):
     pass
 
 
+class NovemChainError(NovemException):
+    """A job chain is malformed, or breaks one of the chain grammar's rules."""
+
+    pass
+
+
 class NovemAuthError(NovemException):
     """No usable credentials could be resolved for a novem connection.
 
@@ -189,6 +195,7 @@ class NovemAPI(object):
         config_status, cfg = resolve(default=config_manager or config, **conn)
 
         self._config = cfg
+        self._config_manager = config_manager or config
         self._session = requests.Session()
         self._session.headers.update(get_ua(is_cli))
         self._session.proxies = urllib.request.getproxies()
@@ -235,6 +242,16 @@ class NovemAPI(object):
         properties. The kwargs are intentionally unused here (underscore-named
         so editors do not flag the parameter as dead).
         """
+
+    def whoami(self) -> str:
+        """The username this connection is authenticated as (fetched once per token)."""
+        token = self.token or ""
+        cached = self._config_manager.cached_identity(token)
+        if cached:
+            return cached
+        user = self.read("whoami").strip()
+        self._config_manager.cache_identity(token, user)
+        return user
 
     def create_token(self, params: Dict[str, str]) -> Dict[str, str]:
         r = requests.post(

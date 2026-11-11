@@ -248,8 +248,8 @@ def test_job_config(requests_mock):
         text=partial(verify_write, "render", job_render),
     )
 
-    # Create job instance
-    j = Job(job_id, config_path=config_file)
+    # Create job instance; an explicit non-chains type keeps the single-image keys
+    j = Job(job_id, type=job_type, config_path=config_file)
 
     # Test reading config properties
     assert j.config.type == job_type

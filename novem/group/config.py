@@ -9,23 +9,23 @@ class GroupOptions(object):
         """Initialize organization options with API reference"""
         self.api: "NovemGroupAPI" = api
 
-    def set(self, profile: Dict[str, Any]) -> None:
+    def set(self, options: Dict[str, Any]) -> None:
         """
-        Set profile options
+        Set config options
         """
 
         props = [x for x in dir(self) if x not in ["api", "set"] and x[0] != "_"]
 
-        for k in profile.keys():
+        for k in options.keys():
             if k not in props:
                 continue
-            v = profile[k]
+            v = options[k]
             setattr(self, k, v)
 
     @property
     def is_open(self) -> bool:
         res = self.api.api_read("/profile/options/is_open")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -37,7 +37,7 @@ class GroupOptions(object):
     @property
     def show_description(self) -> bool:
         res = self.api.api_read("/profile/options/show_description")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -49,7 +49,7 @@ class GroupOptions(object):
     @property
     def show_members(self) -> bool:
         res = self.api.api_read("/profile/options/show_members")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -61,7 +61,7 @@ class GroupOptions(object):
     @property
     def show_profile(self) -> bool:
         res = self.api.api_read("/profile/options/show_profile")
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -76,7 +76,7 @@ class OrgOptions(GroupOptions):
     def enable_subdomain(self) -> bool:
         res = self.api.api_read("/profile/options/enable_subdomain")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -91,7 +91,7 @@ class OrgGroupOptions(GroupOptions):
     def allow_inbound_mail(self) -> bool:
         res = self.api.api_read("/profile/options/allow_inbound_mail")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -104,7 +104,7 @@ class OrgGroupOptions(GroupOptions):
     def mail_verify_dkim(self) -> bool:
         res = self.api.api_read("/profile/options/mail_verify_dkim")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -117,7 +117,7 @@ class OrgGroupOptions(GroupOptions):
     def mail_verify_spf(self) -> bool:
         res = self.api.api_read("/profile/options/mail_verify_spf")
 
-        if res.lower() == "yes":
+        if res.strip().lower() == "yes":
             return True
         return False
 
@@ -127,9 +127,10 @@ class OrgGroupOptions(GroupOptions):
         return self.api.api_write("/profile/options/mail_verify_spf", val)
 
 
-class NovemGroupProfile(object):
+class NovemGroupConfig(object):
     """
-    Novem group profile
+    Novem group config: the group's name, description and options, stored
+    under ``/profile`` in the API
     """
 
     options: GroupOptions
@@ -143,20 +144,20 @@ class NovemGroupProfile(object):
         elif type == "org_group":
             self.options = OrgGroupOptions(api)
 
-    def set(self, profile: Dict[str, Any]) -> None:
+    def set(self, config: Dict[str, Any]) -> None:
         """
-        Set profile options
+        Set config options
         """
 
         props = [x for x in dir(self) if x in ["name", "description", "options"]]
 
-        for k in profile.keys():
+        for k in config.keys():
             if k not in props:
                 continue
 
-            v = profile[k]
+            v = config[k]
             if k == "options":
-                self.options.set(profile[k])
+                self.options.set(config[k])
             else:
                 setattr(self, k, v)
 
