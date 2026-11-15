@@ -10,9 +10,10 @@ for free.
 from typing import Any
 
 from ..code import NovemCodeAPI
+from ..job.chain import RepoRef
 from .config import NovemRepoConfig
 
-__all__ = ["NovemRepoAPI", "Repo", "NovemRepoConfig"]
+__all__ = ["NovemRepoAPI", "Repo", "NovemRepoConfig", "RepoRef"]
 
 
 class NovemRepoAPI(NovemCodeAPI):
@@ -24,6 +25,19 @@ class NovemRepoAPI(NovemCodeAPI):
     # repo once per commit and gets slower with every push. List the history,
     # and leave expanding a commit to an explicit ``--tree /commits/<sha>``.
     _walk_no_recurse = {"/commits": "commit history"}
+
+    def ref(self, ref: str = "latest") -> RepoRef:
+        """A reference to one of this repo's images, by label.
+
+        Labels are ``latest``, ``prod``, ``dev``, ``tag:<name>`` and friends.
+        The result is the string ``/<user>/<repo>:<label>`` and can be used
+        directly as a job chain step.
+        """
+        return RepoRef(self.user or self.whoami(), self.id, ref)
+
+    def get_chain_ref(self) -> str:
+        """This repo's latest image, as a job chain reference."""
+        return self.ref().get_chain_ref()
 
 
 class Repo(NovemRepoAPI):

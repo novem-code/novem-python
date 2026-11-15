@@ -5,6 +5,7 @@ from .config import NovemConfig, config
 from .events import EventMessage, Events
 from .group.org import Org
 from .job import Job
+from .job.chain import Chain, Step
 from .profile import Profile
 from .repo import Repo
 from .session import Session
@@ -25,6 +26,8 @@ __all__ = [
     "Computer",
     "Image",
     "Job",
+    "Chain",
+    "Step",
     "Claim",
     "Profile",
     "Events",

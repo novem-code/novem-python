@@ -189,6 +189,67 @@ object, those changes are reflected on the novem server and anyone watching
 the plot in real time.
 
 
+## Jobs and chains
+A job runs the images your repos build. Its chain says what to run: one
+image, or several steps where each step's output files feed the next.
+
+```python
+from novem import Job, Repo, Chain, Step
+
+fetch = Repo("data_fetcher")
+render = Repo("chart_builder")
+
+# a single image
+Job("daily_report", chains=fetch)
+
+# a pipeline: dict order is run order, keys are step names
+Job("daily_report", chains={
+    "fetch": fetch,
+    "render": render.ref("prod"),
+})
+```
+
+`Repo.ref(label)` picks one of the repo's image labels, such as `latest`,
+`prod` or `tag:v1.0.0`. A step can also be a string in the chain grammar
+(`"@alice/data_fetcher:prod"`), or another job (`Job("nightly_rollup")` or
+`"/j/nightly_rollup"`).
+
+Step names take the grammar's marks: `.name` runs the step once per file the
+previous step produced, `!name` stops for a person before the step and `name!`
+after it. `Step` adds resources.
+
+```python
+Job("monthly_reports", chains={
+    "split":    Repo("splitter"),
+    ".render":  Step(render, cpu=2, mem="4G", timeout="5m"),
+    "collect!": Repo("collector"),
+})
+
+# the same thing, built step by step
+chain = (
+    Chain()
+    .step("split", Repo("splitter"))
+    .fan("render", render, cpu=2, mem="4G", timeout="5m")
+    .step("collect", Repo("collector"))
+    .hold()
+)
+print(chain)          # the text that will be written
+job.chains = chain
+```
+
+A chain is checked before it is sent, and a malformed one raises
+`NovemChainError`. An existing job's chain can be read and edited in place:
+
+```python
+print(job.chains)                             # as stored
+job.chains["render"] = render.ref("tag:v2")   # rebind one step
+job.chains += {"publish": Repo("publisher")}  # append a step
+del job.chains["publish"]
+```
+
+The older `config={"extract": ..., "render": ...}` form still works: the two
+names become steps of the chain.
+
 
 ## Error handling
 Every novem operation talks to the platform over the network, so any call can

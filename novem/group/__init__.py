@@ -3,13 +3,13 @@ from typing import Any, Optional
 from novem.exceptions import Novem403, Novem404, raise_on_response
 
 from ..api_ref import NovemAPI
-from .profile import NovemGroupProfile
+from .config import NovemGroupConfig
 from .roles import NovemRoles
 
 
 class NovemGroupAPI(NovemAPI):
     roles: Optional[NovemRoles] = None
-    profile: Optional[NovemGroupProfile] = None
+    config: Optional[NovemGroupConfig] = None
     id: str
 
     _type: str = "NA"
@@ -34,10 +34,10 @@ class NovemGroupAPI(NovemAPI):
             self.api_create("")
 
         self.roles = NovemRoles(self)
-        self.profile = NovemGroupProfile(self, type=self._type)
+        self.config = NovemGroupConfig(self, type=self._type)
 
-        if "profile" in kwargs:
-            self.profile.set(kwargs["profile"])
+        if "config" in kwargs:
+            self.config.set(kwargs["config"])
 
         if "roles" in kwargs:
             self.roles.set(kwargs["roles"])
@@ -51,7 +51,7 @@ class NovemGroupAPI(NovemAPI):
 
         # get a list of valid properties
         props = [
-            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "roles", "profile"]
+            x for x in dir(self) if x[0] != "_" and x not in ["data", "read", "delete", "write", "roles", "config"]
         ]
 
         for k, v in kwargs.items():
@@ -63,8 +63,8 @@ class NovemGroupAPI(NovemAPI):
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "roles" and self.roles:
             self.roles.set(value)
-        if name == "profile" and self.profile:
-            self.profile.set(value)
+        if name == "config" and self.config:
+            self.config.set(value)
         else:
             super().__setattr__(name, value)
 

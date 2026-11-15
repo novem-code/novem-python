@@ -1,4 +1,13 @@
-from ..api_ref import Novem401, Novem403, Novem404, Novem409, NovemAuthError, NovemException, raise_on_response
+from ..api_ref import (
+    Novem401,
+    Novem403,
+    Novem404,
+    Novem409,
+    NovemAuthError,
+    NovemChainError,
+    NovemException,
+    raise_on_response,
+)
 
 __all__ = [
     "NovemException",
@@ -7,5 +16,6 @@ __all__ = [
     "Novem401",
     "Novem409",
     "NovemAuthError",
+    "NovemChainError",
     "raise_on_response",
 ]

@@ -7,7 +7,7 @@ from functools import partial
 from novem import Org
 
 
-def test_org_group_profile_prop(requests_mock):
+def test_org_group_config_prop(requests_mock):
     org_id = "test_org"
 
     org_group_id = "test_org_group"
@@ -73,7 +73,7 @@ def test_org_group_profile_prop(requests_mock):
         text=verify_create,
     )
 
-    # basic profile settings
+    # basic config settings
     requests_mock.register_uri(
         "post",
         f"{api_root}admin/orgs/{org_id}/groups/{org_group_id}/profile/name",
@@ -97,7 +97,7 @@ def test_org_group_profile_prop(requests_mock):
         text=partial(verify_read, "desc", org_group_description),
     )
 
-    # basic profile options
+    # basic config options
     for opt in [
         "allow_inbound_mail",
         "mail_verify_dkim",
@@ -129,43 +129,43 @@ def test_org_group_profile_prop(requests_mock):
         config_path=config_file,
     )
 
-    assert g.profile.name == "NA"
-    assert g.profile.description == "NA"
+    assert g.config.name == "NA"
+    assert g.config.description == "NA"
 
     # Test basic properties
-    g.profile.name = org_group_name
-    g.profile.description = org_group_description
+    g.config.name = org_group_name
+    g.config.description = org_group_description
 
-    assert g.profile.name == org_group_name
-    assert g.profile.description == org_group_description
+    assert g.config.name == org_group_name
+    assert g.config.description == org_group_description
 
-    assert g.profile.options.is_open is False
-    g.profile.options.is_open = True
-    assert g.profile.options.is_open is True
+    assert g.config.options.is_open is False
+    g.config.options.is_open = True
+    assert g.config.options.is_open is True
 
-    assert g.profile.options.allow_inbound_mail is False
-    g.profile.options.allow_inbound_mail = True
-    assert g.profile.options.allow_inbound_mail is True
+    assert g.config.options.allow_inbound_mail is False
+    g.config.options.allow_inbound_mail = True
+    assert g.config.options.allow_inbound_mail is True
 
-    assert g.profile.options.mail_verify_dkim is False
-    g.profile.options.mail_verify_dkim = True
-    assert g.profile.options.mail_verify_dkim is True
+    assert g.config.options.mail_verify_dkim is False
+    g.config.options.mail_verify_dkim = True
+    assert g.config.options.mail_verify_dkim is True
 
-    assert g.profile.options.mail_verify_spf is False
-    g.profile.options.mail_verify_spf = True
-    assert g.profile.options.mail_verify_spf is True
+    assert g.config.options.mail_verify_spf is False
+    g.config.options.mail_verify_spf = True
+    assert g.config.options.mail_verify_spf is True
 
-    assert g.profile.options.show_members is False
-    g.profile.options.show_members = True
-    assert g.profile.options.show_members is True
+    assert g.config.options.show_members is False
+    g.config.options.show_members = True
+    assert g.config.options.show_members is True
 
-    assert g.profile.options.show_description is False
-    g.profile.options.show_description = True
-    assert g.profile.options.show_description is True
+    assert g.config.options.show_description is False
+    g.config.options.show_description = True
+    assert g.config.options.show_description is True
 
-    assert g.profile.options.show_profile is False
-    g.profile.options.show_profile = True
-    assert g.profile.options.show_profile is True
+    assert g.config.options.show_profile is False
+    g.config.options.show_profile = True
+    assert g.config.options.show_profile is True
 
     # Verify all operations were performed
     for k, v in gcheck.items():
@@ -174,7 +174,7 @@ def test_org_group_profile_prop(requests_mock):
     assert g._api_root == "https://api.novem.io/v1/"
 
 
-def test_org_group_profile_dict(requests_mock):
+def test_org_group_config_dict(requests_mock):
     org_id = "test_org"
 
     org_group_id = "test_org_group"
@@ -240,7 +240,7 @@ def test_org_group_profile_dict(requests_mock):
         text=verify_create,
     )
 
-    # basic profile settings
+    # basic config settings
     requests_mock.register_uri(
         "post",
         f"{api_root}admin/orgs/{org_id}/groups/{org_group_id}/profile/name",
@@ -264,7 +264,7 @@ def test_org_group_profile_dict(requests_mock):
         text=partial(verify_read, "desc", org_group_description),
     )
 
-    # basic profile options
+    # basic config options
     for opt in [
         "allow_inbound_mail",
         "mail_verify_dkim",
@@ -294,7 +294,7 @@ def test_org_group_profile_dict(requests_mock):
     g = o.Group(
         org_group_id,
         config_path=config_file,
-        profile={
+        config={
             "name": org_group_name,
             "description": org_group_description,
             "options": {
@@ -308,19 +308,19 @@ def test_org_group_profile_dict(requests_mock):
         },
     )
 
-    assert g.profile.name == org_group_name
-    assert g.profile.description == org_group_description
-    assert g.profile.options.is_open is True
-    assert g.profile.options.allow_inbound_mail is True
-    assert g.profile.options.mail_verify_dkim is True
-    assert g.profile.options.mail_verify_spf is False
-    assert g.profile.options.show_members is True
-    assert g.profile.options.show_description is True
-    assert g.profile.options.show_profile is True
+    assert g.config.name == org_group_name
+    assert g.config.description == org_group_description
+    assert g.config.options.is_open is True
+    assert g.config.options.allow_inbound_mail is True
+    assert g.config.options.mail_verify_dkim is True
+    assert g.config.options.mail_verify_spf is False
+    assert g.config.options.show_members is True
+    assert g.config.options.show_description is True
+    assert g.config.options.show_profile is True
 
     # fianl toggle test
-    g.profile.options.mail_verify_spf = True
-    assert g.profile.options.mail_verify_spf is True
+    g.config.options.mail_verify_spf = True
+    assert g.config.options.mail_verify_spf is True
 
     # Verify all operations were performed
     for k, v in gcheck.items():
@@ -627,3 +627,63 @@ def test_org_group_permissions(requests_mock):
     assert g.w("permissions", "rax").permissions == "rax"
 
     assert g.get_share_string() == f"+{org_id}~{org_group_id}~rax"
+
+
+def test_group_profile_selects_the_connection(requests_mock):
+    """`profile` picks the account to connect as; group settings are `config`."""
+    import configparser
+    import os
+
+    from novem import Org
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    conf = configparser.ConfigParser()
+    conf.read(config_file)
+    api_root = conf["general"]["api_root"]
+    token = conf["profile:demo"]["token"]
+
+    written = {}
+    requests_mock.register_uri("put", f"{api_root}admin/orgs/test_org", text="")
+    requests_mock.register_uri("put", f"{api_root}admin/orgs/test_org/groups/test_group", text="")
+    requests_mock.register_uri(
+        "post",
+        f"{api_root}admin/orgs/test_org/groups/test_group/profile/options/allow_inbound_mail",
+        text=lambda request, context: written.setdefault("allow_inbound_mail", request.text) and "",
+    )
+
+    org = Org("test_org", profile="demo", config_path=config_file)
+    group = org.Group(
+        "test_group",
+        profile="demo",
+        config={"options": {"allow_inbound_mail": True}},
+        config_path=config_file,
+    )
+
+    assert written == {"allow_inbound_mail": "yes"}
+    assert group.token == token
+    for request in requests_mock.request_history:
+        assert request.headers["Authorization"] == f"Bearer {token}"
+
+
+def test_group_option_reads_ignore_the_trailing_newline(requests_mock):
+    import configparser
+    import os
+
+    from novem import Org
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    config_file = f"{base}/test.conf"
+    conf = configparser.ConfigParser()
+    conf.read(config_file)
+    api_root = conf["general"]["api_root"]
+
+    root = f"{api_root}admin/orgs/test_org/groups/test_group"
+    requests_mock.register_uri("get", f"{root}/profile/options/allow_inbound_mail", text="yes\n")
+    requests_mock.register_uri("get", f"{root}/profile/options/mail_verify_spf", text="no\n")
+
+    group = Org("test_org", create=False, config_path=config_file).Group(
+        "test_group", create=False, config_path=config_file
+    )
+    assert group.config.options.allow_inbound_mail is True
+    assert group.config.options.mail_verify_spf is False
